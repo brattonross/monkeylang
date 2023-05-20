@@ -1,7 +1,9 @@
 {
   "name": "interpreter",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
+    "repl": "tsx ./repl.ts",
     "test": "vitest"
   },
   "keywords": [],
@@ -10,6 +12,7 @@
   "devDependencies": {
     "@types/node": "^20.2.1",
     "prettier": "^2.8.8",
+    "tsx": "^3.12.7",
     "typescript": "^5.0.4",
     "vite": "^4.3.8",
     "vitest": "^0.31.1"

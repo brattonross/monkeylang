@@ -1,4 +1,4 @@
-import { Token, lookupIdent } from "./token";
+import { Token, lookupIdent } from "./token.ts";
 
 function isLetter(ch: string): boolean {
   return ("a" <= ch && ch <= "z") || ("A" <= ch && ch <= "Z") || ch === "_";
@@ -75,9 +75,6 @@ export class Lexer {
       case ",":
         token = new Token("COMMA", this.#ch);
         break;
-      case "+":
-        token = new Token("PLUS", this.#ch);
-        break;
       case "{":
         token = new Token("LBRACE", this.#ch);
         break;
@@ -108,7 +105,7 @@ export class Lexer {
     if (this.#readPosition >= this.#input.length) {
       return "\0";
     } else {
-      return this.#input[this.#readPosition];
+      return this.#input[this.#readPosition]!;
     }
   }
 
@@ -116,7 +113,7 @@ export class Lexer {
     if (this.#readPosition >= this.#input.length) {
       this.#ch = "\0";
     } else {
-      this.#ch = this.#input[this.#readPosition];
+      this.#ch = this.#input[this.#readPosition]!;
     }
 
     this.#position = this.#readPosition;

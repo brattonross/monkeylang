@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import { Lexer } from "./lexer";
-import { TokenType } from "./token";
+import { Lexer } from "./lexer.ts";
+import type { TokenType } from "./token.ts";
 
 test("nextToken", () => {
   const input = `let five = 5;
