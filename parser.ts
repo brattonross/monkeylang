@@ -1,4 +1,10 @@
-import { Identifier, LetStatement, Program, type Statement } from "./ast.ts";
+import {
+  Identifier,
+  LetStatement,
+  Program,
+  ReturnStatement,
+  type Statement,
+} from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token } from "./token.ts";
 
@@ -41,6 +47,8 @@ export class Parser {
     switch (this.#currentToken.type) {
       case "LET":
         return this.#parseLetStatement();
+      case "RETURN":
+        return this.#parseReturnStatement();
       default:
         return null;
     }
@@ -64,6 +72,18 @@ export class Parser {
     }
 
     return new LetStatement(token, name, null);
+  }
+
+  #parseReturnStatement(): Statement | null {
+    const token = this.#currentToken;
+
+    this.#nextToken();
+
+    while (this.#currentToken.type !== "SEMICOLON") {
+      this.#nextToken();
+    }
+
+    return new ReturnStatement(token, null);
   }
 
   #expectPeek(type: string): boolean {

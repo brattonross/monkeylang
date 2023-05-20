@@ -38,3 +38,11 @@ export class LetStatement implements Statement {
     return this.token.literal;
   }
 }
+
+export class ReturnStatement implements Statement {
+  public constructor(public token: Token, public returnValue: Expression) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+}
