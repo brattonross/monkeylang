@@ -26,28 +26,63 @@ export class Lexer {
 
     switch (this.#ch) {
       case "=":
-        token = new Token("=", this.#ch);
-        break;
-      case ";":
-        token = new Token(";", this.#ch);
-        break;
-      case "(":
-        token = new Token("(", this.#ch);
-        break;
-      case ")":
-        token = new Token(")", this.#ch);
-        break;
-      case ",":
-        token = new Token(",", this.#ch);
+        if (this.#peekChar() === "=") {
+          const ch = this.#ch;
+          this.#readChar();
+          const literal = ch + this.#ch;
+          token = new Token("EQ", literal);
+        } else {
+          token = new Token("ASSIGN", this.#ch);
+        }
         break;
       case "+":
-        token = new Token("+", this.#ch);
+        token = new Token("PLUS", this.#ch);
+        break;
+      case "-":
+        token = new Token("MINUS", this.#ch);
+        break;
+      case "!":
+        if (this.#peekChar() === "=") {
+          const ch = this.#ch;
+          this.#readChar();
+          const literal = ch + this.#ch;
+          token = new Token("NOT_EQ", literal);
+        } else {
+          token = new Token("BANG", this.#ch);
+        }
+        break;
+      case "/":
+        token = new Token("SLASH", this.#ch);
+        break;
+      case "*":
+        token = new Token("ASTERISK", this.#ch);
+        break;
+      case "<":
+        token = new Token("LT", this.#ch);
+        break;
+      case ">":
+        token = new Token("GT", this.#ch);
+        break;
+      case ";":
+        token = new Token("SEMICOLON", this.#ch);
+        break;
+      case "(":
+        token = new Token("LPAREN", this.#ch);
+        break;
+      case ")":
+        token = new Token("RPAREN", this.#ch);
+        break;
+      case ",":
+        token = new Token("COMMA", this.#ch);
+        break;
+      case "+":
+        token = new Token("PLUS", this.#ch);
         break;
       case "{":
-        token = new Token("{", this.#ch);
+        token = new Token("LBRACE", this.#ch);
         break;
       case "}":
-        token = new Token("}", this.#ch);
+        token = new Token("RBRACE", this.#ch);
         break;
       case "\0":
         token = new Token("EOF", "");
@@ -67,6 +102,14 @@ export class Lexer {
 
     this.#readChar();
     return token;
+  }
+
+  #peekChar(): string {
+    if (this.#readPosition >= this.#input.length) {
+      return "\0";
+    } else {
+      return this.#input[this.#readPosition];
+    }
   }
 
   #readChar(): void {
