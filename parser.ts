@@ -6,6 +6,7 @@ export class Parser {
   #lexer: Lexer;
   #currentToken: Token;
   #peekToken: Token;
+  #errors: Array<string> = [];
 
   public constructor(lexer: Lexer) {
     this.#lexer = lexer;
@@ -25,6 +26,10 @@ export class Parser {
     }
 
     return program;
+  }
+
+  public get errors(): Array<string> {
+    return this.#errors;
   }
 
   #nextToken(): void {
@@ -66,7 +71,14 @@ export class Parser {
       this.#nextToken();
       return true;
     } else {
+      this.#peekError(type);
       return false;
     }
+  }
+
+  #peekError(type: string): void {
+    this.#errors.push(
+      `expected next token to be ${type}, got ${this.#peekToken.type} instead`
+    );
   }
 }

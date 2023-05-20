@@ -14,13 +14,13 @@ test("let statements", () => {
   const parser = new Parser(lexer);
 
   const program = parser.parseProgram();
-
+  expect(parser.errors.length).toBe(0);
   expect(program.statements.length).toBe(3);
 
   const tests = ["x", "y", "foobar"];
 
   for (let i = 0; i < tests.length; i++) {
-    const statement = program.statements[i];
+    const statement = program.statements[i]!;
     expect(statement.tokenLiteral()).toBe("let");
 
     const letStatement = statement as LetStatement;
