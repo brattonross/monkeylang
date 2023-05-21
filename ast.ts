@@ -1,6 +1,7 @@
 import type { Token } from "./token.ts";
 
 export type Node = {
+  readonly type: string;
   tokenLiteral(): string;
 };
 
@@ -9,6 +10,8 @@ export type Node = {
  * -------------------------------------------------------------------------- */
 
 export class IdentifierExpression implements Node {
+  public readonly type = "IDENTIFIER_EXPRESSION";
+
   public constructor(public token: Token, public value: string) { }
 
   public tokenLiteral(): string {
@@ -21,6 +24,8 @@ export class IdentifierExpression implements Node {
 }
 
 export class IntegerExpression implements Node {
+  public readonly type = "INTEGER_EXPRESSION";
+
   public constructor(public token: Token, public value: number) { }
 
   public tokenLiteral(): string {
@@ -33,6 +38,8 @@ export class IntegerExpression implements Node {
 }
 
 export class PrefixExpression implements Node {
+  public readonly type = "PREFIX_EXPRESSION";
+
   public constructor(
     public token: Token,
     public operator: string,
@@ -49,6 +56,8 @@ export class PrefixExpression implements Node {
 }
 
 export class InfixExpression implements Node {
+  public readonly type = "INFIX_EXPRESSION";
+
   public constructor(
     public token: Token,
     public left: Expression | null,
@@ -67,6 +76,8 @@ export class InfixExpression implements Node {
 }
 
 export class BooleanExpression implements Node {
+  public readonly type = "BOOLEAN_EXPRESSION";
+
   public constructor(public token: Token, public value: boolean) { }
 
   public tokenLiteral(): string {
@@ -79,6 +90,8 @@ export class BooleanExpression implements Node {
 }
 
 export class IfExpression implements Node {
+  public readonly type = "IF_EXPRESSION";
+
   public constructor(
     public token: Token,
     public condition: Expression | null,
@@ -100,6 +113,8 @@ export class IfExpression implements Node {
 }
 
 export class FunctionExpression implements Node {
+  public readonly type = "FUNCTION_EXPRESSION";
+
   public constructor(
     public token: Token,
     public parameters: Array<IdentifierExpression>,
@@ -122,6 +137,8 @@ export class FunctionExpression implements Node {
 }
 
 export class CallExpression implements Node {
+  public readonly type = "CALL_EXPRESSION";
+
   public constructor(
     public token: Token,
     public func: Expression | null,
@@ -156,7 +173,7 @@ export type Expression =
  * -------------------------------------------------------------------------- */
 
 export class LetStatement implements Node {
-  public readonly type = "LetStatement";
+  public readonly type = "LET_STATEMENT";
 
   public constructor(
     public token: Token,
@@ -175,7 +192,7 @@ export class LetStatement implements Node {
 }
 
 export class ReturnStatement implements Node {
-  public readonly type = "ReturnStatement";
+  public readonly type = "RETURN_STATEMENT";
 
   public constructor(
     public token: Token,
@@ -193,7 +210,7 @@ export class ReturnStatement implements Node {
 }
 
 export class ExpressionStatement implements Node {
-  public readonly type = "ExpressionStatement";
+  public readonly type = "EXPRESSION_STATEMENT";
 
   public constructor(
     public token: Token,
@@ -210,7 +227,7 @@ export class ExpressionStatement implements Node {
 }
 
 export class BlockStatement implements Node {
-  public readonly type = "BlockStatement";
+  public readonly type = "BLOCK_STATEMENT";
 
   public constructor(
     public token: Token,
@@ -239,6 +256,8 @@ export type Statement =
 /* -------------------------------------------------------------------------- */
 
 export class Program implements Node {
+  public readonly type = "PROGRAM";
+
   public constructor(public statements: Array<Statement> = []) { }
 
   public tokenLiteral(): string {
