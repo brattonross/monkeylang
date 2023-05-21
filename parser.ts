@@ -134,11 +134,15 @@ export class Parser {
       return null;
     }
 
+    this.#nextToken();
+
+    const value = this.#parseExpression(Precedence.LOWEST);
+
     while (this.#currentToken.type !== "SEMICOLON") {
       this.#nextToken();
     }
 
-    return new LetStatement(token, name, null);
+    return new LetStatement(token, name, value);
   }
 
   #parseReturnStatement(): Statement | null {
@@ -146,11 +150,13 @@ export class Parser {
 
     this.#nextToken();
 
+    const returnValue = this.#parseExpression(Precedence.LOWEST);
+
     while (this.#currentToken.type !== "SEMICOLON") {
       this.#nextToken();
     }
 
-    return new ReturnStatement(token, null);
+    return new ReturnStatement(token, returnValue);
   }
 
   #parseExpressionStatement(): Statement {

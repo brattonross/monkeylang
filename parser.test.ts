@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import type {
   BooleanExpression,
   CallExpression,
+  Expression,
   ExpressionStatement,
   FunctionExpression,
   IdentifierExpression,
@@ -10,52 +11,68 @@ import type {
   IntegerExpression,
   LetStatement,
   PrefixExpression,
+  ReturnStatement,
 } from "./ast.ts";
 import { Lexer } from "./lexer.ts";
 import { Parser } from "./parser.ts";
 
 test("let statements", () => {
-  const input = `
-let x = 5;
-let y = 10;
-let foobar = 838383;
-`;
+  const tests = [
+    ["let x = 5;", "x", 5],
+    ["let y = true;", "y", true],
+    ["let foobar = y;", "foobar", "y"],
+  ] as const;
 
-  const lexer = new Lexer(input);
-  const parser = new Parser(lexer);
+  for (const [input, expectedIdentifier, expectedValue] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
 
-  const program = parser.parseProgram();
-  expect(parser.errors.length).toBe(0);
-  expect(program.statements.length).toBe(3);
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.statements.length).toBe(1);
 
-  const tests = ["x", "y", "foobar"];
-
-  for (let i = 0; i < tests.length; i++) {
-    const statement = program.statements[i]!;
+    const statement = program.statements[0] as LetStatement;
     expect(statement.tokenLiteral()).toBe("let");
+    expect(statement.name.value).toBe(expectedIdentifier);
+    expect(statement.name.tokenLiteral()).toBe(expectedIdentifier);
 
-    const letStatement = statement as LetStatement;
-    expect(letStatement.name.value).toBe(tests[i]);
-    expect(letStatement.name.tokenLiteral()).toBe(tests[i]);
+    const value = statement.value!;
+    if (!("value" in value)) {
+      throw new Error(
+        "Expected value to be an expression with a value property"
+      );
+    }
+    expect(value.value).toBe(expectedValue);
+    expect(value.tokenLiteral()).toBe(expectedValue.toString());
   }
 });
 
 test("return statements", () => {
-  const input = `
-return 5;
-return 10;
-return 993322;
-`;
+  const tests = [
+    ["return 5;", 5],
+    ["return true;", true],
+    ["return foobar;", "foobar"],
+  ] as const;
 
-  const lexer = new Lexer(input);
-  const parser = new Parser(lexer);
+  for (const [input, expectedValue] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
 
-  const program = parser.parseProgram();
-  expect(parser.errors.length).toBe(0);
-  expect(program.statements.length).toBe(3);
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.statements.length).toBe(1);
 
-  for (const statement of program.statements) {
+    const statement = program.statements[0] as ReturnStatement;
     expect(statement.tokenLiteral()).toBe("return");
+
+    const value = statement.returnValue!;
+    if (!("value" in value)) {
+      throw new Error(
+        "Expected value to be an expression with a value property"
+      );
+    }
+    expect(value.value).toBe(expectedValue);
+    expect(value.tokenLiteral()).toBe(expectedValue.toString());
   }
 });
 
