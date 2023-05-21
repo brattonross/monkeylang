@@ -2,9 +2,10 @@ import { expect, test } from "vitest";
 import type {
   BooleanExpression,
   ExpressionStatement,
-  Identifier,
+  IdentifierExpression,
+  IfExpression,
   InfixExpression,
-  IntegerLiteral,
+  IntegerExpression,
   LetStatement,
   PrefixExpression,
 } from "./ast.ts";
@@ -67,7 +68,7 @@ test("identifier expression", () => {
   expect(program.statements.length).toBe(1);
 
   const statement = program.statements[0] as ExpressionStatement;
-  const identifier = statement.expression as Identifier;
+  const identifier = statement.expression as IdentifierExpression;
 
   expect(identifier.value).toBe("foobar");
   expect(identifier.tokenLiteral()).toBe("foobar");
@@ -84,7 +85,7 @@ test("integer literal expression", () => {
   expect(program.statements.length).toBe(1);
 
   const statement = program.statements[0] as ExpressionStatement;
-  const literal = statement.expression as IntegerLiteral;
+  const literal = statement.expression as IntegerExpression;
   expect(literal.value).toBe(5);
   expect(literal.tokenLiteral()).toBe("5");
 });
@@ -110,7 +111,7 @@ test("prefix expression", () => {
 
     expect(expression.operator).toBe(operator);
 
-    const integerLiteral = expression.right as IntegerLiteral;
+    const integerLiteral = expression.right as IntegerExpression;
     expect(integerLiteral.value).toBe(value);
     expect(integerLiteral.tokenLiteral()).toBe(`${value}`);
   }
@@ -142,13 +143,13 @@ test("infix expressions", () => {
     const statement = program.statements[0] as ExpressionStatement;
     const expression = statement.expression as InfixExpression;
 
-    const left = expression.left as IntegerLiteral;
+    const left = expression.left as IntegerExpression;
     expect(left.value).toBe(leftValue);
     expect(left.tokenLiteral()).toBe(`${leftValue}`);
 
     expect(expression.operator).toBe(operator);
 
-    const right = expression.right as IntegerLiteral;
+    const right = expression.right as IntegerExpression;
     expect(right.value).toBe(rightValue);
     expect(right.tokenLiteral()).toBe(`${rightValue}`);
   }
@@ -209,4 +210,60 @@ test("boolean expression", () => {
     expect(boolean.value).toBe(value);
     expect(boolean.tokenLiteral()).toBe(`${value}`);
   }
+});
+
+test("if expression", () => {
+  const input = "if (x < y) { x }";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as IfExpression;
+
+  expect(expression.condition?.toString()).toBe("(x < y)");
+  expect(expression.consequence?.statements.length).toBe(1);
+
+  const consequence = expression.consequence
+    ?.statements[0] as ExpressionStatement;
+  const identifier = consequence.expression as IdentifierExpression;
+  expect(identifier.value).toBe("x");
+  expect(identifier.tokenLiteral()).toBe("x");
+
+  expect(expression.alternative).toBeNull();
+});
+
+test("if else expression", () => {
+  const input = "if (x < y) { x } else { y }";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as IfExpression;
+
+  expect(expression.condition?.toString()).toBe("(x < y)");
+  expect(expression.consequence?.statements.length).toBe(1);
+
+  const consequence = expression.consequence
+    ?.statements[0] as ExpressionStatement;
+  const identifier = consequence.expression as IdentifierExpression;
+  expect(identifier.value).toBe("x");
+  expect(identifier.tokenLiteral()).toBe("x");
+
+  expect(expression.alternative?.statements.length).toBe(1);
+
+  const alternative = expression.alternative
+    ?.statements[0] as ExpressionStatement;
+  const identifier2 = alternative.expression as IdentifierExpression;
+  expect(identifier2.value).toBe("y");
+  expect(identifier2.tokenLiteral()).toBe("y");
 });

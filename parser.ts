@@ -1,15 +1,17 @@
 import {
-  Identifier,
+  IdentifierExpression,
   LetStatement,
   Program,
   ReturnStatement,
   type Expression,
   type Statement,
   ExpressionStatement,
-  IntegerLiteral,
+  IntegerExpression,
   PrefixExpression,
   InfixExpression,
   BooleanExpression,
+  IfExpression,
+  BlockStatement,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -63,6 +65,7 @@ export class Parser {
       ["TRUE", this.#parseBoolean.bind(this)],
       ["FALSE", this.#parseBoolean.bind(this)],
       ["LPAREN", this.#parseGroupedExpression.bind(this)],
+      ["IF", this.#parseIfExpression.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -117,7 +120,10 @@ export class Parser {
       return null;
     }
 
-    const name = new Identifier(this.#currentToken, this.#currentToken.literal);
+    const name = new IdentifierExpression(
+      this.#currentToken,
+      this.#currentToken.literal
+    );
 
     if (!this.#expectPeek("ASSIGN")) {
       return null;
@@ -184,7 +190,10 @@ export class Parser {
   }
 
   #parseIdentifier(): Expression {
-    return new Identifier(this.#currentToken, this.#currentToken.literal);
+    return new IdentifierExpression(
+      this.#currentToken,
+      this.#currentToken.literal
+    );
   }
 
   #parseIntegerLiteral(): Expression | null {
@@ -194,7 +203,7 @@ export class Parser {
       this.#errors.push(`could not parse ${token.literal} as integer`);
       return null;
     }
-    return new IntegerLiteral(token, value);
+    return new IntegerExpression(token, value);
   }
 
   #parsePrefixExpression(): Expression {
@@ -238,6 +247,60 @@ export class Parser {
     }
 
     return expression;
+  }
+
+  #parseIfExpression(): Expression | null {
+    const token = this.#currentToken;
+
+    if (!this.#expectPeek("LPAREN")) {
+      return null;
+    }
+
+    this.#nextToken();
+    const condition = this.#parseExpression(Precedence.LOWEST);
+
+    if (!this.#expectPeek("RPAREN")) {
+      return null;
+    }
+
+    if (!this.#expectPeek("LBRACE")) {
+      return null;
+    }
+
+    const consequence = this.#parseBlockStatement();
+
+    let alternative: BlockStatement | null = null;
+    if (this.#peekToken.type === "ELSE") {
+      this.#nextToken();
+
+      if (!this.#expectPeek("LBRACE")) {
+        return null;
+      }
+
+      alternative = this.#parseBlockStatement();
+    }
+
+    return new IfExpression(token, condition, consequence, alternative);
+  }
+
+  #parseBlockStatement(): BlockStatement {
+    const token = this.#currentToken;
+    const statements = [];
+
+    this.#nextToken();
+
+    while (
+      this.#currentToken.type !== "RBRACE" &&
+      this.#currentToken.type !== "EOF"
+    ) {
+      const statement = this.#parseStatement();
+      if (statement !== null) {
+        statements.push(statement);
+      }
+      this.#nextToken();
+    }
+
+    return new BlockStatement(token, statements);
   }
 
   #peekPrecedence(): number {

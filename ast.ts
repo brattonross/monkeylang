@@ -8,7 +8,7 @@ export type Node = {
  * Expressions
  * -------------------------------------------------------------------------- */
 
-export class Identifier implements Node {
+export class IdentifierExpression implements Node {
   public constructor(public token: Token, public value: string) { }
 
   public tokenLiteral(): string {
@@ -20,7 +20,7 @@ export class Identifier implements Node {
   }
 }
 
-export class IntegerLiteral implements Node {
+export class IntegerExpression implements Node {
   public constructor(public token: Token, public value: number) { }
 
   public tokenLiteral(): string {
@@ -78,11 +78,34 @@ export class BooleanExpression implements Node {
   }
 }
 
+export class IfExpression implements Node {
+  public constructor(
+    public token: Token,
+    public condition: Expression | null,
+    public consequence: BlockStatement | null,
+    public alternative: BlockStatement | null
+  ) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    let result = `if ${this.condition?.toString()} ${this.consequence?.toString()}`;
+    if (this.alternative) {
+      result += `else ${this.alternative.toString()}`;
+    }
+    return result;
+  }
+}
+
 export type Expression =
-  | Identifier
-  | IntegerLiteral
+  | IdentifierExpression
+  | IntegerExpression
   | PrefixExpression
-  | BooleanExpression;
+  | InfixExpression
+  | BooleanExpression
+  | IfExpression;
 
 /* ----------------------------------------------------------------------------
  * Statements
@@ -93,7 +116,7 @@ export class LetStatement implements Node {
 
   public constructor(
     public token: Token,
-    public name: Identifier,
+    public name: IdentifierExpression,
     public value: Expression | null
   ) { }
 
@@ -142,7 +165,32 @@ export class ExpressionStatement implements Node {
   }
 }
 
-export type Statement = LetStatement | ReturnStatement | ExpressionStatement;
+export class BlockStatement implements Node {
+  public readonly type = "BlockStatement";
+
+  public constructor(
+    public token: Token,
+    public statements: Array<Statement>
+  ) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    let out = "";
+    for (let i = 0; i < this.statements.length; i++) {
+      out += this.statements[i]!.toString();
+    }
+    return out;
+  }
+}
+
+export type Statement =
+  | LetStatement
+  | ReturnStatement
+  | ExpressionStatement
+  | BlockStatement;
 
 /* -------------------------------------------------------------------------- */
 
