@@ -48,6 +48,24 @@ export class PrefixExpression implements Node {
   }
 }
 
+export class InfixExpression implements Node {
+  public constructor(
+    public token: Token,
+    public left: Expression | null,
+    public operator: string,
+    public right: Expression | null
+  ) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    return `(${this.left?.toString()} ${this.operator
+      } ${this.right?.toString()})`;
+  }
+}
+
 export type Expression = Identifier | IntegerLiteral | PrefixExpression;
 
 /* ----------------------------------------------------------------------------

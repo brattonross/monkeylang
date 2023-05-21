@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import type {
   ExpressionStatement,
   Identifier,
+  InfixExpression,
   IntegerLiteral,
   LetStatement,
   PrefixExpression,
@@ -109,5 +110,66 @@ test("prefix expression", () => {
     const integerLiteral = expression.right as IntegerLiteral;
     expect(integerLiteral.value).toBe(value);
     expect(integerLiteral.tokenLiteral()).toBe(`${value}`);
+  }
+});
+
+test("infix expressions", () => {
+  const tests = [
+    ["5 + 5;", 5, "+", 5],
+    ["5 - 5;", 5, "-", 5],
+    ["5 * 5;", 5, "*", 5],
+    ["5 / 5;", 5, "/", 5],
+    ["5 > 5;", 5, ">", 5],
+    ["5 < 5;", 5, "<", 5],
+    ["5 == 5;", 5, "==", 5],
+    ["5 != 5;", 5, "!=", 5],
+  ] as const;
+
+  for (const [input, leftValue, operator, rightValue] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.statements.length).toBe(1);
+
+    const statement = program.statements[0] as ExpressionStatement;
+    const expression = statement.expression as InfixExpression;
+
+    const left = expression.left as IntegerLiteral;
+    expect(left.value).toBe(leftValue);
+    expect(left.tokenLiteral()).toBe(`${leftValue}`);
+
+    expect(expression.operator).toBe(operator);
+
+    const right = expression.right as IntegerLiteral;
+    expect(right.value).toBe(rightValue);
+    expect(right.tokenLiteral()).toBe(`${rightValue}`);
+  }
+});
+
+test("operator precedence", () => {
+  const tests = [
+    ["-a * b", "((-a) * b)"],
+    ["!-a", "(!(-a))"],
+    ["a + b + c", "((a + b) + c)"],
+    ["a + b - c", "((a + b) - c)"],
+    ["a * b * c", "((a * b) * c)"],
+    ["a * b / c", "((a * b) / c)"],
+    ["a + b / c", "(a + (b / c))"],
+    ["a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"],
+    ["3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"],
+    ["5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"],
+    ["5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"],
+    ["3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.toString()).toBe(expected);
   }
 });
