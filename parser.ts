@@ -9,6 +9,7 @@ import {
   IntegerLiteral,
   PrefixExpression,
   InfixExpression,
+  BooleanExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -59,6 +60,8 @@ export class Parser {
       ["INT", this.#parseIntegerLiteral.bind(this)],
       ["BANG", this.#parsePrefixExpression.bind(this)],
       ["MINUS", this.#parsePrefixExpression.bind(this)],
+      ["TRUE", this.#parseBoolean.bind(this)],
+      ["FALSE", this.#parseBoolean.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -215,6 +218,13 @@ export class Parser {
     const right = this.#parseExpression(precedence);
 
     return new InfixExpression(token, left, operator, right);
+  }
+
+  #parseBoolean(): Expression {
+    return new BooleanExpression(
+      this.#currentToken,
+      this.#currentToken.type === "TRUE"
+    );
   }
 
   #peekPrecedence(): number {

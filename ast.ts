@@ -66,7 +66,23 @@ export class InfixExpression implements Node {
   }
 }
 
-export type Expression = Identifier | IntegerLiteral | PrefixExpression;
+export class BooleanExpression implements Node {
+  public constructor(public token: Token, public value: boolean) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    return this.token.literal;
+  }
+}
+
+export type Expression =
+  | Identifier
+  | IntegerLiteral
+  | PrefixExpression
+  | BooleanExpression;
 
 /* ----------------------------------------------------------------------------
  * Statements

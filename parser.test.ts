@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import type {
+  BooleanExpression,
   ExpressionStatement,
   Identifier,
   InfixExpression,
@@ -92,6 +93,8 @@ test("prefix expression", () => {
   const tests = [
     ["!5;", "!", 5],
     ["-15;", "-", 15],
+    ["!true;", "!", true],
+    ["!false;", "!", false],
   ] as const;
 
   for (const [input, operator, value] of tests) {
@@ -123,6 +126,9 @@ test("infix expressions", () => {
     ["5 < 5;", 5, "<", 5],
     ["5 == 5;", 5, "==", 5],
     ["5 != 5;", 5, "!=", 5],
+    ["true == true", true, "==", true],
+    ["true != false", true, "!=", false],
+    ["false == false", false, "==", false],
   ] as const;
 
   for (const [input, leftValue, operator, rightValue] of tests) {
@@ -162,6 +168,10 @@ test("operator precedence", () => {
     ["5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"],
     ["5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"],
     ["3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"],
+    ["true", "true"],
+    ["false", "false"],
+    ["3 > 5 == false", "((3 > 5) == false)"],
+    ["3 < 5 == true", "((3 < 5) == true)"],
   ] as const;
 
   for (const [input, expected] of tests) {
@@ -171,5 +181,27 @@ test("operator precedence", () => {
     const program = parser.parseProgram();
     expect(parser.errors.length).toBe(0);
     expect(program.toString()).toBe(expected);
+  }
+});
+
+test("boolean expression", () => {
+  const tests = [
+    ["true;", true],
+    ["false;", false],
+  ] as const;
+
+  for (const [input, value] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.statements.length).toBe(1);
+
+    const statement = program.statements[0] as ExpressionStatement;
+    const boolean = statement.expression as BooleanExpression;
+
+    expect(boolean.value).toBe(value);
+    expect(boolean.tokenLiteral()).toBe(`${value}`);
   }
 });
