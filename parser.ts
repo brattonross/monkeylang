@@ -6,11 +6,12 @@ import {
   type Expression,
   type Statement,
   ExpressionStatement,
+  IntegerLiteral,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
 
-type PrefixParseFn = () => Expression;
+type PrefixParseFn = () => Expression | null;
 type InfixParseFn = (expression: Expression) => Expression;
 
 const Precedence = {
@@ -42,6 +43,7 @@ export class Parser {
 
     this.#prefixParseFns = new Map<TokenType, PrefixParseFn>([
       ["IDENT", this.#parseIdentifier.bind(this)],
+      ["INT", this.#parseIntegerLiteral.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>();
   }
@@ -132,9 +134,17 @@ export class Parser {
   }
 
   #parseIdentifier(): Expression {
+    return new Identifier(this.#currentToken, this.#currentToken.literal);
+  }
+
+  #parseIntegerLiteral(): Expression | null {
     const token = this.#currentToken;
-    const value = this.#currentToken.literal;
-    return new Identifier(token, value);
+    const value = Number(this.#currentToken.literal);
+    if (Number.isNaN(value)) {
+      this.#errors.push(`could not parse ${token.literal} as integer`);
+      return null;
+    }
+    return new IntegerLiteral(token, value);
   }
 
   #expectPeek(type: string): boolean {

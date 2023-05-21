@@ -20,7 +20,19 @@ export class Identifier implements Node {
   }
 }
 
-export type Expression = Identifier;
+export class IntegerLiteral implements Node {
+  public constructor(public token: Token, public value: number) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    return this.token.literal;
+  }
+}
+
+export type Expression = Identifier | IntegerLiteral;
 
 /* ----------------------------------------------------------------------------
  * Statements

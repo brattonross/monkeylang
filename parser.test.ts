@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import type { ExpressionStatement, Identifier, LetStatement } from "./ast.ts";
+import type {
+  ExpressionStatement,
+  Identifier,
+  IntegerLiteral,
+  LetStatement,
+} from "./ast.ts";
 import { Lexer } from "./lexer.ts";
 import { Parser } from "./parser.ts";
 
@@ -63,4 +68,20 @@ test("identifier expression", () => {
 
   expect(identifier.value).toBe("foobar");
   expect(identifier.tokenLiteral()).toBe("foobar");
+});
+
+test("integer literal expression", () => {
+  const input = "5;";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const literal = statement.expression as IntegerLiteral;
+  expect(literal.value).toBe(5);
+  expect(literal.tokenLiteral()).toBe("5");
 });
