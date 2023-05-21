@@ -7,6 +7,7 @@ import {
   type Statement,
   ExpressionStatement,
   IntegerLiteral,
+  PrefixExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -44,6 +45,8 @@ export class Parser {
     this.#prefixParseFns = new Map<TokenType, PrefixParseFn>([
       ["IDENT", this.#parseIdentifier.bind(this)],
       ["INT", this.#parseIntegerLiteral.bind(this)],
+      ["BANG", this.#parsePrefixExpression.bind(this)],
+      ["MINUS", this.#parsePrefixExpression.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>();
   }
@@ -125,9 +128,14 @@ export class Parser {
     return new ExpressionStatement(token, expression);
   }
 
+  #noPrefixParseFnError(type: TokenType): void {
+    this.#errors.push(`no prefix parse function for ${type} found`);
+  }
+
   #parseExpression(precedence: number): Expression | null {
     const prefix = this.#prefixParseFns.get(this.#currentToken.type);
     if (prefix === undefined) {
+      this.#noPrefixParseFnError(this.#currentToken.type);
       return null;
     }
     return prefix();
@@ -147,6 +155,19 @@ export class Parser {
     return new IntegerLiteral(token, value);
   }
 
+  #parsePrefixExpression(): Expression {
+    const token = this.#currentToken;
+    const operator = token.literal;
+
+    this.#nextToken();
+
+    return new PrefixExpression(
+      token,
+      operator,
+      this.#parseExpression(Precedence.PREFIX)
+    );
+  }
+
   #expectPeek(type: string): boolean {
     if (this.#peekToken.type === type) {
       this.#nextToken();
@@ -161,13 +182,5 @@ export class Parser {
     this.#errors.push(
       `expected next token to be ${type}, got ${this.#peekToken.type} instead`
     );
-  }
-
-  #registerPrefix(tokenType: TokenType, fn: PrefixParseFn): void {
-    this.#prefixParseFns.set(tokenType, fn);
-  }
-
-  #registerInfix(tokenType: TokenType, fn: InfixParseFn): void {
-    this.#infixParseFns.set(tokenType, fn);
   }
 }

@@ -4,6 +4,7 @@ import type {
   Identifier,
   IntegerLiteral,
   LetStatement,
+  PrefixExpression,
 } from "./ast.ts";
 import { Lexer } from "./lexer.ts";
 import { Parser } from "./parser.ts";
@@ -84,4 +85,29 @@ test("integer literal expression", () => {
   const literal = statement.expression as IntegerLiteral;
   expect(literal.value).toBe(5);
   expect(literal.tokenLiteral()).toBe("5");
+});
+
+test("prefix expression", () => {
+  const tests = [
+    ["!5;", "!", 5],
+    ["-15;", "-", 15],
+  ] as const;
+
+  for (const [input, operator, value] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.statements.length).toBe(1);
+
+    const statement = program.statements[0] as ExpressionStatement;
+    const expression = statement.expression as PrefixExpression;
+
+    expect(expression.operator).toBe(operator);
+
+    const integerLiteral = expression.right as IntegerLiteral;
+    expect(integerLiteral.value).toBe(value);
+    expect(integerLiteral.tokenLiteral()).toBe(`${value}`);
+  }
 });

@@ -32,7 +32,23 @@ export class IntegerLiteral implements Node {
   }
 }
 
-export type Expression = Identifier | IntegerLiteral;
+export class PrefixExpression implements Node {
+  public constructor(
+    public token: Token,
+    public operator: string,
+    public right: Expression | null
+  ) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    return `(${this.operator}${this.right?.toString()})`;
+  }
+}
+
+export type Expression = Identifier | IntegerLiteral | PrefixExpression;
 
 /* ----------------------------------------------------------------------------
  * Statements
