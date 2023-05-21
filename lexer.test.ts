@@ -21,8 +21,7 @@ if (5 < 10) {
 }
 
 10 == 10;
-10 != 9;
-`;
+10 != 9;`;
 
   const tests: Array<{ expectedType: TokenType; expectedLiteral: string }> = [
     { expectedType: "LET", expectedLiteral: "let" },

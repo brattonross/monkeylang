@@ -2,7 +2,6 @@ import { expect, test } from "vitest";
 import type {
   BooleanExpression,
   CallExpression,
-  Expression,
   ExpressionStatement,
   FunctionExpression,
   IdentifierExpression,
