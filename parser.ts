@@ -62,6 +62,7 @@ export class Parser {
       ["MINUS", this.#parsePrefixExpression.bind(this)],
       ["TRUE", this.#parseBoolean.bind(this)],
       ["FALSE", this.#parseBoolean.bind(this)],
+      ["LPAREN", this.#parseGroupedExpression.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -225,6 +226,18 @@ export class Parser {
       this.#currentToken,
       this.#currentToken.type === "TRUE"
     );
+  }
+
+  #parseGroupedExpression(): Expression | null {
+    this.#nextToken();
+
+    const expression = this.#parseExpression(Precedence.LOWEST);
+
+    if (!this.#expectPeek("RPAREN")) {
+      return null;
+    }
+
+    return expression;
   }
 
   #peekPrecedence(): number {
