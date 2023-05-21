@@ -12,6 +12,7 @@ import {
   BooleanExpression,
   IfExpression,
   BlockStatement,
+  FunctionExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -66,6 +67,7 @@ export class Parser {
       ["FALSE", this.#parseBoolean.bind(this)],
       ["LPAREN", this.#parseGroupedExpression.bind(this)],
       ["IF", this.#parseIfExpression.bind(this)],
+      ["FUNCTION", this.#parseFunctionExpression.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -301,6 +303,53 @@ export class Parser {
     }
 
     return new BlockStatement(token, statements);
+  }
+
+  #parseFunctionExpression(): Expression | null {
+    const token = this.#currentToken;
+
+    if (!this.#expectPeek("LPAREN")) {
+      return null;
+    }
+
+    const parameters = this.#parseFunctionParameters();
+
+    if (!this.#expectPeek("LBRACE")) {
+      return null;
+    }
+
+    const body = this.#parseBlockStatement();
+
+    return new FunctionExpression(token, parameters, body);
+  }
+
+  #parseFunctionParameters(): Array<IdentifierExpression> {
+    const identifiers: Array<IdentifierExpression> = [];
+
+    if (this.#peekToken.type === "RPAREN") {
+      this.#nextToken();
+      return identifiers;
+    }
+
+    this.#nextToken();
+
+    identifiers.push(
+      new IdentifierExpression(this.#currentToken, this.#currentToken.literal)
+    );
+
+    while (this.#peekToken.type === "COMMA") {
+      this.#nextToken();
+      this.#nextToken();
+      identifiers.push(
+        new IdentifierExpression(this.#currentToken, this.#currentToken.literal)
+      );
+    }
+
+    if (!this.#expectPeek("RPAREN")) {
+      return [];
+    }
+
+    return identifiers;
   }
 
   #peekPrecedence(): number {

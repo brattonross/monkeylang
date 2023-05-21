@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import type {
   BooleanExpression,
   ExpressionStatement,
+  FunctionExpression,
   IdentifierExpression,
   IfExpression,
   InfixExpression,
@@ -266,4 +267,71 @@ test("if else expression", () => {
   const identifier2 = alternative.expression as IdentifierExpression;
   expect(identifier2.value).toBe("y");
   expect(identifier2.tokenLiteral()).toBe("y");
+});
+
+test("function expression", () => {
+  const input = "fn(x, y) { x + y; }";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as FunctionExpression;
+
+  expect(expression.parameters.length).toBe(2);
+
+  const param1 = expression.parameters[0] as IdentifierExpression;
+  expect(param1.value).toBe("x");
+  expect(param1.tokenLiteral()).toBe("x");
+
+  const param2 = expression.parameters[1] as IdentifierExpression;
+  expect(param2.value).toBe("y");
+  expect(param2.tokenLiteral()).toBe("y");
+
+  expect(expression.body?.statements.length).toBe(1);
+
+  const body = expression.body?.statements[0] as ExpressionStatement;
+  const bodyExpression = body.expression as InfixExpression;
+
+  const left = bodyExpression.left as IdentifierExpression;
+  expect(left.value).toBe("x");
+  expect(left.tokenLiteral()).toBe("x");
+
+  expect(bodyExpression.operator).toBe("+");
+
+  const right = bodyExpression.right as IdentifierExpression;
+  expect(right.value).toBe("y");
+  expect(right.tokenLiteral()).toBe("y");
+});
+
+test("function parameters", () => {
+  const tests = [
+    ["fn() {};", []],
+    ["fn(x) {};", ["x"]],
+    ["fn(x, y, z) {};", ["x", "y", "z"]],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const lexer = new Lexer(input);
+    const parser = new Parser(lexer);
+
+    const program = parser.parseProgram();
+    expect(parser.errors.length).toBe(0);
+    expect(program.statements.length).toBe(1);
+
+    const statement = program.statements[0] as ExpressionStatement;
+    const expression = statement.expression as FunctionExpression;
+
+    expect(expression.parameters.length).toBe(expected.length);
+
+    for (let i = 0; i < expected.length; i++) {
+      const param = expression.parameters[i] as IdentifierExpression;
+      expect(param.value).toBe(expected[i]);
+      expect(param.tokenLiteral()).toBe(expected[i]);
+    }
+  }
 });

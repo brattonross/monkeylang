@@ -99,13 +99,36 @@ export class IfExpression implements Node {
   }
 }
 
+export class FunctionExpression implements Node {
+  public constructor(
+    public token: Token,
+    public parameters: Array<IdentifierExpression>,
+    public body: BlockStatement | null
+  ) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    const params: Array<string> = [];
+    for (let i = 0; i < this.parameters.length; i++) {
+      params.push(this.parameters[i]!.toString());
+    }
+    return `${this.tokenLiteral()}(${params.join(
+      ", "
+    )}) ${this.body?.toString()}`;
+  }
+}
+
 export type Expression =
   | IdentifierExpression
   | IntegerExpression
   | PrefixExpression
   | InfixExpression
   | BooleanExpression
-  | IfExpression;
+  | IfExpression
+  | FunctionExpression;
 
 /* ----------------------------------------------------------------------------
  * Statements
