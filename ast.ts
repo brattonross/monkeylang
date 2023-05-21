@@ -121,6 +121,26 @@ export class FunctionExpression implements Node {
   }
 }
 
+export class CallExpression implements Node {
+  public constructor(
+    public token: Token,
+    public func: Expression | null,
+    public args: Array<Expression>
+  ) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    const args: Array<string> = [];
+    for (let i = 0; i < this.args.length; i++) {
+      args.push(this.args[i]!.toString());
+    }
+    return `${this.func?.toString()}(${args.join(", ")})`;
+  }
+}
+
 export type Expression =
   | IdentifierExpression
   | IntegerExpression
@@ -128,7 +148,8 @@ export type Expression =
   | InfixExpression
   | BooleanExpression
   | IfExpression
-  | FunctionExpression;
+  | FunctionExpression
+  | CallExpression;
 
 /* ----------------------------------------------------------------------------
  * Statements

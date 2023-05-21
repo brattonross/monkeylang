@@ -13,6 +13,7 @@ import {
   IfExpression,
   BlockStatement,
   FunctionExpression,
+  CallExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -39,6 +40,7 @@ const TokenPrecedence = new Map<TokenType, number>([
   ["MINUS", Precedence.SUM],
   ["SLASH", Precedence.PRODUCT],
   ["ASTERISK", Precedence.PRODUCT],
+  ["LPAREN", Precedence.CALL],
 ]);
 
 export class Parser {
@@ -78,6 +80,7 @@ export class Parser {
       ["NOT_EQ", this.#parseInfixExpression.bind(this)],
       ["LT", this.#parseInfixExpression.bind(this)],
       ["GT", this.#parseInfixExpression.bind(this)],
+      ["LPAREN", this.#parseCallExpression.bind(this)],
     ]);
   }
 
@@ -350,6 +353,38 @@ export class Parser {
     }
 
     return identifiers;
+  }
+
+  #parseCallExpression(func: Expression | null): Expression {
+    return new CallExpression(
+      this.#currentToken,
+      func,
+      this.#parseCallArguments()
+    );
+  }
+
+  #parseCallArguments(): Array<Expression> {
+    const args: Array<Expression> = [];
+
+    if (this.#peekToken.type === "RPAREN") {
+      this.#nextToken();
+      return args;
+    }
+
+    this.#nextToken();
+    args.push(this.#parseExpression(Precedence.LOWEST)!);
+
+    while (this.#peekToken.type === "COMMA") {
+      this.#nextToken();
+      this.#nextToken();
+      args.push(this.#parseExpression(Precedence.LOWEST)!);
+    }
+
+    if (!this.#expectPeek("RPAREN")) {
+      return [];
+    }
+
+    return args;
   }
 
   #peekPrecedence(): number {

@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import type {
   BooleanExpression,
+  CallExpression,
   ExpressionStatement,
   FunctionExpression,
   IdentifierExpression,
@@ -179,6 +180,12 @@ test("operator precedence", () => {
     ["2 / (5 + 5)", "(2 / (5 + 5))"],
     ["-(5 + 5)", "(-(5 + 5))"],
     ["!(true == true)", "(!(true == true))"],
+    ["a + add(b * c) + d", "((a + add((b * c))) + d)"],
+    [
+      "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+      "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+    ],
+    ["add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))"],
   ] as const;
 
   for (const [input, expected] of tests) {
@@ -334,4 +341,46 @@ test("function parameters", () => {
       expect(param.tokenLiteral()).toBe(expected[i]);
     }
   }
+});
+
+test("call expression", () => {
+  const input = "add(1, 2 * 3, 4 + 5);";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as CallExpression;
+
+  const identifier = expression.func as IdentifierExpression;
+  expect(identifier.value).toBe("add");
+  expect(identifier.tokenLiteral()).toBe("add");
+
+  expect(expression.args.length).toBe(3);
+
+  const arg1 = expression.args[0] as IntegerExpression;
+  expect(arg1.value).toBe(1);
+  expect(arg1.tokenLiteral()).toBe("1");
+
+  const arg2 = expression.args[1] as InfixExpression;
+  const arg2Left = arg2.left as IntegerExpression;
+  expect(arg2Left.value).toBe(2);
+  expect(arg2Left.tokenLiteral()).toBe("2");
+  expect(arg2.operator).toBe("*");
+  const arg2Right = arg2.right as IntegerExpression;
+  expect(arg2Right.value).toBe(3);
+  expect(arg2Right.tokenLiteral()).toBe("3");
+
+  const arg3 = expression.args[2] as InfixExpression;
+  const arg3Left = arg3.left as IntegerExpression;
+  expect(arg3Left.value).toBe(4);
+  expect(arg3Left.tokenLiteral()).toBe("4");
+  expect(arg3.operator).toBe("+");
+  const arg3Right = arg3.right as IntegerExpression;
+  expect(arg3Right.value).toBe(5);
+  expect(arg3Right.tokenLiteral()).toBe("5");
 });
