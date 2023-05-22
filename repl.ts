@@ -3,6 +3,7 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline";
 import { evaluate } from "./evaluator.ts";
 import { Lexer } from "./lexer.ts";
+import { Environment } from "./object.ts";
 import { Parser } from "./parser.ts";
 
 const repl = createInterface({
@@ -12,6 +13,7 @@ const repl = createInterface({
 });
 
 repl.on("line", (line) => {
+  const env = new Environment();
   const lexer = new Lexer(line);
   const parser = new Parser(lexer);
 
@@ -21,7 +23,7 @@ repl.on("line", (line) => {
       console.error(parser.errors[i]);
     }
   } else {
-    const evaluated = evaluate(program);
+    const evaluated = evaluate(program, env);
     if (evaluated !== null) {
       console.log(evaluated.inspect());
     }

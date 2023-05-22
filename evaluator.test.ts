@@ -1,14 +1,20 @@
 import { expect, test } from "vitest";
 import { NULL, evaluate } from "./evaluator.ts";
 import { Lexer } from "./lexer.ts";
-import type { BooleanObject, ErrorObject, IntegerObject } from "./object.ts";
+import {
+  Environment,
+  type BooleanObject,
+  type ErrorObject,
+  type IntegerObject,
+} from "./object.ts";
 import { Parser } from "./parser.ts";
 
 function runEval(input: string) {
+  const env = new Environment();
   const lexer = new Lexer(input);
   const parser = new Parser(lexer);
   const program = parser.parseProgram();
-  return evaluate(program);
+  return evaluate(program, env);
 }
 
 function testIntegerObject(obj: unknown, expected: number) {
@@ -164,6 +170,7 @@ if (10 > 1) {
 `,
       "unknown operator: BOOLEAN + BOOLEAN",
     ],
+    ["foobar", "identifier not found: foobar"],
   ] as const;
 
   for (const [input, expected] of tests) {
@@ -172,5 +179,19 @@ if (10 > 1) {
 
     const error = value as ErrorObject;
     expect(error.message).toBe(expected);
+  }
+});
+
+test("let statements", () => {
+  const tests = [
+    ["let a = 5; a;", 5],
+    ["let a = 5 * 5; a;", 25],
+    ["let a = 5; let b = a; b;", 5],
+    ["let a = 5; let b = a; let c = a + b + 5; c;", 15],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const value = runEval(input);
+    testIntegerObject(value, expected);
   }
 });

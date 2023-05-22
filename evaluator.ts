@@ -1,4 +1,10 @@
-import type { BlockStatement, IfExpression, NodeType, Program } from "./ast.ts";
+import type {
+  BlockStatement,
+  IdentifierExpression,
+  IfExpression,
+  NodeType,
+  Program,
+} from "./ast.ts";
 import {
   BooleanObject,
   IntegerObject,
@@ -6,23 +12,27 @@ import {
   ReturnValueObject,
   type ObjectType,
   ErrorObject,
+  Environment,
 } from "./object.ts";
 
 export const NULL = new NullObject();
 export const TRUE = new BooleanObject(true);
 export const FALSE = new BooleanObject(false);
 
-export function evaluate(node: NodeType | null): ObjectType | null {
+export function evaluate(
+  node: NodeType | null,
+  env: Environment
+): ObjectType | null {
   if (node === null) {
     return null;
   }
 
   switch (node.type) {
     case "PROGRAM":
-      return evalProgram(node);
+      return evalProgram(node, env);
 
     case "EXPRESSION_STATEMENT":
-      return evaluate(node.expression);
+      return evaluate(node.expression, env);
 
     case "INTEGER_EXPRESSION":
       return new IntegerObject(node.value);
@@ -31,7 +41,7 @@ export function evaluate(node: NodeType | null): ObjectType | null {
       return node.value ? TRUE : FALSE;
 
     case "PREFIX_EXPRESSION": {
-      const right = evaluate(node.right);
+      const right = evaluate(node.right, env);
       if (isError(right)) {
         return right;
       }
@@ -39,11 +49,11 @@ export function evaluate(node: NodeType | null): ObjectType | null {
     }
 
     case "INFIX_EXPRESSION": {
-      const left = evaluate(node.left);
+      const left = evaluate(node.left, env);
       if (isError(left)) {
         return left;
       }
-      const right = evaluate(node.right);
+      const right = evaluate(node.right, env);
       if (isError(right)) {
         return right;
       }
@@ -51,26 +61,50 @@ export function evaluate(node: NodeType | null): ObjectType | null {
     }
 
     case "BLOCK_STATEMENT":
-      return evalBlockStatement(node);
+      return evalBlockStatement(node, env);
 
     case "IF_EXPRESSION":
-      return evalIfExpression(node);
+      return evalIfExpression(node, env);
 
     case "RETURN_STATEMENT": {
-      const value = evaluate(node.returnValue);
+      const value = evaluate(node.returnValue, env);
       if (isError(value)) {
         return value;
       }
       return new ReturnValueObject(value!);
     }
 
-    default:
-      return null;
+    case "LET_STATEMENT": {
+      const value = evaluate(node.value, env);
+      if (isError(value)) {
+        return value;
+      }
+
+      env.set(node.name.value, value!);
+      break;
+    }
+
+    case "IDENTIFIER_EXPRESSION": {
+      return evalIdentifier(node, env);
+    }
   }
+
+  return null;
 }
 
 function isError(obj: ObjectType | null): obj is ErrorObject {
   return obj?.type === "ERROR";
+}
+
+function evalIdentifier(
+  node: IdentifierExpression,
+  env: Environment
+): ObjectType | null {
+  const value = env.get(node.value);
+  if (value === null) {
+    return new ErrorObject(`identifier not found: ${node.value}`);
+  }
+  return value;
 }
 
 function evalPrefixExpression(
@@ -161,14 +195,17 @@ function evalIntegerInfixExpression(
   }
 }
 
-function evalIfExpression(node: IfExpression): ObjectType | null {
-  const condition = evaluate(node.condition);
+function evalIfExpression(
+  node: IfExpression,
+  env: Environment
+): ObjectType | null {
+  const condition = evaluate(node.condition, env);
   if (isError(condition)) {
     return condition;
   } else if (isTruthy(condition)) {
-    return evaluate(node.consequence);
+    return evaluate(node.consequence, env);
   } else if (node.alternative) {
-    return evaluate(node.alternative);
+    return evaluate(node.alternative, env);
   } else {
     return NULL;
   }
@@ -206,10 +243,10 @@ function evalBangOperatorExpression(right: ObjectType | null): ObjectType {
   }
 }
 
-function evalProgram(program: Program): ObjectType | null {
+function evalProgram(program: Program, env: Environment): ObjectType | null {
   let result: ObjectType | null = null;
   for (let i = 0; i < program.statements.length; i++) {
-    result = evaluate(program.statements[i]!);
+    result = evaluate(program.statements[i]!, env);
 
     if (result?.type === "RETURN_VALUE") {
       result = result.value;
@@ -221,10 +258,13 @@ function evalProgram(program: Program): ObjectType | null {
   return result;
 }
 
-function evalBlockStatement(block: BlockStatement): ObjectType | null {
+function evalBlockStatement(
+  block: BlockStatement,
+  env: Environment
+): ObjectType | null {
   let result: ObjectType | null = null;
   for (let i = 0; i < block.statements.length; i++) {
-    result = evaluate(block.statements[i]!);
+    result = evaluate(block.statements[i]!, env);
 
     if (result === null) {
       continue;

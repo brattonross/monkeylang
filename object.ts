@@ -57,3 +57,16 @@ export type ObjectType =
   | NullObject
   | ReturnValueObject
   | ErrorObject;
+
+export class Environment {
+  #store = new Map<string, ObjectType>();
+
+  public get(name: string): ObjectType | null {
+    return this.#store.get(name) ?? null;
+  }
+
+  public set(name: string, value: ObjectType): ObjectType {
+    this.#store.set(name, value);
+    return value;
+  }
+}
