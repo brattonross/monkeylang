@@ -1,5 +1,6 @@
 import type {
   BlockStatement,
+  Expression,
   IdentifierExpression,
   IfExpression,
   NodeType,
@@ -13,6 +14,7 @@ import {
   type ObjectType,
   ErrorObject,
   Environment,
+  FunctionObject,
 } from "./object.ts";
 
 export const NULL = new NullObject();
@@ -87,13 +89,72 @@ export function evaluate(
     case "IDENTIFIER_EXPRESSION": {
       return evalIdentifier(node, env);
     }
+
+    case "FUNCTION_EXPRESSION": {
+      return new FunctionObject(node.parameters, node.body, env);
+    }
+
+    case "CALL_EXPRESSION": {
+      const fn = evaluate(node.func, env);
+      if (isError(fn)) {
+        return fn;
+      }
+      const args = evalExpressions(node.args, env);
+      if (args.length === 1 && isError(args[0]!)) {
+        return args[0];
+      }
+      return applyFunction(fn!, args);
+    }
   }
 
   return null;
 }
 
+function applyFunction(
+  fn: ObjectType,
+  args: Array<ObjectType>
+): ObjectType | null {
+  if (fn.type !== "FUNCTION") {
+    return new ErrorObject(`not a function: ${fn.type}`);
+  }
+
+  const extendedEnv = extendFunctionEnv(fn, args);
+  const evaluated = evaluate(fn.body, extendedEnv);
+  return unwrapReturnValue(evaluated);
+}
+
+function extendFunctionEnv(fn: FunctionObject, args: Array<ObjectType>) {
+  const env = Environment.enclosed(fn.env);
+  for (let i = 0; i < fn.parameters.length; i++) {
+    env.set(fn.parameters[i]!.value, args[i]!);
+  }
+  return env;
+}
+
+function unwrapReturnValue(obj: ObjectType | null): ObjectType | null {
+  if (obj?.type === "RETURN_VALUE") {
+    return obj.value;
+  }
+  return obj;
+}
+
 function isError(obj: ObjectType | null): obj is ErrorObject {
   return obj?.type === "ERROR";
+}
+
+function evalExpressions(
+  expressions: Array<Expression>,
+  env: Environment
+): Array<ObjectType> {
+  let result: Array<ObjectType> = [];
+  for (let i = 0; i < expressions.length; i++) {
+    const evaluated = evaluate(expressions[i]!, env);
+    if (isError(evaluated)) {
+      return [evaluated];
+    }
+    result.push(evaluated!);
+  }
+  return result;
 }
 
 function evalIdentifier(

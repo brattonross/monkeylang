@@ -6,6 +6,7 @@ import {
   type BooleanObject,
   type ErrorObject,
   type IntegerObject,
+  FunctionObject,
 } from "./object.ts";
 import { Parser } from "./parser.ts";
 
@@ -194,4 +195,45 @@ test("let statements", () => {
     const value = runEval(input);
     testIntegerObject(value, expected);
   }
+});
+
+test("function object", () => {
+  const input = "fn(x) { x + 2; };";
+  const value = runEval(input)!;
+
+  expect(value.type).toBe("FUNCTION");
+
+  const fn = value as FunctionObject;
+  expect(fn.parameters.length).toBe(1);
+  expect(fn.parameters[0]!.toString()).toBe("x");
+  expect(fn.body!.toString()).toBe("(x + 2)");
+});
+
+test("function application", () => {
+  const tests = [
+    ["let identity = fn(x) { x; }; identity(5);", 5],
+    ["let identity = fn(x) { return x; }; identity(5);", 5],
+    ["let double = fn(x) { x * 2; }; double(5);", 10],
+    ["let add = fn(x, y) { x + y; }; add(5, 5);", 10],
+    ["let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20],
+    ["fn(x) { x; }(5)", 5],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const value = runEval(input);
+    testIntegerObject(value, expected);
+  }
+});
+
+test("closures", () => {
+  const input = `
+let newAdder = fn(x) {
+  fn(y) { x + y };
+};
+
+let addTwo = newAdder(2);
+addTwo(2);`;
+
+  const value = runEval(input);
+  testIntegerObject(value, 4);
 });

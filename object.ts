@@ -1,3 +1,5 @@
+import type { BlockStatement, IdentifierExpression } from "./ast";
+
 export type Object = {
   readonly type: string;
   inspect(): string;
@@ -51,18 +53,56 @@ export class ErrorObject implements Object {
   }
 }
 
+export class FunctionObject implements Object {
+  public readonly type = "FUNCTION";
+
+  public constructor(
+    public parameters: Array<IdentifierExpression>,
+    public body: BlockStatement | null,
+    public env: Environment
+  ) { }
+
+  public inspect(): string {
+    let out = "fn(";
+    for (let i = 0; i < this.parameters.length; i++) {
+      out += this.parameters[i]!.toString();
+      if (i !== this.parameters.length - 1) {
+        out += ", ";
+      }
+    }
+    out += ") {\n";
+    if (this.body) {
+      out += this.body.toString();
+    }
+    out += "\n}";
+    return out;
+  }
+}
+
 export type ObjectType =
   | IntegerObject
   | BooleanObject
   | NullObject
   | ReturnValueObject
-  | ErrorObject;
+  | ErrorObject
+  | FunctionObject;
 
 export class Environment {
   #store = new Map<string, ObjectType>();
+  #outer: Environment | null = null;
+
+  public static enclosed(outer: Environment): Environment {
+    const env = new Environment();
+    env.#outer = outer;
+    return env;
+  }
 
   public get(name: string): ObjectType | null {
-    return this.#store.get(name) ?? null;
+    const obj = this.#store.get(name) ?? null;
+    if (obj === null && this.#outer !== null) {
+      return this.#outer.get(name);
+    }
+    return obj;
   }
 
   public set(name: string, value: ObjectType): ObjectType {
