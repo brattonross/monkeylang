@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { evaluate } from "./evaluator.ts";
+import { NULL, evaluate } from "./evaluator.ts";
 import { Lexer } from "./lexer.ts";
 import type { BooleanObject, IntegerObject } from "./object.ts";
 import { Parser } from "./parser.ts";
@@ -21,6 +21,10 @@ function testBooleanObject(obj: unknown, expected: boolean) {
   const b = obj as BooleanObject;
   expect(b.type).toBe("BOOLEAN");
   expect(b.value).toBe(expected);
+}
+
+function testNullObject(obj: unknown) {
+  expect(obj).toBe(NULL);
 }
 
 test("eval integer expression", () => {
@@ -90,5 +94,26 @@ test("bang operator", () => {
   for (const [input, expected] of tests) {
     const value = runEval(input);
     testBooleanObject(value, expected);
+  }
+});
+
+test("if else expressions", () => {
+  const tests = [
+    ["if (true) { 10 }", 10],
+    ["if (false) { 10 }", null],
+    ["if (1) { 10 }", 10],
+    ["if (1 < 2) { 10 }", 10],
+    ["if (1 > 2) { 10 }", null],
+    ["if (1 > 2) { 10 } else { 20 }", 20],
+    ["if (1 < 2) { 10 } else { 20 }", 10],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const value = runEval(input);
+    if (expected === null) {
+      testNullObject(value);
+    } else {
+      testIntegerObject(value, expected);
+    }
   }
 });

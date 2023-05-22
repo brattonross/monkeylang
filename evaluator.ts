@@ -1,4 +1,4 @@
-import type { NodeType, Statement } from "./ast.ts";
+import type { IfExpression, NodeType, Statement } from "./ast.ts";
 import {
   BooleanObject,
   IntegerObject,
@@ -6,9 +6,9 @@ import {
   type ObjectType,
 } from "./object.ts";
 
-const NULL = new NullObject();
-const TRUE = new BooleanObject(true);
-const FALSE = new BooleanObject(false);
+export const NULL = new NullObject();
+export const TRUE = new BooleanObject(true);
+export const FALSE = new BooleanObject(false);
 
 export function evaluate(node: NodeType | null): ObjectType | null {
   if (node === null) {
@@ -39,6 +39,12 @@ export function evaluate(node: NodeType | null): ObjectType | null {
       return evalInfixExpression(node.operator, left, right);
     }
 
+    case "BLOCK_STATEMENT":
+      return evalStatements(node.statements);
+
+    case "IF_EXPRESSION":
+      return evalIfExpression(node);
+
     default:
       return null;
   }
@@ -58,6 +64,16 @@ function evalPrefixExpression(
     default:
       return NULL;
   }
+}
+
+function evalMinusPrefixOperatorExpression(
+  right: ObjectType | null
+): ObjectType {
+  if (right?.type !== "INTEGER") {
+    return NULL;
+  }
+
+  return new IntegerObject(-right.value);
 }
 
 function evalInfixExpression(
@@ -114,6 +130,33 @@ function evalIntegerInfixExpression(
   }
 }
 
+function evalIfExpression(node: IfExpression): ObjectType | null {
+  const condition = evaluate(node.condition);
+  if (isTruthy(condition)) {
+    return evaluate(node.consequence);
+  } else if (node.alternative) {
+    return evaluate(node.alternative);
+  } else {
+    return NULL;
+  }
+}
+
+function isTruthy(obj: ObjectType | null): boolean {
+  switch (obj) {
+    case NULL:
+      return false;
+
+    case TRUE:
+      return true;
+
+    case FALSE:
+      return false;
+
+    default:
+      return true;
+  }
+}
+
 function evalBangOperatorExpression(right: ObjectType | null): ObjectType {
   switch (right) {
     case TRUE:
@@ -128,16 +171,6 @@ function evalBangOperatorExpression(right: ObjectType | null): ObjectType {
     default:
       return FALSE;
   }
-}
-
-function evalMinusPrefixOperatorExpression(
-  right: ObjectType | null
-): ObjectType {
-  if (right?.type !== "INTEGER") {
-    return NULL;
-  }
-
-  return new IntegerObject(-right.value);
 }
 
 function evalStatements(statements: Array<Statement>): ObjectType | null {
