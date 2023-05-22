@@ -1,8 +1,9 @@
-import type { IfExpression, NodeType, Statement } from "./ast.ts";
+import type { BlockStatement, IfExpression, NodeType, Program } from "./ast.ts";
 import {
   BooleanObject,
   IntegerObject,
   NullObject,
+  ReturnValueObject,
   type ObjectType,
 } from "./object.ts";
 
@@ -17,7 +18,7 @@ export function evaluate(node: NodeType | null): ObjectType | null {
 
   switch (node.type) {
     case "PROGRAM":
-      return evalStatements(node.statements);
+      return evalProgram(node);
 
     case "EXPRESSION_STATEMENT":
       return evaluate(node.expression);
@@ -40,10 +41,15 @@ export function evaluate(node: NodeType | null): ObjectType | null {
     }
 
     case "BLOCK_STATEMENT":
-      return evalStatements(node.statements);
+      return evalBlockStatement(node);
 
     case "IF_EXPRESSION":
       return evalIfExpression(node);
+
+    case "RETURN_STATEMENT": {
+      const value = evaluate(node.returnValue);
+      return new ReturnValueObject(value!);
+    }
 
     default:
       return null;
@@ -173,14 +179,27 @@ function evalBangOperatorExpression(right: ObjectType | null): ObjectType {
   }
 }
 
-function evalStatements(statements: Array<Statement>): ObjectType | null {
-  if (!statements[0]) {
-    return null;
-  }
+function evalProgram(program: Program): ObjectType | null {
+  let result: ObjectType | null = null;
+  for (let i = 0; i < program.statements.length; i++) {
+    result = evaluate(program.statements[i]!);
 
-  let result = evaluate(statements[0]);
-  for (let i = 1; i < statements.length; i++) {
-    result = evaluate(statements[i]!);
+    if (result?.type === "RETURN_VALUE") {
+      result = result.value;
+      break;
+    }
+  }
+  return result;
+}
+
+function evalBlockStatement(block: BlockStatement): ObjectType | null {
+  let result: ObjectType | null = null;
+  for (let i = 0; i < block.statements.length; i++) {
+    result = evaluate(block.statements[i]!);
+
+    if (result !== null && result.type === "RETURN_VALUE") {
+      break;
+    }
   }
   return result;
 }

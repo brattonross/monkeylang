@@ -31,4 +31,18 @@ export class NullObject implements Object {
   }
 }
 
-export type ObjectType = IntegerObject | BooleanObject | NullObject;
+export class ReturnValueObject implements Object {
+  public readonly type = "RETURN_VALUE";
+
+  public constructor(public value: ObjectType) { }
+
+  public inspect(): string {
+    return this.value.inspect();
+  }
+}
+
+export type ObjectType =
+  | IntegerObject
+  | BooleanObject
+  | NullObject
+  | ReturnValueObject;
