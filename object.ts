@@ -41,8 +41,19 @@ export class ReturnValueObject implements Object {
   }
 }
 
+export class ErrorObject implements Object {
+  public readonly type = "ERROR";
+
+  public constructor(public message: string) { }
+
+  public inspect(): string {
+    return `ERROR: ${this.message}`;
+  }
+}
+
 export type ObjectType =
   | IntegerObject
   | BooleanObject
   | NullObject
-  | ReturnValueObject;
+  | ReturnValueObject
+  | ErrorObject;

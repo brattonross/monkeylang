@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { NULL, evaluate } from "./evaluator.ts";
 import { Lexer } from "./lexer.ts";
-import type { BooleanObject, IntegerObject } from "./object.ts";
+import type { BooleanObject, ErrorObject, IntegerObject } from "./object.ts";
 import { Parser } from "./parser.ts";
 
 function runEval(input: string) {
@@ -141,5 +141,36 @@ if (10 > 1) {
   for (const [input, expected] of tests) {
     const value = runEval(input);
     testIntegerObject(value, expected);
+  }
+});
+
+test("error handling", () => {
+  const tests = [
+    ["5 + true;", "type mismatch: INTEGER + BOOLEAN"],
+    ["5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"],
+    ["-true", "unknown operator: -BOOLEAN"],
+    ["true + false;", "unknown operator: BOOLEAN + BOOLEAN"],
+    ["5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"],
+    ["if (10 > 1) { true + false; }", "unknown operator: BOOLEAN + BOOLEAN"],
+    [
+      `
+if (10 > 1) {
+  if (10 > 1) {
+    return true + false;
+  }
+
+  return 1;
+}
+`,
+      "unknown operator: BOOLEAN + BOOLEAN",
+    ],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const value = runEval(input)!;
+    expect(value.type).toBe("ERROR");
+
+    const error = value as ErrorObject;
+    expect(error.message).toBe(expected);
   }
 });
