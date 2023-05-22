@@ -275,3 +275,5 @@ export class Program implements Node {
     return out;
   }
 }
+
+export type NodeType = Program | Statement | Expression;

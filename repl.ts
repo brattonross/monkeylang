@@ -1,10 +1,13 @@
+import * as console from "node:console";
+import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline";
+import { evaluate } from "./evaluator.ts";
 import { Lexer } from "./lexer.ts";
 import { Parser } from "./parser.ts";
 
 const repl = createInterface({
-  input: process.stdin,
-  output: process.stdout,
+  input: stdin,
+  output: stdout,
   prompt: ">> ",
 });
 
@@ -18,10 +21,17 @@ repl.on("line", (line) => {
       console.error(parser.errors[i]);
     }
   } else {
-    console.log(program.toString());
+    const evaluated = evaluate(program);
+    if (evaluated !== null) {
+      console.log(evaluated.inspect());
+    }
   }
 
   repl.prompt();
+});
+
+repl.on("close", () => {
+  repl.close();
 });
 
 repl.prompt();

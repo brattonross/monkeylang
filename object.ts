@@ -1,12 +1,10 @@
-export type ObjectType = string;
-
 export type Object = {
-  type: ObjectType;
+  readonly type: string;
   inspect(): string;
 };
 
 export class IntegerObject implements Object {
-  public type: ObjectType = "INTEGER";
+  public readonly type = "INTEGER";
 
   public constructor(public value: number) { }
 
@@ -16,7 +14,7 @@ export class IntegerObject implements Object {
 }
 
 export class BooleanObject implements Object {
-  public type: ObjectType = "BOOLEAN";
+  public readonly type = "BOOLEAN";
 
   public constructor(public value: boolean) { }
 
@@ -26,9 +24,11 @@ export class BooleanObject implements Object {
 }
 
 export class NullObject implements Object {
-  public type: ObjectType = "NULL";
+  public readonly type = "NULL";
 
   public inspect(): string {
     return "null";
   }
 }
+
+export type ObjectType = IntegerObject | BooleanObject | NullObject;
