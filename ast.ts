@@ -37,6 +37,20 @@ export class IntegerExpression implements Node {
   }
 }
 
+export class StringExpression implements Node {
+  public readonly type = "STRING_EXPRESSION";
+
+  public constructor(public token: Token, public value: string) { }
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    return this.token.literal;
+  }
+}
+
 export class PrefixExpression implements Node {
   public readonly type = "PREFIX_EXPRESSION";
 
@@ -161,6 +175,7 @@ export class CallExpression implements Node {
 export type Expression =
   | IdentifierExpression
   | IntegerExpression
+  | StringExpression
   | PrefixExpression
   | InfixExpression
   | BooleanExpression

@@ -4,6 +4,7 @@ export type TokenType =
   // Identifiers + literals
   | "IDENT"
   | "INT"
+  | "STRING"
   // Operators
   | "ASSIGN"
   | "PLUS"
@@ -32,7 +33,7 @@ export type TokenType =
   | "RETURN";
 
 export class Token {
-  public constructor(public type: TokenType, public literal: string) {}
+  public constructor(public type: TokenType, public literal: string) { }
 }
 
 const KEYWORDS: Record<string, TokenType> = {

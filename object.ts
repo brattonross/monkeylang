@@ -15,6 +15,16 @@ export class IntegerObject implements Object {
   }
 }
 
+export class StringObject implements Object {
+  public readonly type = "STRING";
+
+  public constructor(public value: string) { }
+
+  public inspect(): string {
+    return this.value;
+  }
+}
+
 export class BooleanObject implements Object {
   public readonly type = "BOOLEAN";
 
@@ -81,6 +91,7 @@ export class FunctionObject implements Object {
 
 export type ObjectType =
   | IntegerObject
+  | StringObject
   | BooleanObject
   | NullObject
   | ReturnValueObject

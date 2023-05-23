@@ -11,6 +11,7 @@ import type {
   LetStatement,
   PrefixExpression,
   ReturnStatement,
+  StringExpression,
 } from "./ast.ts";
 import { Lexer } from "./lexer.ts";
 import { Parser } from "./parser.ts";
@@ -106,6 +107,22 @@ test("integer literal expression", () => {
   const literal = statement.expression as IntegerExpression;
   expect(literal.value).toBe(5);
   expect(literal.tokenLiteral()).toBe("5");
+});
+
+test("string literal expression", () => {
+  const input = `"hello world";`;
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const literal = statement.expression as StringExpression;
+  expect(literal.value).toBe("hello world");
+  expect(literal.tokenLiteral()).toBe("hello world");
 });
 
 test("prefix expression", () => {

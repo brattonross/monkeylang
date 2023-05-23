@@ -7,6 +7,7 @@ import {
   type ErrorObject,
   type IntegerObject,
   FunctionObject,
+  StringObject,
 } from "./object.ts";
 import { Parser } from "./parser.ts";
 
@@ -22,6 +23,12 @@ function testIntegerObject(obj: unknown, expected: number) {
   const integer = obj as IntegerObject;
   expect(integer.type).toBe("INTEGER");
   expect(integer.value).toBe(expected);
+}
+
+function testStringObject(obj: unknown, expected: string) {
+  const str = obj as StringObject;
+  expect(str.type).toBe("STRING");
+  expect(str.value).toBe(expected);
 }
 
 function testBooleanObject(obj: unknown, expected: boolean) {
@@ -57,6 +64,12 @@ test("eval integer expression", () => {
     const value = runEval(input);
     testIntegerObject(value, expected);
   }
+});
+
+test("eval string expression", () => {
+  const input = `"Hello World!"`;
+  const value = runEval(input)!;
+  testStringObject(value, "Hello World!");
 });
 
 test("eval boolean expression", () => {
@@ -172,6 +185,7 @@ if (10 > 1) {
       "unknown operator: BOOLEAN + BOOLEAN",
     ],
     ["foobar", "identifier not found: foobar"],
+    ['"Hello" - "World"', "unknown operator: STRING - STRING"],
   ] as const;
 
   for (const [input, expected] of tests) {
@@ -236,4 +250,10 @@ addTwo(2);`;
 
   const value = runEval(input);
   testIntegerObject(value, 4);
+});
+
+test("string concatenation", () => {
+  const input = `"Hello" + " " + "World!"`;
+  const value = runEval(input);
+  testStringObject(value, "Hello World!");
 });

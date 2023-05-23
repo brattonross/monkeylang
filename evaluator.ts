@@ -15,6 +15,7 @@ import {
   ErrorObject,
   Environment,
   FunctionObject,
+  StringObject,
 } from "./object.ts";
 
 export const NULL = new NullObject();
@@ -38,6 +39,9 @@ export function evaluate(
 
     case "INTEGER_EXPRESSION":
       return new IntegerObject(node.value);
+
+    case "STRING_EXPRESSION":
+      return new StringObject(node.value);
 
     case "BOOLEAN_EXPRESSION":
       return node.value ? TRUE : FALSE;
@@ -201,6 +205,8 @@ function evalInfixExpression(
 ): ObjectType {
   if (left?.type === "INTEGER" && right?.type === "INTEGER") {
     return evalIntegerInfixExpression(operator, left, right);
+  } else if (left?.type === "STRING" && right?.type === "STRING") {
+    return evalStringInfixExpression(operator, left, right);
   } else if (operator === "==") {
     return left === right ? TRUE : FALSE;
   } else if (operator === "!=") {
@@ -254,6 +260,20 @@ function evalIntegerInfixExpression(
         `unknown operator: ${left.type} ${operator} ${right.type}`
       );
   }
+}
+
+function evalStringInfixExpression(
+  operator: string,
+  left: StringObject,
+  right: StringObject
+): ObjectType {
+  if (operator !== "+") {
+    return new ErrorObject(
+      `unknown operator: ${left.type} ${operator} ${right.type}`
+    );
+  }
+
+  return new StringObject(left.value + right.value);
 }
 
 function evalIfExpression(

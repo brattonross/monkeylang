@@ -14,6 +14,7 @@ import {
   BlockStatement,
   FunctionExpression,
   CallExpression,
+  StringExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -70,6 +71,7 @@ export class Parser {
       ["LPAREN", this.#parseGroupedExpression.bind(this)],
       ["IF", this.#parseIfExpression.bind(this)],
       ["FUNCTION", this.#parseFunctionExpression.bind(this)],
+      ["STRING", this.#parseStringLiteral.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -215,6 +217,10 @@ export class Parser {
       return null;
     }
     return new IntegerExpression(token, value);
+  }
+
+  #parseStringLiteral(): Expression {
+    return new StringExpression(this.#currentToken, this.#currentToken.literal);
   }
 
   #parsePrefixExpression(): Expression {

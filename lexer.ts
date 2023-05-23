@@ -81,6 +81,9 @@ export class Lexer {
       case "}":
         token = new Token("RBRACE", this.#ch);
         break;
+      case '"':
+        token = new Token("STRING", this.#readString());
+        break;
       case "\0":
         token = new Token("EOF", "");
         break;
@@ -132,6 +135,17 @@ export class Lexer {
     const position = this.#position;
     while (isDigit(this.#ch)) {
       this.#readChar();
+    }
+    return this.#input.slice(position, this.#position);
+  }
+
+  #readString(): string {
+    const position = this.#position + 1;
+    while (true) {
+      this.#readChar();
+      if (this.#ch === '"' || this.#ch === "\0") {
+        break;
+      }
     }
     return this.#input.slice(position, this.#position);
   }
