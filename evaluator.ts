@@ -1,9 +1,9 @@
-import type {
+import {
   BlockStatement,
-  Expression,
+  type Expression,
   IdentifierExpression,
   IfExpression,
-  NodeType,
+  type NodeType,
   Program,
 } from "./ast.ts";
 import {
@@ -16,11 +16,31 @@ import {
   Environment,
   FunctionObject,
   StringObject,
+  BuiltinFunctionObject,
 } from "./object.ts";
 
 export const NULL = new NullObject();
 export const TRUE = new BooleanObject(true);
 export const FALSE = new BooleanObject(false);
+
+const BUILTINS = {
+  len: new BuiltinFunctionObject((...args) => {
+    if (args.length !== 1) {
+      return new ErrorObject(
+        `wrong number of arguments. got=${args.length}, want=1`
+      );
+    }
+
+    const arg = args[0];
+    if (arg?.type === "STRING") {
+      return new IntegerObject(arg.value.length);
+    }
+
+    return new ErrorObject(
+      `argument to \`len\` not supported, got ${arg?.type}`
+    );
+  }),
+} as const;
 
 export function evaluate(
   node: NodeType | null,
@@ -118,13 +138,15 @@ function applyFunction(
   fn: ObjectType,
   args: Array<ObjectType>
 ): ObjectType | null {
-  if (fn.type !== "FUNCTION") {
-    return new ErrorObject(`not a function: ${fn.type}`);
+  if (fn.type === "FUNCTION") {
+    const extendedEnv = extendFunctionEnv(fn, args);
+    const evaluated = evaluate(fn.body, extendedEnv);
+    return unwrapReturnValue(evaluated);
+  } else if (fn.type === "BUILTIN_FUNCTION") {
+    return fn.fn(...args);
   }
 
-  const extendedEnv = extendFunctionEnv(fn, args);
-  const evaluated = evaluate(fn.body, extendedEnv);
-  return unwrapReturnValue(evaluated);
+  return new ErrorObject(`not a function: ${fn.type}`);
 }
 
 function extendFunctionEnv(fn: FunctionObject, args: Array<ObjectType>) {
@@ -166,10 +188,15 @@ function evalIdentifier(
   env: Environment
 ): ObjectType | null {
   const value = env.get(node.value);
-  if (value === null) {
-    return new ErrorObject(`identifier not found: ${node.value}`);
+  if (value) {
+    return value;
+  } else if (
+    node.value in BUILTINS &&
+    BUILTINS[node.value as keyof typeof BUILTINS].type === "BUILTIN_FUNCTION"
+  ) {
+    return BUILTINS[node.value as keyof typeof BUILTINS];
   }
-  return value;
+  return new ErrorObject(`identifier not found: ${node.value}`);
 }
 
 function evalPrefixExpression(

@@ -89,6 +89,16 @@ export class FunctionObject implements Object {
   }
 }
 
+export class BuiltinFunctionObject implements Object {
+  public readonly type = "BUILTIN_FUNCTION";
+
+  public constructor(public fn: (...args: Array<ObjectType>) => ObjectType) { }
+
+  public inspect(): string {
+    return "builtin function";
+  }
+}
+
 export type ObjectType =
   | IntegerObject
   | StringObject
@@ -96,7 +106,8 @@ export type ObjectType =
   | NullObject
   | ReturnValueObject
   | ErrorObject
-  | FunctionObject;
+  | FunctionObject
+  | BuiltinFunctionObject;
 
 export class Environment {
   #store = new Map<string, ObjectType>();
