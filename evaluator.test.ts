@@ -1,14 +1,15 @@
 import { expect, test } from "vitest";
-import { NULL, evaluate } from "./evaluator.ts";
+import { FALSE, NULL, TRUE, evaluate } from "./evaluator.ts";
 import { Lexer } from "./lexer.ts";
 import {
   Environment,
   type BooleanObject,
   type ErrorObject,
-  type IntegerObject,
+  IntegerObject,
   FunctionObject,
   StringObject,
   ArrayObject,
+  HashObject,
 } from "./object.ts";
 import { Parser } from "./parser.ts";
 
@@ -187,6 +188,7 @@ if (10 > 1) {
     ],
     ["foobar", "identifier not found: foobar"],
     ['"Hello" - "World"', "unknown operator: STRING - STRING"],
+    [`{"name": "Monkey"}[fn(x) { x }];`, "unusable as hash key: FUNCTION"],
   ] as const;
 
   for (const [input, expected] of tests) {
@@ -320,6 +322,61 @@ test("array index expressions", () => {
     ["let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", 2],
     ["[1, 2, 3][3]", null],
     ["[1, 2, 3][-1]", null],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const value = runEval(input);
+    if (expected === null) {
+      testNullObject(value);
+    } else {
+      testIntegerObject(value, expected);
+    }
+  }
+});
+
+test("hash literals", () => {
+  const input = `let two = "two";
+{
+  "one": 10 - 9,
+  two: 1 + 1,
+  "thr" + "ee": 6 / 2,
+  4: 4,
+  true: 5,
+  false: 6
+}`;
+
+  const value = runEval(input)!;
+  expect(value.type).toBe("HASH");
+
+  const hash = value as HashObject;
+
+  const expected = new Map([
+    [new StringObject("one").hashCode(), 1],
+    [new StringObject("two").hashCode(), 2],
+    [new StringObject("three").hashCode(), 3],
+    [new IntegerObject(4).hashCode(), 4],
+    [TRUE.hashCode(), 5],
+    [FALSE.hashCode(), 6],
+  ]);
+
+  expect(hash.pairs.size).toBe(expected.size);
+
+  for (const [key, value] of expected) {
+    const pair = hash.pairs.get(key);
+    expect(pair).toBeDefined();
+    testIntegerObject(pair!.value, value);
+  }
+});
+
+test("hash index expressions", () => {
+  const tests = [
+    ['{"foo": 5}["foo"]', 5],
+    ['{"foo": 5}["bar"]', null],
+    ['let key = "foo"; {"foo": 5}[key]', 5],
+    ['{}["foo"]', null],
+    ["{5: 5}[5]", 5],
+    ["{true: 5}[true]", 5],
+    ["{false: 5}[false]", 5],
   ] as const;
 
   for (const [input, expected] of tests) {

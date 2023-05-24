@@ -5,7 +5,11 @@ export type Object = {
   inspect(): string;
 };
 
-export class IntegerObject implements Object {
+export type Hashable = {
+  hashCode(): number;
+};
+
+export class IntegerObject implements Object, Hashable {
   public readonly type = "INTEGER";
 
   public constructor(public value: number) {}
@@ -13,9 +17,13 @@ export class IntegerObject implements Object {
   public inspect(): string {
     return this.value.toString();
   }
+
+  public hashCode(): number {
+    return this.value;
+  }
 }
 
-export class StringObject implements Object {
+export class StringObject implements Object, Hashable {
   public readonly type = "STRING";
 
   public constructor(public value: string) {}
@@ -23,15 +31,30 @@ export class StringObject implements Object {
   public inspect(): string {
     return this.value;
   }
+
+  public hashCode(): number {
+    let hash = 0;
+
+    for (let i = 0; i < this.value.length; i++) {
+      hash = (hash << 5) - hash + this.value.charCodeAt(i);
+      hash = hash & hash;
+    }
+
+    return hash;
+  }
 }
 
-export class BooleanObject implements Object {
+export class BooleanObject implements Object, Hashable {
   public readonly type = "BOOLEAN";
 
   public constructor(public value: boolean) {}
 
   public inspect(): string {
     return this.value.toString();
+  }
+
+  public hashCode(): number {
+    return this.value ? 1 : 0;
   }
 }
 
@@ -117,6 +140,34 @@ export class ArrayObject implements Object {
   }
 }
 
+export type HashPair = {
+  key: ObjectType;
+  value: ObjectType;
+};
+
+export class HashObject implements Object {
+  public readonly type = "HASH";
+
+  public constructor(public pairs: Map<number, HashPair>) {}
+
+  public inspect(): string {
+    let out = "{";
+    const keys = Array.from(this.pairs.keys());
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]!;
+      const pair = this.pairs.get(key)!;
+      out += pair.key.inspect();
+      out += ": ";
+      out += pair.value.inspect();
+      if (i !== keys.length - 1) {
+        out += ", ";
+      }
+    }
+    out += "}";
+    return out;
+  }
+}
+
 export type ObjectType =
   | IntegerObject
   | StringObject
@@ -126,7 +177,8 @@ export type ObjectType =
   | ErrorObject
   | FunctionObject
   | BuiltinFunctionObject
-  | ArrayObject;
+  | ArrayObject
+  | HashObject;
 
 export class Environment {
   #store = new Map<string, ObjectType>();

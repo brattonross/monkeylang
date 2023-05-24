@@ -24,7 +24,8 @@ if (5 < 10) {
 10 != 9;
 "foobar"
 "foo bar"
-[1, 2];`;
+[1, 2];
+{"foo": "bar"}`;
 
   const tests: Array<{ expectedType: TokenType; expectedLiteral: string }> = [
     { expectedType: "LET", expectedLiteral: "let" },
@@ -108,6 +109,11 @@ if (5 < 10) {
     { expectedType: "INT", expectedLiteral: "2" },
     { expectedType: "RBRACKET", expectedLiteral: "]" },
     { expectedType: "SEMICOLON", expectedLiteral: ";" },
+    { expectedType: "LBRACE", expectedLiteral: "{" },
+    { expectedType: "STRING", expectedLiteral: "foo" },
+    { expectedType: "COLON", expectedLiteral: ":" },
+    { expectedType: "STRING", expectedLiteral: "bar" },
+    { expectedType: "RBRACE", expectedLiteral: "}" },
     { expectedType: "EOF", expectedLiteral: "" },
   ];
 

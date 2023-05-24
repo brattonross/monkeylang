@@ -25,6 +25,7 @@ export type TokenType =
   | "RBRACE"
   | "LBRACKET"
   | "RBRACKET"
+  | "COLON"
   // Keywords
   | "FUNCTION"
   | "LET"
@@ -35,7 +36,7 @@ export type TokenType =
   | "RETURN";
 
 export class Token {
-  public constructor(public type: TokenType, public literal: string) { }
+  public constructor(public type: TokenType, public literal: string) {}
 }
 
 const KEYWORDS: Record<string, TokenType> = {

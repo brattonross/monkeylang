@@ -90,6 +90,9 @@ export class Lexer {
       case '"':
         token = new Token("STRING", this.#readString());
         break;
+      case ":":
+        token = new Token("COLON", this.#ch);
+        break;
       case "\0":
         token = new Token("EOF", "");
         break;

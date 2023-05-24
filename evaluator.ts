@@ -5,6 +5,7 @@ import {
   IfExpression,
   type NodeType,
   Program,
+  HashExpression,
 } from "./ast.ts";
 import {
   BooleanObject,
@@ -18,6 +19,8 @@ import {
   StringObject,
   BuiltinFunctionObject,
   ArrayObject,
+  HashObject,
+  type HashPair,
 } from "./object.ts";
 
 export const NULL = new NullObject();
@@ -227,6 +230,10 @@ export function evaluate(
         return index;
       }
       return evalIndexExpression(left!, index!);
+    }
+
+    case "HASH_EXPRESSION": {
+      return evalHashExpression(node, env);
     }
   }
 
@@ -490,6 +497,8 @@ function evalIndexExpression(
 ): ObjectType {
   if (left?.type === "ARRAY" && index?.type === "INTEGER") {
     return evalArrayIndexExpression(left, index);
+  } else if (left?.type === "HASH") {
+    return evalHashIndexExpression(left, index);
   }
   return new ErrorObject(`index operator not supported: ${left?.type}`);
 }
@@ -503,4 +512,54 @@ function evalArrayIndexExpression(
     return NULL;
   }
   return array.elements[index.value] ?? NULL;
+}
+
+function evalHashExpression(
+  hash: HashExpression,
+  env: Environment
+): ObjectType {
+  const pairs = new Map<number, HashPair>();
+
+  for (const [keyNode, valueNode] of hash.pairs) {
+    const key = evaluate(keyNode, env);
+    if (isError(key)) {
+      return key;
+    }
+
+    if (
+      key === null ||
+      !("hashCode" in key) ||
+      typeof key.hashCode !== "function"
+    ) {
+      return new ErrorObject(`unusable as hash key: ${key?.type}`);
+    }
+
+    const value = evaluate(valueNode, env);
+    if (isError(value)) {
+      return value;
+    }
+
+    pairs.set(key.hashCode(), {
+      key,
+      value: value ?? NULL,
+    });
+  }
+
+  return new HashObject(pairs);
+}
+
+function evalHashIndexExpression(
+  hash: HashObject,
+  index: ObjectType | null
+): ObjectType {
+  if (index === null || !("hashCode" in index)) {
+    return new ErrorObject(`unusable as hash key: ${index?.type}`);
+  }
+
+  const pair = hash.pairs.get(index.hashCode());
+  if (pair === undefined) {
+    return NULL;
+  }
+
+  return pair.value;
 }

@@ -209,6 +209,27 @@ export class IndexExpression implements Node {
   }
 }
 
+export class HashExpression implements Node {
+  public readonly type = "HASH_EXPRESSION";
+
+  public constructor(
+    public token: Token,
+    public pairs: Map<Expression, Expression>
+  ) {}
+
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+
+  public toString(): string {
+    const pairs: Array<string> = [];
+    this.pairs.forEach((value, key) => {
+      pairs.push(`${key.toString()}:${value.toString()}`);
+    });
+    return `{${pairs.join(", ")}}`;
+  }
+}
+
 export type Expression =
   | IdentifierExpression
   | IntegerExpression
@@ -220,7 +241,8 @@ export type Expression =
   | FunctionExpression
   | CallExpression
   | ArrayExpression
-  | IndexExpression;
+  | IndexExpression
+  | HashExpression;
 
 /* ----------------------------------------------------------------------------
  * Statements

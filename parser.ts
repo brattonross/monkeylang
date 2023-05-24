@@ -17,6 +17,7 @@ import {
   StringExpression,
   ArrayExpression,
   IndexExpression,
+  HashExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
@@ -77,6 +78,7 @@ export class Parser {
       ["FUNCTION", this.#parseFunctionExpression.bind(this)],
       ["STRING", this.#parseStringExpression.bind(this)],
       ["LBRACKET", this.#parseArrayExpression.bind(this)],
+      ["LBRACE", this.#parseHashExpression.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -423,6 +425,37 @@ export class Parser {
     }
 
     return new IndexExpression(token, left, index);
+  }
+
+  #parseHashExpression(): Expression | null {
+    const token = this.#currentToken;
+    const pairs = new Map<Expression, Expression>();
+
+    while (this.#peekToken.type !== "RBRACE") {
+      this.#nextToken();
+      const key = this.#parseExpression(Precedence.LOWEST);
+
+      if (!this.#expectPeek("COLON")) {
+        return null;
+      }
+
+      this.#nextToken();
+      const value = this.#parseExpression(Precedence.LOWEST);
+
+      pairs.set(key!, value!);
+
+      // @ts-expect-error: TS thinks that the check in `while` stops #peekToken
+      // from being "RBRACE", but we mutate it when calling `#nextToken()`.
+      if (this.#peekToken.type !== "RBRACE" && !this.#expectPeek("COMMA")) {
+        return null;
+      }
+    }
+
+    if (!this.#expectPeek("RBRACE")) {
+      return null;
+    }
+
+    return new HashExpression(token, pairs);
   }
 
   #peekPrecedence(): number {

@@ -5,6 +5,7 @@ import type {
   CallExpression,
   ExpressionStatement,
   FunctionExpression,
+  HashExpression,
   IdentifierExpression,
   IfExpression,
   IndexExpression,
@@ -487,4 +488,86 @@ test("parse index expressions", () => {
   const indexRight = index.right as IntegerExpression;
   expect(indexRight.value).toBe(1);
   expect(indexRight.tokenLiteral()).toBe("1");
+});
+
+test("parse hash literals", () => {
+  const input = '{"one": 1, "two": 2, "three": 3}';
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as HashExpression;
+
+  expect(expression.pairs.size).toBe(3);
+
+  const expected = new Map<string, number>([
+    ["one", 1],
+    ["two", 2],
+    ["three", 3],
+  ]);
+
+  for (const [key, value] of expression.pairs) {
+    const literal = key as StringExpression;
+    const actual = value as IntegerExpression;
+
+    expect(actual.value).toBe(expected.get(literal.value));
+  }
+});
+
+test("parse empty hash literals", () => {
+  const input = "{}";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as HashExpression;
+
+  expect(expression.pairs.size).toBe(0);
+});
+
+test("parse hash literals with expressions", () => {
+  const input = '{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}';
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as HashExpression;
+
+  expect(expression.pairs.size).toBe(3);
+
+  const expected = {
+    one: [0, "+", 1],
+    two: [10, "-", 8],
+    three: [15, "/", 5],
+  } as const;
+
+  for (const [key, value] of expression.pairs) {
+    const literal = key as StringExpression;
+    const actual = value as InfixExpression;
+
+    const [left, operator, right] =
+      expected[literal.value as keyof typeof expected];
+
+    const leftExpression = actual.left as IntegerExpression;
+    expect(leftExpression.value).toBe(left);
+    expect(leftExpression.tokenLiteral()).toBe(left.toString());
+
+    expect(actual.operator).toBe(operator);
+
+    const rightExpression = actual.right as IntegerExpression;
+    expect(rightExpression.value).toBe(right);
+    expect(rightExpression.tokenLiteral()).toBe(right.toString());
+  }
 });
