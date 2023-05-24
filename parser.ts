@@ -15,12 +15,14 @@ import {
   FunctionExpression,
   CallExpression,
   StringExpression,
+  ArrayExpression,
+  IndexExpression,
 } from "./ast.ts";
 import type { Lexer } from "./lexer.ts";
 import type { Token, TokenType } from "./token.ts";
 
 type PrefixParseFn = () => Expression | null;
-type InfixParseFn = (expression: Expression | null) => Expression;
+type InfixParseFn = (expression: Expression | null) => Expression | null;
 
 const Precedence = {
   LOWEST: 1,
@@ -30,6 +32,7 @@ const Precedence = {
   PRODUCT: 5, // *
   PREFIX: 6, // -X or !X
   CALL: 7, // myFunction(X)
+  INDEX: 8, // array[index]
 } as const;
 
 const TokenPrecedence = new Map<TokenType, number>([
@@ -42,6 +45,7 @@ const TokenPrecedence = new Map<TokenType, number>([
   ["SLASH", Precedence.PRODUCT],
   ["ASTERISK", Precedence.PRODUCT],
   ["LPAREN", Precedence.CALL],
+  ["LBRACKET", Precedence.INDEX],
 ]);
 
 export class Parser {
@@ -71,7 +75,8 @@ export class Parser {
       ["LPAREN", this.#parseGroupedExpression.bind(this)],
       ["IF", this.#parseIfExpression.bind(this)],
       ["FUNCTION", this.#parseFunctionExpression.bind(this)],
-      ["STRING", this.#parseStringLiteral.bind(this)],
+      ["STRING", this.#parseStringExpression.bind(this)],
+      ["LBRACKET", this.#parseArrayExpression.bind(this)],
     ]);
     this.#infixParseFns = new Map<TokenType, InfixParseFn>([
       ["PLUS", this.#parseInfixExpression.bind(this)],
@@ -83,6 +88,7 @@ export class Parser {
       ["LT", this.#parseInfixExpression.bind(this)],
       ["GT", this.#parseInfixExpression.bind(this)],
       ["LPAREN", this.#parseCallExpression.bind(this)],
+      ["LBRACKET", this.#parseIndexExpression.bind(this)],
     ]);
   }
 
@@ -219,7 +225,7 @@ export class Parser {
     return new IntegerExpression(token, value);
   }
 
-  #parseStringLiteral(): Expression {
+  #parseStringExpression(): Expression {
     return new StringExpression(this.#currentToken, this.#currentToken.literal);
   }
 
@@ -371,32 +377,52 @@ export class Parser {
     return new CallExpression(
       this.#currentToken,
       func,
-      this.#parseCallArguments()
+      this.#parseExpressionList("RPAREN")
     );
   }
 
-  #parseCallArguments(): Array<Expression> {
-    const args: Array<Expression> = [];
+  #parseArrayExpression(): Expression {
+    return new ArrayExpression(
+      this.#currentToken,
+      this.#parseExpressionList("RBRACKET")
+    );
+  }
 
-    if (this.#peekToken.type === "RPAREN") {
+  #parseExpressionList(end: string): Array<Expression> {
+    const list: Array<Expression> = [];
+
+    if (this.#peekToken.type === end) {
       this.#nextToken();
-      return args;
+      return list;
     }
 
     this.#nextToken();
-    args.push(this.#parseExpression(Precedence.LOWEST)!);
+    list.push(this.#parseExpression(Precedence.LOWEST)!);
 
     while (this.#peekToken.type === "COMMA") {
       this.#nextToken();
       this.#nextToken();
-      args.push(this.#parseExpression(Precedence.LOWEST)!);
+      list.push(this.#parseExpression(Precedence.LOWEST)!);
     }
 
-    if (!this.#expectPeek("RPAREN")) {
+    if (!this.#expectPeek(end)) {
       return [];
     }
 
-    return args;
+    return list;
+  }
+
+  #parseIndexExpression(left: Expression | null): Expression | null {
+    const token = this.#currentToken;
+
+    this.#nextToken();
+    const index = this.#parseExpression(Precedence.LOWEST);
+
+    if (!this.#expectPeek("RBRACKET")) {
+      return null;
+    }
+
+    return new IndexExpression(token, left, index);
   }
 
   #peekPrecedence(): number {

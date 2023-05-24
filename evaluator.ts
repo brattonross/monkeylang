@@ -17,6 +17,7 @@ import {
   FunctionObject,
   StringObject,
   BuiltinFunctionObject,
+  ArrayObject,
 } from "./object.ts";
 
 export const NULL = new NullObject();
@@ -128,6 +129,26 @@ export function evaluate(
         return args[0];
       }
       return applyFunction(fn!, args);
+    }
+
+    case "ARRAY_EXPRESSION": {
+      const elements = evalExpressions(node.elements, env);
+      if (elements[0] !== undefined && isError(elements[0])) {
+        return elements[0];
+      }
+      return new ArrayObject(elements);
+    }
+
+    case "INDEX_EXPRESSION": {
+      const left = evaluate(node.left, env);
+      if (isError(left)) {
+        return left;
+      }
+      const index = evaluate(node.index, env);
+      if (isError(index)) {
+        return index;
+      }
+      return evalIndexExpression(left!, index!);
     }
   }
 
@@ -383,4 +404,25 @@ function evalBlockStatement(
     }
   }
   return result;
+}
+
+function evalIndexExpression(
+  left: ObjectType | null,
+  index: ObjectType | null
+): ObjectType {
+  if (left?.type === "ARRAY" && index?.type === "INTEGER") {
+    return evalArrayIndexExpression(left, index);
+  }
+  return new ErrorObject(`index operator not supported: ${left?.type}`);
+}
+
+function evalArrayIndexExpression(
+  array: ArrayObject,
+  index: IntegerObject
+): ObjectType {
+  const max = array.elements.length - 1;
+  if (index.value < 0 || index.value > max) {
+    return NULL;
+  }
+  return array.elements[index.value] ?? NULL;
 }

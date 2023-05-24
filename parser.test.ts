@@ -1,11 +1,13 @@
 import { expect, test } from "vitest";
 import type {
+  ArrayExpression,
   BooleanExpression,
   CallExpression,
   ExpressionStatement,
   FunctionExpression,
   IdentifierExpression,
   IfExpression,
+  IndexExpression,
   InfixExpression,
   IntegerExpression,
   LetStatement,
@@ -219,6 +221,11 @@ test("operator precedence", () => {
       "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
     ],
     ["add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))"],
+    ["a * [1, 2, 3, 4][b * c] * d", "((a * ([1, 2, 3, 4][(b * c)])) * d)"],
+    [
+      "add(a * b[2], b[1], 2 * [1, 2][1])",
+      "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+    ],
   ] as const;
 
   for (const [input, expected] of tests) {
@@ -416,4 +423,68 @@ test("call expression", () => {
   const arg3Right = arg3.right as IntegerExpression;
   expect(arg3Right.value).toBe(5);
   expect(arg3Right.tokenLiteral()).toBe("5");
+});
+
+test("parse array literals", () => {
+  const input = "[1, 2 * 2, 3 + 3]";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+  expect(program.statements.length).toBe(1);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as ArrayExpression;
+
+  expect(expression.elements.length).toBe(3);
+
+  const element1 = expression.elements[0] as IntegerExpression;
+  expect(element1.value).toBe(1);
+  expect(element1.tokenLiteral()).toBe("1");
+
+  const element2 = expression.elements[1] as InfixExpression;
+  const element2Left = element2.left as IntegerExpression;
+  expect(element2Left.value).toBe(2);
+  expect(element2Left.tokenLiteral()).toBe("2");
+  expect(element2.operator).toBe("*");
+  const element2Right = element2.right as IntegerExpression;
+  expect(element2Right.value).toBe(2);
+  expect(element2Right.tokenLiteral()).toBe("2");
+
+  const element3 = expression.elements[2] as InfixExpression;
+  const element3Left = element3.left as IntegerExpression;
+  expect(element3Left.value).toBe(3);
+  expect(element3Left.tokenLiteral()).toBe("3");
+  expect(element3.operator).toBe("+");
+  const element3Right = element3.right as IntegerExpression;
+  expect(element3Right.value).toBe(3);
+  expect(element3Right.tokenLiteral()).toBe("3");
+});
+
+test("parse index expressions", () => {
+  const input = "myArray[1 + 1]";
+
+  const lexer = new Lexer(input);
+  const parser = new Parser(lexer);
+
+  const program = parser.parseProgram();
+  expect(parser.errors.length).toBe(0);
+
+  const statement = program.statements[0] as ExpressionStatement;
+  const expression = statement.expression as IndexExpression;
+
+  const left = expression.left as IdentifierExpression;
+  expect(left.value).toBe("myArray");
+  expect(left.tokenLiteral()).toBe("myArray");
+
+  const index = expression.index as InfixExpression;
+  const indexLeft = index.left as IntegerExpression;
+  expect(indexLeft.value).toBe(1);
+  expect(indexLeft.tokenLiteral()).toBe("1");
+  expect(index.operator).toBe("+");
+  const indexRight = index.right as IntegerExpression;
+  expect(indexRight.value).toBe(1);
+  expect(indexRight.tokenLiteral()).toBe("1");
 });

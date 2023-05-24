@@ -8,7 +8,7 @@ export type Object = {
 export class IntegerObject implements Object {
   public readonly type = "INTEGER";
 
-  public constructor(public value: number) { }
+  public constructor(public value: number) {}
 
   public inspect(): string {
     return this.value.toString();
@@ -18,7 +18,7 @@ export class IntegerObject implements Object {
 export class StringObject implements Object {
   public readonly type = "STRING";
 
-  public constructor(public value: string) { }
+  public constructor(public value: string) {}
 
   public inspect(): string {
     return this.value;
@@ -28,7 +28,7 @@ export class StringObject implements Object {
 export class BooleanObject implements Object {
   public readonly type = "BOOLEAN";
 
-  public constructor(public value: boolean) { }
+  public constructor(public value: boolean) {}
 
   public inspect(): string {
     return this.value.toString();
@@ -46,7 +46,7 @@ export class NullObject implements Object {
 export class ReturnValueObject implements Object {
   public readonly type = "RETURN_VALUE";
 
-  public constructor(public value: ObjectType) { }
+  public constructor(public value: ObjectType) {}
 
   public inspect(): string {
     return this.value.inspect();
@@ -56,7 +56,7 @@ export class ReturnValueObject implements Object {
 export class ErrorObject implements Object {
   public readonly type = "ERROR";
 
-  public constructor(public message: string) { }
+  public constructor(public message: string) {}
 
   public inspect(): string {
     return `ERROR: ${this.message}`;
@@ -70,7 +70,7 @@ export class FunctionObject implements Object {
     public parameters: Array<IdentifierExpression>,
     public body: BlockStatement | null,
     public env: Environment
-  ) { }
+  ) {}
 
   public inspect(): string {
     let out = "fn(";
@@ -92,10 +92,28 @@ export class FunctionObject implements Object {
 export class BuiltinFunctionObject implements Object {
   public readonly type = "BUILTIN_FUNCTION";
 
-  public constructor(public fn: (...args: Array<ObjectType>) => ObjectType) { }
+  public constructor(public fn: (...args: Array<ObjectType>) => ObjectType) {}
 
   public inspect(): string {
     return "builtin function";
+  }
+}
+
+export class ArrayObject implements Object {
+  public readonly type = "ARRAY";
+
+  public constructor(public elements: Array<ObjectType>) {}
+
+  public inspect(): string {
+    let out = "[";
+    for (let i = 0; i < this.elements.length; i++) {
+      out += this.elements[i]!.inspect();
+      if (i !== this.elements.length - 1) {
+        out += ", ";
+      }
+    }
+    out += "]";
+    return out;
   }
 }
 
@@ -107,7 +125,8 @@ export type ObjectType =
   | ReturnValueObject
   | ErrorObject
   | FunctionObject
-  | BuiltinFunctionObject;
+  | BuiltinFunctionObject
+  | ArrayObject;
 
 export class Environment {
   #store = new Map<string, ObjectType>();

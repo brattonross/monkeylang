@@ -81,6 +81,12 @@ export class Lexer {
       case "}":
         token = new Token("RBRACE", this.#ch);
         break;
+      case "[":
+        token = new Token("LBRACKET", this.#ch);
+        break;
+      case "]":
+        token = new Token("RBRACKET", this.#ch);
+        break;
       case '"':
         token = new Token("STRING", this.#readString());
         break;

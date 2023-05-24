@@ -8,6 +8,7 @@ import {
   type IntegerObject,
   FunctionObject,
   StringObject,
+  ArrayObject,
 } from "./object.ts";
 import { Parser } from "./parser.ts";
 
@@ -276,6 +277,44 @@ test("builtin functions", () => {
 
       const error = value as ErrorObject;
       expect(error.message).toBe(expected);
+    }
+  }
+});
+
+test("array literals", () => {
+  const input = "[1, 2 * 2, 3 + 3]";
+
+  const value = runEval(input)!;
+  expect(value.type).toBe("ARRAY");
+
+  const array = value as ArrayObject;
+  expect(array.elements.length).toBe(3);
+
+  testIntegerObject(array.elements[0], 1);
+  testIntegerObject(array.elements[1], 4);
+  testIntegerObject(array.elements[2], 6);
+});
+
+test("array index expressions", () => {
+  const tests = [
+    ["[1, 2, 3][0]", 1],
+    ["[1, 2, 3][1]", 2],
+    ["[1, 2, 3][2]", 3],
+    ["let i = 0; [1][i];", 1],
+    ["[1, 2, 3][1 + 1];", 3],
+    ["let myArray = [1, 2, 3]; myArray[2];", 3],
+    ["let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];", 6],
+    ["let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", 2],
+    ["[1, 2, 3][3]", null],
+    ["[1, 2, 3][-1]", null],
+  ] as const;
+
+  for (const [input, expected] of tests) {
+    const value = runEval(input);
+    if (expected === null) {
+      testNullObject(value);
+    } else {
+      testIntegerObject(value, expected);
     }
   }
 });
