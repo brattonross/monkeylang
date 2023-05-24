@@ -266,6 +266,19 @@ test("builtin functions", () => {
     ['len("hello world")', 11],
     ["len(1)", "argument to `len` not supported, got INTEGER"],
     ['len("one", "two")', "wrong number of arguments. got=2, want=1"],
+    ["len([1, 2, 3])", 3],
+    ["len([])", 0],
+    ['puts("hello", "world!")', null],
+    ["first([1, 2, 3])", 1],
+    ["first([])", null],
+    ["first(1)", "argument to `first` must be ARRAY, got INTEGER"],
+    ["last([1, 2, 3])", 3],
+    ["last([])", null],
+    ["last(1)", "argument to `last` must be ARRAY, got INTEGER"],
+    ["rest([1, 2, 3])", [2, 3]],
+    ["rest([])", null],
+    ["push([], 1)", [1]],
+    ["push(1, 1)", "argument to `push` must be ARRAY, got INTEGER"],
   ] as const;
 
   for (const [input, expected] of tests) {

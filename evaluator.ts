@@ -33,13 +33,91 @@ const BUILTINS = {
     }
 
     const arg = args[0];
-    if (arg?.type === "STRING") {
+    if (arg?.type === "ARRAY") {
+      return new IntegerObject(arg.elements.length);
+    } else if (arg?.type === "STRING") {
       return new IntegerObject(arg.value.length);
     }
 
     return new ErrorObject(
       `argument to \`len\` not supported, got ${arg?.type}`
     );
+  }),
+  first: new BuiltinFunctionObject((...args) => {
+    if (args.length !== 1) {
+      return new ErrorObject(
+        `wrong number of arguments. got=${args.length}, want=1`
+      );
+    }
+
+    const arg = args[0];
+    if (arg?.type !== "ARRAY") {
+      return new ErrorObject(
+        `argument to \`first\` must be ARRAY, got ${arg?.type}`
+      );
+    }
+
+    if (arg.elements.length > 0) {
+      return arg.elements[0] ?? NULL;
+    }
+
+    return NULL;
+  }),
+  last: new BuiltinFunctionObject((...args) => {
+    if (args.length !== 1) {
+      return new ErrorObject(
+        `wrong number of arguments. got=${args.length}, want=1`
+      );
+    }
+
+    const arg = args[0];
+    if (arg?.type !== "ARRAY") {
+      return new ErrorObject(
+        `argument to \`last\` must be ARRAY, got ${arg?.type}`
+      );
+    }
+
+    if (arg.elements.length > 0) {
+      return arg.elements[arg.elements.length - 1] ?? NULL;
+    }
+
+    return NULL;
+  }),
+  rest: new BuiltinFunctionObject((...args) => {
+    if (args.length !== 1) {
+      return new ErrorObject(
+        `wrong number of arguments. got=${args.length}, want=1`
+      );
+    }
+
+    const arg = args[0];
+    if (arg?.type !== "ARRAY") {
+      return new ErrorObject(
+        `argument to \`rest\` must be ARRAY, got ${arg?.type}`
+      );
+    }
+
+    if (arg.elements.length > 0) {
+      return new ArrayObject(arg.elements.slice(1));
+    }
+
+    return NULL;
+  }),
+  push: new BuiltinFunctionObject((...args) => {
+    if (args.length !== 2) {
+      return new ErrorObject(
+        `wrong number of arguments. got=${args.length}, want=2`
+      );
+    }
+
+    const arg = args[0];
+    if (arg?.type !== "ARRAY") {
+      return new ErrorObject(
+        `argument to \`push\` must be ARRAY, got ${arg?.type}`
+      );
+    }
+
+    return new ArrayObject(arg.elements.concat(args[1]!));
   }),
 } as const;
 
