@@ -122,6 +122,10 @@ const BUILTINS = {
 
     return new ArrayObject(arg.elements.concat(args[1]!));
   }),
+  puts: new BuiltinFunctionObject((...args) => {
+    args.forEach((arg) => console.log(arg?.inspect()));
+    return NULL;
+  }),
 } as const;
 
 export function evaluate(
