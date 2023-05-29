@@ -47,6 +47,8 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Result<Token> {
+        self.skip_whitespace();
+
         let token = match self.ch {
             b'=' => Token::Assign,
             b';' => Token::Semicolon,
@@ -56,8 +58,20 @@ impl Lexer {
             b'+' => Token::Plus,
             b'{' => Token::LBrace,
             b'}' => Token::RBrace,
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+                let identifier = self.read_identifier();
+                return Ok(match identifier.as_str() {
+                    "fn" => Token::Function,
+                    "let" => Token::Let,
+                    _ => Token::Ident(identifier),
+                });
+            }
+            b'0'..=b'9' => {
+                let number = self.read_number();
+                return Ok(Token::Int(number));
+            }
             0 => Token::Eof,
-            _ => todo!(),
+            _ => Token::Illegal,
         };
 
         self.read_char();
@@ -74,6 +88,28 @@ impl Lexer {
         self.position = self.read_position;
         self.read_position += 1;
     }
+
+    fn skip_whitespace(&mut self) {
+        while self.ch.is_ascii_whitespace() {
+            self.read_char();
+        }
+    }
+
+    fn read_identifier(&mut self) -> String {
+        let position = self.position;
+        while self.ch.is_ascii_alphabetic() || self.ch == b'_' {
+            self.read_char();
+        }
+        return String::from_utf8_lossy(&self.input[position..self.position]).to_string();
+    }
+
+    fn read_number(&mut self) -> String {
+        let position = self.position;
+        while self.ch.is_ascii_digit() {
+            self.read_char();
+        }
+        return String::from_utf8_lossy(&self.input[position..self.position]).to_string();
+    }
 }
 
 #[cfg(test)]
@@ -83,16 +119,52 @@ mod tests {
 
     #[test]
     fn test_next_token() -> Result<()> {
-        let input = "=+(){},;";
+        let input = "let five = 5;
+let ten = 10;
+
+let add = fn(x, y) {
+    x + y;
+};
+
+let result = add(five, ten);
+";
 
         let tests = vec![
+            Token::Let,
+            Token::Ident(String::from("five")),
             Token::Assign,
-            Token::Plus,
+            Token::Int(String::from("5")),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident(String::from("ten")),
+            Token::Assign,
+            Token::Int(String::from("10")),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident(String::from("add")),
+            Token::Assign,
+            Token::Function,
             Token::LParen,
+            Token::Ident(String::from("x")),
+            Token::Comma,
+            Token::Ident(String::from("y")),
             Token::RParen,
             Token::LBrace,
+            Token::Ident(String::from("x")),
+            Token::Plus,
+            Token::Ident(String::from("y")),
+            Token::Semicolon,
             Token::RBrace,
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident(String::from("result")),
+            Token::Assign,
+            Token::Ident(String::from("add")),
+            Token::LParen,
+            Token::Ident(String::from("five")),
             Token::Comma,
+            Token::Ident(String::from("ten")),
+            Token::RParen,
             Token::Semicolon,
             Token::Eof,
         ];
