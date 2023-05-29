@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Illegal,
@@ -59,7 +57,7 @@ impl Lexer {
         return lexer;
     }
 
-    pub fn next_token(&mut self) -> Result<Token> {
+    pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let token = match self.ch {
@@ -93,7 +91,7 @@ impl Lexer {
             b'}' => Token::RBrace,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 let identifier = self.read_identifier();
-                return Ok(match identifier.as_str() {
+                return match identifier.as_str() {
                     "fn" => Token::Function,
                     "let" => Token::Let,
                     "if" => Token::If,
@@ -102,18 +100,18 @@ impl Lexer {
                     "true" => Token::True,
                     "false" => Token::False,
                     _ => Token::Ident(identifier),
-                });
+                };
             }
             b'0'..=b'9' => {
                 let number = self.read_number();
-                return Ok(Token::Int(number));
+                return Token::Int(number);
             }
             0 => Token::Eof,
             _ => Token::Illegal,
         };
 
         self.read_char();
-        return Ok(token);
+        return token;
     }
 
     fn read_char(&mut self) {
@@ -161,10 +159,9 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use super::{Lexer, Token};
-    use anyhow::Result;
 
     #[test]
-    fn test_next_token() -> Result<()> {
+    fn test_next_token() {
         let input = "let five = 5;
 let ten = 10;
 
@@ -266,10 +263,8 @@ if (5 < 10) {
         let mut lexer = Lexer::new(input.to_string());
 
         for expected_token in tests {
-            let token = lexer.next_token()?;
+            let token = lexer.next_token();
             assert_eq!(token, expected_token);
         }
-
-        return Ok(());
     }
 }
