@@ -12,6 +12,14 @@ pub enum Token {
     // Operators
     Assign,
     Plus,
+    Minus,
+    Bang,
+    Asterisk,
+    Slash,
+    Lt,
+    Gt,
+    Eq,
+    NotEq,
 
     // Delimiters
     Comma,
@@ -25,6 +33,11 @@ pub enum Token {
     // Keywords
     Function,
     Let,
+    If,
+    Else,
+    Return,
+    True,
+    False,
 }
 
 pub struct Lexer {
@@ -50,12 +63,32 @@ impl Lexer {
         self.skip_whitespace();
 
         let token = match self.ch {
-            b'=' => Token::Assign,
+            b'=' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::Eq
+                } else {
+                    Token::Assign
+                }
+            }
+            b'+' => Token::Plus,
+            b'-' => Token::Minus,
+            b'!' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::NotEq
+                } else {
+                    Token::Bang
+                }
+            }
+            b'*' => Token::Asterisk,
+            b'/' => Token::Slash,
+            b'<' => Token::Lt,
+            b'>' => Token::Gt,
             b';' => Token::Semicolon,
             b'(' => Token::LParen,
             b')' => Token::RParen,
             b',' => Token::Comma,
-            b'+' => Token::Plus,
             b'{' => Token::LBrace,
             b'}' => Token::RBrace,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
@@ -63,6 +96,11 @@ impl Lexer {
                 return Ok(match identifier.as_str() {
                     "fn" => Token::Function,
                     "let" => Token::Let,
+                    "if" => Token::If,
+                    "else" => Token::Else,
+                    "return" => Token::Return,
+                    "true" => Token::True,
+                    "false" => Token::False,
                     _ => Token::Ident(identifier),
                 });
             }
@@ -87,6 +125,14 @@ impl Lexer {
 
         self.position = self.read_position;
         self.read_position += 1;
+    }
+
+    fn peek_char(&mut self) -> u8 {
+        if self.read_position >= self.input.len() {
+            return 0;
+        } else {
+            return self.input[self.read_position];
+        }
     }
 
     fn skip_whitespace(&mut self) {
@@ -127,6 +173,17 @@ let add = fn(x, y) {
 };
 
 let result = add(five, ten);
+!-/*5;
+5 < 10 > 5;
+
+if (5 < 10) {
+    return true;
+} else {
+    return false;
+}
+
+10 == 10;
+10 != 9;
 ";
 
         let tests = vec![
@@ -165,6 +222,43 @@ let result = add(five, ten);
             Token::Comma,
             Token::Ident(String::from("ten")),
             Token::RParen,
+            Token::Semicolon,
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int(String::from("5")),
+            Token::Semicolon,
+            Token::Int(String::from("5")),
+            Token::Lt,
+            Token::Int(String::from("10")),
+            Token::Gt,
+            Token::Int(String::from("5")),
+            Token::Semicolon,
+            Token::If,
+            Token::LParen,
+            Token::Int(String::from("5")),
+            Token::Lt,
+            Token::Int(String::from("10")),
+            Token::RParen,
+            Token::LBrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Else,
+            Token::LBrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Int(String::from("10")),
+            Token::Eq,
+            Token::Int(String::from("10")),
+            Token::Semicolon,
+            Token::Int(String::from("10")),
+            Token::NotEq,
+            Token::Int(String::from("9")),
             Token::Semicolon,
             Token::Eof,
         ];
