@@ -7,6 +7,7 @@ import (
 
 	"github.com/brattonross/interpreter/evaluator"
 	"github.com/brattonross/interpreter/lexer"
+	"github.com/brattonross/interpreter/object"
 	"github.com/brattonross/interpreter/parser"
 )
 
@@ -14,6 +15,7 @@ const PROMPT = ">> "
 
 func Start(r io.Reader, w io.Writer) {
 	scanner := bufio.NewScanner(r)
+	env := object.NewEnvironment()
 
 	for {
 		fmt.Fprintf(w, PROMPT)
@@ -32,7 +34,7 @@ func Start(r io.Reader, w io.Writer) {
 			continue
 		}
 
-		evaluated := evaluator.Eval(program)
+		evaluated := evaluator.Eval(program, env)
 		if evaluated != nil {
 			io.WriteString(w, evaluated.Inspect())
 			io.WriteString(w, "\n")
