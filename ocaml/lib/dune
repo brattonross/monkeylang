@@ -1,0 +1,5 @@
+(library
+ (name interpreter)
+ (libraries fmt ppx_inline_test)
+ (inline_tests)
+ (preprocess (pps ppx_inline_test ppx_deriving.show ppx_deriving.eq)))
