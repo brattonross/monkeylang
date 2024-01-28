@@ -52,10 +52,7 @@ pub fn next_token(lexer: Lexer) -> #(Lexer, token.Token) {
 
 fn skip_whitespace(lexer: Lexer) -> Lexer {
   case lexer.ch {
-    " " -> skip_whitespace(read_char(lexer))
-    "\t" -> skip_whitespace(read_char(lexer))
-    "\n" -> skip_whitespace(read_char(lexer))
-    "\r" -> skip_whitespace(read_char(lexer))
+    " " | "\t" | "\n" | "\r" -> skip_whitespace(read_char(lexer))
     _ -> lexer
   }
 }
