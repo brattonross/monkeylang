@@ -47,3 +47,11 @@ pub fn to_string(token: Token) -> String {
     Let -> "LET"
   }
 }
+
+pub fn lookup_identifier(str: String) -> Token {
+  case str {
+    "fn" -> Function
+    "let" -> Let
+    _ -> Identifier(str)
+  }
+}
