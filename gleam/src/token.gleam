@@ -9,6 +9,14 @@ pub type Token {
   // Operators
   Assign
   Plus
+  Minus
+  Bang
+  Asterisk
+  Slash
+  LessThan
+  GreaterThan
+  Equal
+  NotEqual
 
   // Delimiters
   Comma
@@ -22,6 +30,11 @@ pub type Token {
   // Keywords
   Function
   Let
+  True
+  False
+  If
+  Else
+  Return
 }
 
 pub fn to_string(token: Token) -> String {
@@ -34,6 +47,14 @@ pub fn to_string(token: Token) -> String {
 
     Assign -> "="
     Plus -> "+"
+    Minus -> "-"
+    Bang -> "!"
+    Asterisk -> "*"
+    Slash -> "/"
+    LessThan -> "<"
+    GreaterThan -> ">"
+    Equal -> "=="
+    NotEqual -> "!="
 
     Comma -> ","
     Semicolon -> ";"
@@ -45,6 +66,11 @@ pub fn to_string(token: Token) -> String {
 
     Function -> "FUNCTION"
     Let -> "LET"
+    True -> "TRUE"
+    False -> "FALSE"
+    If -> "IF"
+    Else -> "ELSE"
+    Return -> "RETURN"
   }
 }
 
@@ -52,6 +78,11 @@ pub fn lookup_identifier(str: String) -> Token {
   case str {
     "fn" -> Function
     "let" -> Let
+    "true" -> True
+    "false" -> False
+    "if" -> If
+    "else" -> Else
+    "return" -> Return
     _ -> Identifier(str)
   }
 }

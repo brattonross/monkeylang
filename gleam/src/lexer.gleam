@@ -13,12 +13,28 @@ pub fn new(input: String) -> Lexer {
 pub fn next_token(lexer: Lexer) -> #(Lexer, token.Token) {
   let lexer = skip_whitespace(lexer)
   case lexer.ch {
-    "=" -> #(read_char(lexer), token.Assign)
+    "=" -> {
+      case peek_char(lexer) {
+        "=" -> #(read_char(read_char(lexer)), token.Equal)
+        _ -> #(read_char(lexer), token.Assign)
+      }
+    }
     ";" -> #(read_char(lexer), token.Semicolon)
     "(" -> #(read_char(lexer), token.LParen)
     ")" -> #(read_char(lexer), token.RParen)
     "," -> #(read_char(lexer), token.Comma)
     "+" -> #(read_char(lexer), token.Plus)
+    "-" -> #(read_char(lexer), token.Minus)
+    "!" -> {
+      case peek_char(lexer) {
+        "=" -> #(read_char(read_char(lexer)), token.NotEqual)
+        _ -> #(read_char(lexer), token.Bang)
+      }
+    }
+    "/" -> #(read_char(lexer), token.Slash)
+    "*" -> #(read_char(lexer), token.Asterisk)
+    "<" -> #(read_char(lexer), token.LessThan)
+    ">" -> #(read_char(lexer), token.GreaterThan)
     "{" -> #(read_char(lexer), token.LBrace)
     "}" -> #(read_char(lexer), token.RBrace)
     "\\0" -> #(lexer, token.EOF)
@@ -41,6 +57,13 @@ fn skip_whitespace(lexer: Lexer) -> Lexer {
     "\n" -> skip_whitespace(read_char(lexer))
     "\r" -> skip_whitespace(read_char(lexer))
     _ -> lexer
+  }
+}
+
+fn peek_char(lexer: Lexer) -> String {
+  case is_end_of_input(lexer) {
+    True -> "\\0"
+    False -> string.slice(lexer.input, lexer.read_position, 1)
   }
 }
 

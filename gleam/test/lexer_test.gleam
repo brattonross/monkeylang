@@ -18,6 +18,17 @@ let add = fn(x, y) {
 };
 
 let result = add(five, ten);
+!-/*5;
+5 < 10 > 5;
+
+if (5 < 10) {
+  return true;
+} else {
+  return false;
+}
+
+10 == 10;
+10 != 9;
 "
   let expected = [
     token.Let,
@@ -55,6 +66,43 @@ let result = add(five, ten);
     token.Comma,
     token.Identifier("ten"),
     token.RParen,
+    token.Semicolon,
+    token.Bang,
+    token.Minus,
+    token.Slash,
+    token.Asterisk,
+    token.Integer("5"),
+    token.Semicolon,
+    token.Integer("5"),
+    token.LessThan,
+    token.Integer("10"),
+    token.GreaterThan,
+    token.Integer("5"),
+    token.Semicolon,
+    token.If,
+    token.LParen,
+    token.Integer("5"),
+    token.LessThan,
+    token.Integer("10"),
+    token.RParen,
+    token.LBrace,
+    token.Return,
+    token.True,
+    token.Semicolon,
+    token.RBrace,
+    token.Else,
+    token.LBrace,
+    token.Return,
+    token.False,
+    token.Semicolon,
+    token.RBrace,
+    token.Integer("10"),
+    token.Equal,
+    token.Integer("10"),
+    token.Semicolon,
+    token.Integer("10"),
+    token.NotEqual,
+    token.Integer("9"),
     token.Semicolon,
     token.EOF,
   ]
