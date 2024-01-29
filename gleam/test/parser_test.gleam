@@ -10,13 +10,19 @@ pub fn main() {
 }
 
 pub fn let_statements_test() {
-  let program =
+  let parser =
     "let x = 5;
      let y = 10;
      let foobar = 838383;"
     |> lexer.new
     |> parser.new
-    |> parser.parse_program
+
+  parser
+  |> parser.errors
+  |> list.length
+  |> should.equal(0)
+
+  let program = parser.parse_program(parser)
 
   program.statements
   |> list.length
