@@ -62,6 +62,14 @@ void lexer_skip_whitespace(lexer_t *lexer) {
     ;
 }
 
+char lexer_peek_char(lexer_t *l) {
+  if (l->read_position >= strlen(l->input)) {
+    return 0;
+  } else {
+    return l->input[l->read_position];
+  }
+}
+
 token_t lexer_next_token(lexer_t *l) {
   token_t token;
 
@@ -69,7 +77,12 @@ token_t lexer_next_token(lexer_t *l) {
 
   switch (l->ch) {
   case '=':
-    token = (token_t){.token_type = ASSIGN, .literal = "="};
+    if (lexer_peek_char(l) == '=') {
+      lexer_read_char(l);
+      token = (token_t){.token_type = EQ, .literal = "=="};
+    } else {
+      token = (token_t){.token_type = ASSIGN, .literal = "="};
+    }
     break;
   case ';':
     token = (token_t){.token_type = SEMICOLON, .literal = ";"};
@@ -85,6 +98,29 @@ token_t lexer_next_token(lexer_t *l) {
     break;
   case '+':
     token = (token_t){.token_type = PLUS, .literal = "+"};
+    break;
+  case '-':
+    token = (token_t){.token_type = MINUS, .literal = "-"};
+    break;
+  case '!':
+    if (lexer_peek_char(l) == '=') {
+      lexer_read_char(l);
+      token = (token_t){.token_type = NOT_EQ, .literal = "!="};
+    } else {
+      token = (token_t){.token_type = BANG, .literal = "!"};
+    }
+    break;
+  case '/':
+    token = (token_t){.token_type = SLASH, .literal = "/"};
+    break;
+  case '*':
+    token = (token_t){.token_type = ASTERISK, .literal = "*"};
+    break;
+  case '<':
+    token = (token_t){.token_type = LT, .literal = "<"};
+    break;
+  case '>':
+    token = (token_t){.token_type = GT, .literal = ">"};
     break;
   case '{':
     token = (token_t){.token_type = LBRACE, .literal = "{"};

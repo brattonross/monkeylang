@@ -7,6 +7,16 @@ typedef enum {
 
   ASSIGN,
   PLUS,
+  MINUS,
+  BANG,
+  ASTERISK,
+  SLASH,
+
+  LT,
+  GT,
+
+  EQ,
+  NOT_EQ,
 
   COMMA,
   SEMICOLON,
@@ -18,6 +28,11 @@ typedef enum {
 
   FUNCTION,
   LET,
+  TRUE,
+  FALSE,
+  IF,
+  ELSE,
+  RETURN,
 } token_type_t;
 
 typedef struct {
