@@ -1,6 +1,6 @@
 typedef enum {
+  END_OF_FILE = 0,
   ILLEGAL,
-  END_OF_FILE,
 
   IDENT,
   INT,
