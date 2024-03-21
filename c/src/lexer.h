@@ -1,9 +1,11 @@
+#include <stdlib.h>
+
 #include "token.h"
 
 typedef struct {
   char *input;
-  int position;
-  int read_position;
+  size_t position;
+  size_t read_position;
   char ch;
 } lexer_t;
 
