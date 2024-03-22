@@ -1,8 +1,9 @@
 pub type Token {
   EOF
+  Illegal
 
-  Identifier
-  Int
+  Identifier(String)
+  Int(Int)
 
   Assign
   Plus
