@@ -1,7 +1,9 @@
 use crate::lexer::Lexer;
 use crate::token::Token;
 
+mod ast;
 mod lexer;
+mod parser;
 mod token;
 
 fn main() {
