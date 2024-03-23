@@ -4,9 +4,10 @@ use crate::token::Token;
 
 pub struct Parser {
     lexer: Lexer,
-
     current_token: Token,
     peek_token: Token,
+
+    pub errors: Vec<String>,
 }
 
 impl Parser {
@@ -15,6 +16,7 @@ impl Parser {
         let peek_token = lexer.next_token();
         return Parser {
             lexer,
+            errors: vec![],
             current_token,
             peek_token,
         };
@@ -46,11 +48,15 @@ impl Parser {
     fn parse_let_statement(&mut self) -> Result<Statement, String> {
         let name = match &self.peek_token {
             Token::Identifier(name) => name.to_string(),
-            _ => return Err(String::from("Expected identifier")),
+            _ => {
+                self.peek_error(Token::Identifier(String::from("")));
+                return Err(String::from("Expected identifier"));
+            }
         };
         self.next_token();
 
         if self.peek_token != Token::Assign {
+            self.peek_error(Token::Assign);
             return Err(String::from("Expected assign"));
         }
         self.next_token();
@@ -64,6 +70,13 @@ impl Parser {
             name: name.to_string(),
             value: Expression {},
         }));
+    }
+
+    fn peek_error(&mut self, expected: Token) {
+        self.errors.push(format!(
+            "Expected next token to be {:?}, got {:?} instead",
+            expected, self.peek_token
+        ));
     }
 }
 
@@ -86,6 +99,7 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
+        assert_eq!(parser.errors.len(), 0);
         assert_eq!(program.statements.len(), 3);
 
         let expected = vec!["x", "y", "foobar"];
