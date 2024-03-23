@@ -1,6 +1,8 @@
-use crate::lexer::{Lexer, Token};
+use crate::lexer::Lexer;
+use crate::token::Token;
 
-pub mod lexer;
+mod lexer;
+mod token;
 
 fn main() {
     loop {
@@ -11,7 +13,7 @@ fn main() {
         let mut l = Lexer::new(input);
         loop {
             let token = l.next_token();
-            if token == Token::Eof {
+            if token == Token::EOF {
                 break;
             }
             println!("{:?}", token);
