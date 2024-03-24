@@ -1,6 +1,18 @@
-use crate::ast::{Expression, LetStatement, Program, Statement};
+use crate::ast::{
+    Expression, ExpressionStatement, LetStatement, Program, ReturnStatement, Statement,
+};
 use crate::lexer::Lexer;
 use crate::token::Token;
+
+enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+}
 
 pub struct Parser {
     lexer: Lexer,
@@ -14,6 +26,7 @@ impl Parser {
     pub fn new(mut lexer: Lexer) -> Parser {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
+
         return Parser {
             lexer,
             errors: vec![],
@@ -41,7 +54,8 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Statement, String> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
-            _ => Err(String::from("Unsupported token")),
+            Token::Return => self.parse_return_statement(),
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -67,9 +81,43 @@ impl Parser {
         }
 
         return Ok(Statement::Let(LetStatement {
-            name: name.to_string(),
-            value: Expression {},
+            name: Token::Identifier(name),
+            value: Expression::Identifier(Token::Identifier(String::from(""))),
         }));
+    }
+
+    fn parse_return_statement(&mut self) -> Result<Statement, String> {
+        self.next_token();
+
+        // TODO: This skips expressions until we encounter a semicolon
+        while self.current_token != Token::Semicolon {
+            self.next_token();
+        }
+
+        return Ok(Statement::Return(ReturnStatement {
+            value: Expression::Identifier(Token::Identifier(String::from(""))),
+        }));
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<Statement, String> {
+        let expression = self.parse_expression(Precedence::Lowest);
+        if self.peek_token == Token::Semicolon {
+            self.next_token();
+        }
+        return Ok(Statement::Expression(ExpressionStatement {
+            expression: expression?,
+        }));
+    }
+
+    fn parse_expression(&self, precedence: Precedence) -> Result<Expression, String> {
+        match self.current_token {
+            Token::Identifier(_) => self.parse_identifier(),
+            _ => Err(String::from("Expected identifier")),
+        }
+    }
+
+    fn parse_identifier(&self) -> Result<Expression, String> {
+        Ok(Expression::Identifier(self.current_token.clone()))
     }
 
     fn peek_error(&mut self, expected: Token) {
@@ -82,7 +130,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use super::{Lexer, Parser};
+    use super::*;
     use crate::ast::Statement;
 
     #[test]
@@ -107,9 +155,58 @@ mod tests {
             let statement = &program.statements[i];
             match statement {
                 Statement::Let(let_statement) => {
-                    assert_eq!(let_statement.name, *name);
+                    assert_eq!(let_statement.name, Token::Identifier(name.to_string()));
                 }
+                _ => panic!("Expected LetStatement"),
             }
         }
+    }
+
+    #[test]
+    fn test_return_statements() {
+        let input = String::from(
+            "
+            return 5;
+            return 10;
+            return 993322;
+        ",
+        );
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(program.statements.len(), 3);
+
+        for statement in program.statements {
+            match statement {
+                Statement::Return(_) => {}
+                _ => panic!("Expected ReturnStatement"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_identifier_expression() {
+        let input = String::from("foobar;");
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = &program.statements[0];
+        let expression = match statement {
+            Statement::Expression(expression_statement) => &expression_statement.expression,
+            _ => panic!("Expected ExpressionStatement"),
+        };
+        let identifier = match expression {
+            Expression::Identifier(token) => token,
+            _ => panic!("Expected Identifier"),
+        };
+        assert_eq!(identifier, &Token::Identifier(String::from("foobar")));
     }
 }
