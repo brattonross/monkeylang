@@ -112,9 +112,12 @@ impl Parser {
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
         let left = match self.current_token {
             Token::Bang => self.parse_prefix_expression(),
+            Token::False => Ok(Expression::Boolean(false)),
             Token::Identifier(_) => self.parse_identifier(),
             Token::Int(_) => self.parse_integer_literal(),
+            Token::LParen => self.parse_grouped_expression(),
             Token::Minus => self.parse_prefix_expression(),
+            Token::True => Ok(Expression::Boolean(true)),
             _ => {
                 self.errors.push(format!(
                     "No prefix parse function for {:?}",
@@ -186,6 +189,16 @@ impl Parser {
             operator,
             right,
         }));
+    }
+
+    fn parse_grouped_expression(&mut self) -> Result<Expression, String> {
+        self.next_token();
+        let expression = self.parse_expression(Precedence::Lowest)?;
+        if self.peek_token != Token::RParen {
+            return Err(String::from("Expected closing parenthesis"));
+        }
+        self.next_token();
+        return Ok(expression);
     }
 
     fn peek_precendence(&self) -> Precedence {
@@ -326,11 +339,17 @@ mod tests {
     #[test]
     fn test_parse_prefix_expressions() {
         let tests = vec![
-            ("!5;", PrefixOperator::Bang, 5),
-            ("-15;", PrefixOperator::Minus, 15),
+            ("!5;", PrefixOperator::Bang, Expression::IntegerLiteral(5)),
+            (
+                "-15;",
+                PrefixOperator::Minus,
+                Expression::IntegerLiteral(15),
+            ),
+            ("!true;", PrefixOperator::Bang, Expression::Boolean(true)),
+            ("!false;", PrefixOperator::Bang, Expression::Boolean(false)),
         ];
 
-        for (input, operator, value) in tests {
+        for (input, operator, expected_right) in tests {
             let lexer = Lexer::new(String::from(input));
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
@@ -348,26 +367,79 @@ mod tests {
                 _ => panic!("Expected Prefix"),
             };
             assert_eq!(prefix.operator, operator);
-
-            let integer = match *prefix.right {
-                Expression::IntegerLiteral(token) => token,
-                _ => panic!("Expected Integer"),
-            };
-            assert_eq!(integer, value);
+            assert_eq!(*prefix.right, expected_right);
         }
     }
 
     #[test]
     fn test_parse_infix_expressions() {
         let tests = vec![
-            ("5 + 5;", 5, InfixOperator::Plus, 5),
-            ("5 - 5;", 5, InfixOperator::Minus, 5),
-            ("5 * 5;", 5, InfixOperator::Asterisk, 5),
-            ("5 / 5;", 5, InfixOperator::Slash, 5),
-            ("5 > 5;", 5, InfixOperator::GreaterThan, 5),
-            ("5 < 5;", 5, InfixOperator::LessThan, 5),
-            ("5 == 5;", 5, InfixOperator::Equal, 5),
-            ("5 != 5;", 5, InfixOperator::NotEqual, 5),
+            (
+                "5 + 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::Plus,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 - 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::Minus,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 * 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::Asterisk,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 / 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::Slash,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 > 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::GreaterThan,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 < 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::LessThan,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 == 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::Equal,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "5 != 5;",
+                Expression::IntegerLiteral(5),
+                InfixOperator::NotEqual,
+                Expression::IntegerLiteral(5),
+            ),
+            (
+                "true == true",
+                Expression::Boolean(true),
+                InfixOperator::Equal,
+                Expression::Boolean(true),
+            ),
+            (
+                "true != false",
+                Expression::Boolean(true),
+                InfixOperator::NotEqual,
+                Expression::Boolean(false),
+            ),
+            (
+                "false == false",
+                Expression::Boolean(false),
+                InfixOperator::Equal,
+                Expression::Boolean(false),
+            ),
         ];
 
         for (input, expected_left, expected_operator, expected_right) in tests {
@@ -388,16 +460,8 @@ mod tests {
                 _ => panic!("Expected Infix"),
             };
             assert_eq!(infix.operator, expected_operator);
-            let left = match *infix.left {
-                Expression::IntegerLiteral(token) => token,
-                _ => panic!("Expected Integer"),
-            };
-            assert_eq!(left, expected_left);
-            let right = match *infix.right {
-                Expression::IntegerLiteral(token) => token,
-                _ => panic!("Expected Integer"),
-            };
-            assert_eq!(right, expected_right);
+            assert_eq!(*infix.left, expected_left);
+            assert_eq!(*infix.right, expected_right);
         }
     }
 
@@ -419,6 +483,15 @@ mod tests {
                 "3 + 4 * 5 == 3 * 1 + 4 * 5;",
                 "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
             ),
+            ("true;", "true"),
+            ("false;", "false"),
+            ("3 > 5 == false;", "((3 > 5) == false)"),
+            ("3 < 5 == true;", "((3 < 5) == true)"),
+            ("1 + (2 + 3) + 4;", "((1 + (2 + 3)) + 4)"),
+            ("(5 + 5) * 2;", "((5 + 5) * 2)"),
+            ("2 / (5 + 5);", "(2 / (5 + 5))"),
+            ("-(5 + 5);", "(-(5 + 5))"),
+            ("!(true == true);", "(!(true == true))"),
         ];
 
         for (input, expected) in tests {
@@ -427,6 +500,30 @@ mod tests {
             let program = parser.parse_program();
             assert_eq!(parser.errors, Vec::<String>::new());
             assert_eq!(program.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_boolean_expression() {
+        let tests = vec![("true;", true), ("false;", false)];
+        for (input, expected) in tests {
+            let lexer = Lexer::new(String::from(input));
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            assert_eq!(parser.errors, Vec::<String>::new());
+            assert_eq!(program.statements.len(), 1);
+
+            let statement = &program.statements[0];
+            let expression = match statement {
+                Statement::Expression(expression_statement) => &expression_statement.expression,
+                _ => panic!("Expected ExpressionStatement"),
+            };
+            let boolean = match expression {
+                Expression::Boolean(token) => token,
+                _ => panic!("Expected Boolean"),
+            };
+            assert_eq!(boolean, &expected);
         }
     }
 }

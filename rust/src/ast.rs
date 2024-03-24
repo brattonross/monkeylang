@@ -56,7 +56,7 @@ impl fmt::Display for PrefixOperator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PrefixExpression {
     pub operator: PrefixOperator,
     pub right: Box<Expression>,
@@ -89,19 +89,20 @@ impl fmt::Display for InfixOperator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct InfixExpression {
     pub left: Box<Expression>,
     pub operator: InfixOperator,
     pub right: Box<Expression>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(isize),
     Prefix(PrefixExpression),
     Infix(InfixExpression),
+    Boolean(bool),
 }
 
 impl fmt::Display for Expression {
@@ -119,6 +120,7 @@ impl fmt::Display for Expression {
                     expression.left, expression.operator, expression.right
                 )
             }
+            Expression::Boolean(token) => write!(f, "{}", token),
         }
     }
 }
