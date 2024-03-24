@@ -82,7 +82,7 @@ impl Parser {
 
         return Ok(Statement::Let(LetStatement {
             name: Token::Identifier(name),
-            value: Expression::Identifier(Token::Identifier(String::from(""))),
+            value: Expression::Identifier(String::from("")),
         }));
     }
 
@@ -95,7 +95,7 @@ impl Parser {
         }
 
         return Ok(Statement::Return(ReturnStatement {
-            value: Expression::Identifier(Token::Identifier(String::from(""))),
+            value: Expression::Identifier(String::from("")),
         }));
     }
 
@@ -112,12 +112,27 @@ impl Parser {
     fn parse_expression(&self, precedence: Precedence) -> Result<Expression, String> {
         match self.current_token {
             Token::Identifier(_) => self.parse_identifier(),
+            Token::Int(_) => self.parse_integer_literal(),
             _ => Err(String::from("Expected identifier")),
         }
     }
 
     fn parse_identifier(&self) -> Result<Expression, String> {
-        Ok(Expression::Identifier(self.current_token.clone()))
+        match &self.current_token {
+            Token::Identifier(name) => Ok(Expression::Identifier(name.to_string())),
+            _ => Err(String::from("Expected identifier")),
+        }
+    }
+
+    fn parse_integer_literal(&self) -> Result<Expression, String> {
+        let value = match &self.current_token {
+            Token::Int(value) => match value.parse() {
+                Ok(value) => value,
+                Err(_) => return Err(String::from("Expected integer")),
+            },
+            _ => return Err(String::from("Expected integer")),
+        };
+        return Ok(Expression::IntegerLiteral(value));
     }
 
     fn peek_error(&mut self, expected: Token) {
@@ -207,6 +222,29 @@ mod tests {
             Expression::Identifier(token) => token,
             _ => panic!("Expected Identifier"),
         };
-        assert_eq!(identifier, &Token::Identifier(String::from("foobar")));
+        assert_eq!(identifier, &String::from("foobar"));
+    }
+
+    #[test]
+    fn test_integer_literal_expression() {
+        let input = String::from("5;");
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = &program.statements[0];
+        let expression = match statement {
+            Statement::Expression(expression_statement) => &expression_statement.expression,
+            _ => panic!("Expected ExpressionStatement"),
+        };
+        let integer = match expression {
+            Expression::IntegerLiteral(token) => token,
+            _ => panic!("Expected Integer"),
+        };
+        assert_eq!(integer, &5);
     }
 }

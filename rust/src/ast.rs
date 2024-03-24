@@ -43,13 +43,15 @@ impl fmt::Display for ReturnStatement {
 
 #[derive(Debug)]
 pub enum Expression {
-    Identifier(Token),
+    Identifier(String),
+    IntegerLiteral(isize),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expression::Identifier(token) => write!(f, "{}", token),
+            Expression::IntegerLiteral(token) => write!(f, "{}", token),
         }
     }
 }
@@ -89,7 +91,7 @@ mod tests {
         let program = Program {
             statements: vec![Statement::Let(LetStatement {
                 name: Identifier(String::from("myVar")),
-                value: Expression::Identifier(Token::Identifier(String::from("anotherVar"))),
+                value: Expression::Identifier(String::from("anotherVar")),
             })],
         };
 
