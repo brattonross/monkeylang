@@ -110,7 +110,7 @@ impl fmt::Display for Expression {
             Expression::Identifier(token) => write!(f, "{}", token),
             Expression::IntegerLiteral(token) => write!(f, "{}", token),
             Expression::Prefix(expression) => {
-                write!(f, "{}{}", expression.operator, expression.right)
+                write!(f, "({}{})", expression.operator, expression.right)
             }
             Expression::Infix(expression) => {
                 write!(
@@ -142,7 +142,7 @@ impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut output = String::new();
         for statement in &self.statements {
-            output.push_str(&format!("{}\n", statement));
+            output.push_str(&format!("{}", statement));
         }
         write!(f, "{}", output)
     }
@@ -162,6 +162,6 @@ mod tests {
             })],
         };
 
-        assert_eq!(format!("{}", program), "let myVar = anotherVar;\n");
+        assert_eq!(format!("{}", program), "let myVar = anotherVar;");
     }
 }
