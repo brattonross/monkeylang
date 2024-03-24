@@ -62,11 +62,46 @@ pub struct PrefixExpression {
     pub right: Box<Expression>,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum InfixOperator {
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+}
+
+impl fmt::Display for InfixOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            InfixOperator::Plus => write!(f, "+"),
+            InfixOperator::Minus => write!(f, "-"),
+            InfixOperator::Asterisk => write!(f, "*"),
+            InfixOperator::Slash => write!(f, "/"),
+            InfixOperator::Equal => write!(f, "=="),
+            InfixOperator::NotEqual => write!(f, "!="),
+            InfixOperator::LessThan => write!(f, "<"),
+            InfixOperator::GreaterThan => write!(f, ">"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct InfixExpression {
+    pub left: Box<Expression>,
+    pub operator: InfixOperator,
+    pub right: Box<Expression>,
+}
+
 #[derive(Debug)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(isize),
     Prefix(PrefixExpression),
+    Infix(InfixExpression),
 }
 
 impl fmt::Display for Expression {
@@ -76,6 +111,13 @@ impl fmt::Display for Expression {
             Expression::IntegerLiteral(token) => write!(f, "{}", token),
             Expression::Prefix(expression) => {
                 write!(f, "{}{}", expression.operator, expression.right)
+            }
+            Expression::Infix(expression) => {
+                write!(
+                    f,
+                    "({} {} {})",
+                    expression.left, expression.operator, expression.right
+                )
             }
         }
     }

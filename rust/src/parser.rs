@@ -1,10 +1,11 @@
 use crate::ast::{
-    Expression, ExpressionStatement, LetStatement, PrefixExpression, PrefixOperator, Program,
-    ReturnStatement, Statement,
+    Expression, ExpressionStatement, InfixExpression, InfixOperator, LetStatement,
+    PrefixExpression, PrefixOperator, Program, ReturnStatement, Statement,
 };
 use crate::lexer::Lexer;
 use crate::token::Token;
 
+#[derive(Debug, PartialEq, PartialOrd)]
 enum Precedence {
     Lowest,
     Equals,
@@ -101,17 +102,15 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
-        let expression = self.parse_expression(Precedence::Lowest);
+        let expression = self.parse_expression(Precedence::Lowest)?;
         if self.peek_token == Token::Semicolon {
             self.next_token();
         }
-        return Ok(Statement::Expression(ExpressionStatement {
-            expression: expression?,
-        }));
+        return Ok(Statement::Expression(ExpressionStatement { expression }));
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
-        match self.current_token {
+        let left = match self.current_token {
             Token::Bang => self.parse_prefix_expression(),
             Token::Identifier(_) => self.parse_identifier(),
             Token::Int(_) => self.parse_integer_literal(),
@@ -123,7 +122,14 @@ impl Parser {
                 ));
                 Err(String::from("Expected identifier"))
             }
+        }?;
+
+        let mut result = left;
+        while self.peek_token != Token::Semicolon && precedence < self.peek_precendence() {
+            self.next_token();
+            result = self.parse_infix_expression(Box::new(result))?;
         }
+        return Ok(result);
     }
 
     fn parse_identifier(&self) -> Result<Expression, String> {
@@ -156,6 +162,54 @@ impl Parser {
         return Ok(Expression::Prefix(PrefixExpression { operator, right }));
     }
 
+    fn parse_infix_expression(&mut self, left: Box<Expression>) -> Result<Expression, String> {
+        let operator = match self.current_token {
+            Token::Plus => InfixOperator::Plus,
+            Token::Minus => InfixOperator::Minus,
+            Token::Asterisk => InfixOperator::Asterisk,
+            Token::Slash => InfixOperator::Slash,
+            Token::Equal => InfixOperator::Equal,
+            Token::NotEqual => InfixOperator::NotEqual,
+            Token::LessThan => InfixOperator::LessThan,
+            Token::GreaterThan => InfixOperator::GreaterThan,
+            _ => return Err(String::from("Expected infix operator")),
+        };
+        let precedence = self.current_precedence();
+
+        self.next_token();
+
+        let expression = self.parse_expression(precedence)?;
+        let right = Box::new(expression);
+
+        return Ok(Expression::Infix(InfixExpression {
+            left,
+            operator,
+            right,
+        }));
+    }
+
+    fn peek_precendence(&self) -> Precedence {
+        Parser::map_precedence(&self.peek_token)
+    }
+
+    fn current_precedence(&self) -> Precedence {
+        Parser::map_precedence(&self.current_token)
+    }
+
+    fn map_precedence(token: &Token) -> Precedence {
+        match token {
+            Token::Equal => Precedence::Equals,
+            Token::NotEqual => Precedence::Equals,
+            Token::LessThan => Precedence::LessGreater,
+            Token::GreaterThan => Precedence::LessGreater,
+            Token::Plus => Precedence::Sum,
+            Token::Minus => Precedence::Sum,
+            Token::Asterisk => Precedence::Product,
+            Token::Slash => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
+
     fn peek_error(&mut self, expected: Token) {
         self.errors.push(format!(
             "Expected next token to be {:?}, got {:?} instead",
@@ -167,7 +221,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{PrefixOperator, Statement};
+    use crate::ast::{InfixOperator, PrefixOperator, Statement};
 
     #[test]
     fn test_let_statements() {
@@ -300,6 +354,50 @@ mod tests {
                 _ => panic!("Expected Integer"),
             };
             assert_eq!(integer, value);
+        }
+    }
+
+    #[test]
+    fn test_parse_infix_expressions() {
+        let tests = vec![
+            ("5 + 5;", 5, InfixOperator::Plus, 5),
+            ("5 - 5;", 5, InfixOperator::Minus, 5),
+            ("5 * 5;", 5, InfixOperator::Asterisk, 5),
+            ("5 / 5;", 5, InfixOperator::Slash, 5),
+            ("5 > 5;", 5, InfixOperator::GreaterThan, 5),
+            ("5 < 5;", 5, InfixOperator::LessThan, 5),
+            ("5 == 5;", 5, InfixOperator::Equal, 5),
+            ("5 != 5;", 5, InfixOperator::NotEqual, 5),
+        ];
+
+        for (input, expected_left, expected_operator, expected_right) in tests {
+            let lexer = Lexer::new(String::from(input));
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            assert_eq!(parser.errors, Vec::<String>::new());
+            assert_eq!(program.statements.len(), 1);
+
+            let statement = &program.statements[0];
+            let expression = match statement {
+                Statement::Expression(expression_statement) => &expression_statement.expression,
+                _ => panic!("Expected ExpressionStatement"),
+            };
+            let infix = match expression {
+                Expression::Infix(expression) => expression,
+                _ => panic!("Expected Infix"),
+            };
+            assert_eq!(infix.operator, expected_operator);
+            let left = match *infix.left {
+                Expression::IntegerLiteral(token) => token,
+                _ => panic!("Expected Integer"),
+            };
+            assert_eq!(left, expected_left);
+            let right = match *infix.right {
+                Expression::IntegerLiteral(token) => token,
+                _ => panic!("Expected Integer"),
+            };
+            assert_eq!(right, expected_right);
         }
     }
 }
