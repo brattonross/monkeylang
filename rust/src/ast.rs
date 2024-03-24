@@ -41,10 +41,32 @@ impl fmt::Display for ReturnStatement {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum PrefixOperator {
+    Bang,
+    Minus,
+}
+
+impl fmt::Display for PrefixOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PrefixOperator::Bang => write!(f, "!"),
+            PrefixOperator::Minus => write!(f, "-"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PrefixExpression {
+    pub operator: PrefixOperator,
+    pub right: Box<Expression>,
+}
+
 #[derive(Debug)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(isize),
+    Prefix(PrefixExpression),
 }
 
 impl fmt::Display for Expression {
@@ -52,6 +74,9 @@ impl fmt::Display for Expression {
         match self {
             Expression::Identifier(token) => write!(f, "{}", token),
             Expression::IntegerLiteral(token) => write!(f, "{}", token),
+            Expression::Prefix(expression) => {
+                write!(f, "{}{}", expression.operator, expression.right)
+            }
         }
     }
 }

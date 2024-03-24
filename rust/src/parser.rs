@@ -1,5 +1,6 @@
 use crate::ast::{
-    Expression, ExpressionStatement, LetStatement, Program, ReturnStatement, Statement,
+    Expression, ExpressionStatement, LetStatement, PrefixExpression, PrefixOperator, Program,
+    ReturnStatement, Statement,
 };
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -109,11 +110,19 @@ impl Parser {
         }));
     }
 
-    fn parse_expression(&self, precedence: Precedence) -> Result<Expression, String> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
         match self.current_token {
+            Token::Bang => self.parse_prefix_expression(),
             Token::Identifier(_) => self.parse_identifier(),
             Token::Int(_) => self.parse_integer_literal(),
-            _ => Err(String::from("Expected identifier")),
+            Token::Minus => self.parse_prefix_expression(),
+            _ => {
+                self.errors.push(format!(
+                    "No prefix parse function for {:?}",
+                    self.current_token
+                ));
+                Err(String::from("Expected identifier"))
+            }
         }
     }
 
@@ -135,6 +144,18 @@ impl Parser {
         return Ok(Expression::IntegerLiteral(value));
     }
 
+    fn parse_prefix_expression(&mut self) -> Result<Expression, String> {
+        let operator = match self.current_token {
+            Token::Bang => PrefixOperator::Bang,
+            Token::Minus => PrefixOperator::Minus,
+            _ => return Err(String::from("Expected prefix operator")),
+        };
+        self.next_token();
+        let expression = self.parse_expression(Precedence::Prefix)?;
+        let right = Box::new(expression);
+        return Ok(Expression::Prefix(PrefixExpression { operator, right }));
+    }
+
     fn peek_error(&mut self, expected: Token) {
         self.errors.push(format!(
             "Expected next token to be {:?}, got {:?} instead",
@@ -146,7 +167,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::Statement;
+    use crate::ast::{PrefixOperator, Statement};
 
     #[test]
     fn test_let_statements() {
@@ -162,7 +183,7 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(parser.errors, Vec::<String>::new());
         assert_eq!(program.statements.len(), 3);
 
         let expected = vec!["x", "y", "foobar"];
@@ -191,7 +212,7 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(parser.errors, Vec::<String>::new());
         assert_eq!(program.statements.len(), 3);
 
         for statement in program.statements {
@@ -210,7 +231,7 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(parser.errors, Vec::<String>::new());
         assert_eq!(program.statements.len(), 1);
 
         let statement = &program.statements[0];
@@ -233,7 +254,7 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert_eq!(parser.errors.len(), 0);
+        assert_eq!(parser.errors, Vec::<String>::new());
         assert_eq!(program.statements.len(), 1);
 
         let statement = &program.statements[0];
@@ -246,5 +267,39 @@ mod tests {
             _ => panic!("Expected Integer"),
         };
         assert_eq!(integer, &5);
+    }
+
+    #[test]
+    fn test_parse_prefix_expressions() {
+        let tests = vec![
+            ("!5;", PrefixOperator::Bang, 5),
+            ("-15;", PrefixOperator::Minus, 15),
+        ];
+
+        for (input, operator, value) in tests {
+            let lexer = Lexer::new(String::from(input));
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            assert_eq!(parser.errors, Vec::<String>::new());
+            assert_eq!(program.statements.len(), 1);
+
+            let statement = &program.statements[0];
+            let expression = match statement {
+                Statement::Expression(expression_statement) => &expression_statement.expression,
+                _ => panic!("Expected ExpressionStatement"),
+            };
+            let prefix = match expression {
+                Expression::Prefix(expression) => expression,
+                _ => panic!("Expected Prefix"),
+            };
+            assert_eq!(prefix.operator, operator);
+
+            let integer = match *prefix.right {
+                Expression::IntegerLiteral(token) => token,
+                _ => panic!("Expected Integer"),
+            };
+            assert_eq!(integer, value);
+        }
     }
 }
