@@ -33,6 +33,12 @@ pub fn next_token(lexer: Lexer) -> #(Lexer, Token) {
     Some(")") -> #(lexer, token.RParen)
     Some(",") -> #(lexer, token.Comma)
     Some("+") -> #(lexer, token.Plus)
+    Some("-") -> #(lexer, token.Minus)
+    Some("!") -> #(lexer, token.Bang)
+    Some("*") -> #(lexer, token.Asterisk)
+    Some("/") -> #(lexer, token.Slash)
+    Some("<") -> #(lexer, token.LessThan)
+    Some(">") -> #(lexer, token.GreaterThan)
     Some("{") -> #(lexer, token.LBrace)
     Some("}") -> #(lexer, token.RBrace)
     Some(grapheme) ->

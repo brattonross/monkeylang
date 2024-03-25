@@ -26,6 +26,8 @@ pub fn next_token_test() {
       };
 
       let result = add(five, ten);
+      !-/*5;
+      5 < 10 > 5;
 ",
       [
         token.Let,
@@ -63,6 +65,18 @@ pub fn next_token_test() {
         token.Comma,
         token.Identifier("ten"),
         token.RParen,
+        token.Semicolon,
+        token.Bang,
+        token.Minus,
+        token.Slash,
+        token.Asterisk,
+        token.Int(5),
+        token.Semicolon,
+        token.Int(5),
+        token.LessThan,
+        token.Int(10),
+        token.GreaterThan,
+        token.Int(5),
         token.Semicolon,
         token.EOF,
       ],
