@@ -10,8 +10,6 @@ pub opaque type Lexer {
   Lexer(graphemes: List(String), pos: Int)
 }
 
-/// Create a new lexer from the given input string.
-///
 pub fn new(input: String) -> Lexer {
   Lexer(
     input
@@ -20,57 +18,23 @@ pub fn new(input: String) -> Lexer {
   )
 }
 
-/// Read the next token and advance the lexer.
-///
 pub fn next_token(lexer: Lexer) -> #(Lexer, Token) {
   let lexer =
     lexer
     |> skip_whitespace
 
-  case
+  let #(lexer, token) = case
     lexer
     |> current_grapheme
   {
-    Some("=") -> #(
-      lexer
-        |> advance,
-      token.Assign,
-    )
-    Some(";") -> #(
-      lexer
-        |> advance,
-      token.Semicolon,
-    )
-    Some("(") -> #(
-      lexer
-        |> advance,
-      token.LParen,
-    )
-    Some(")") -> #(
-      lexer
-        |> advance,
-      token.RParen,
-    )
-    Some(",") -> #(
-      lexer
-        |> advance,
-      token.Comma,
-    )
-    Some("+") -> #(
-      lexer
-        |> advance,
-      token.Plus,
-    )
-    Some("{") -> #(
-      lexer
-        |> advance,
-      token.LBrace,
-    )
-    Some("}") -> #(
-      lexer
-        |> advance,
-      token.RBrace,
-    )
+    Some("=") -> #(lexer, token.Assign)
+    Some(";") -> #(lexer, token.Semicolon)
+    Some("(") -> #(lexer, token.LParen)
+    Some(")") -> #(lexer, token.RParen)
+    Some(",") -> #(lexer, token.Comma)
+    Some("+") -> #(lexer, token.Plus)
+    Some("{") -> #(lexer, token.LBrace)
+    Some("}") -> #(lexer, token.RBrace)
     Some(grapheme) ->
       case
         grapheme
@@ -88,42 +52,41 @@ pub fn next_token(lexer: Lexer) -> #(Lexer, Token) {
             Ok(tuple) ->
               tuple
               |> pair.map_second(token.Int)
-            _ -> #(
-              lexer
-                |> advance,
-              token.Illegal,
-            )
+            _ -> #(lexer, token.Illegal)
           }
       }
     None -> #(lexer, token.EOF)
   }
+  #(
+    lexer
+      |> advance,
+    token,
+  )
 }
 
-/// Get the grapheme at the position of the given lexer.
-///
 fn current_grapheme(lexer: Lexer) -> Option(String) {
   lexer.graphemes
   |> list.at(lexer.pos)
   |> option.from_result
 }
 
-/// Return a lexer with the position advanced to the next grapheme.
-///
+fn peek_grapheme(lexer: Lexer) -> Option(String) {
+  lexer.graphemes
+  |> list.at(lexer.pos + 1)
+  |> option.from_result
+}
+
 fn advance(lexer: Lexer) -> Lexer {
   Lexer(..lexer, pos: lexer.pos + 1)
 }
 
 const whitespace_graphemes: List(String) = [" ", "\t", "\n", "\r"]
 
-/// Return whether the given grapheme is whitespace.
-///
 fn is_whitespace(grapheme: String) -> Bool {
   whitespace_graphemes
   |> list.contains(grapheme)
 }
 
-/// Advance the lexer until the next non-whitespace grapheme.
-///
 fn skip_whitespace(lexer: Lexer) -> Lexer {
   case
     lexer
@@ -139,9 +102,6 @@ fn skip_whitespace(lexer: Lexer) -> Lexer {
   }
 }
 
-/// Return whether the given grapheme is a letter.
-/// Assumes the provided string is a single grapheme.
-///
 fn is_letter(grapheme: String) -> Bool {
   grapheme
   |> string.to_utf_codepoints
@@ -152,7 +112,11 @@ fn is_letter(grapheme: String) -> Bool {
 }
 
 fn is_letter_codepoint(codepoint: Int) -> Bool {
-  codepoint >= 65 && codepoint <= 90 || codepoint >= 97 && codepoint <= 122
+  codepoint >= 65
+  && codepoint <= 90
+  || codepoint >= 97
+  && codepoint <= 122
+  || codepoint == 95
 }
 
 fn is_digit(grapheme: String) -> Bool {
@@ -168,8 +132,6 @@ fn is_digit_codepoint(codepoint: Int) -> Bool {
   codepoint >= 48 && codepoint <= 57
 }
 
-/// Read an identifier from the given lexer.
-///
 fn read_identifier(lexer: Lexer) -> #(Lexer, String) {
   lexer
   |> do_read_identifier("")
@@ -180,17 +142,27 @@ fn do_read_identifier(lexer: Lexer, literal: String) -> #(Lexer, String) {
     lexer
     |> current_grapheme
   {
-    Some(grapheme) ->
+    Some(current) -> {
+      let literal = literal <> current
       case
-        grapheme
-        |> is_letter
+        lexer
+        |> peek_grapheme
       {
-        True ->
-          lexer
-          |> advance
-          |> do_read_identifier(literal <> grapheme)
-        False -> #(lexer, literal)
+        Some(peek) -> {
+          case
+            peek
+            |> is_letter
+          {
+            True ->
+              lexer
+              |> advance
+              |> do_read_identifier(literal)
+            False -> #(lexer, literal)
+          }
+        }
+        None -> #(lexer, literal)
       }
+    }
     None -> #(lexer, literal)
   }
 }
@@ -218,17 +190,27 @@ fn do_try_parse_int(lexer: Lexer, literal: String) -> #(Lexer, String) {
     lexer
     |> current_grapheme
   {
-    Some(grapheme) ->
+    Some(current) -> {
+      let literal = literal <> current
       case
-        grapheme
-        |> is_digit
+        lexer
+        |> peek_grapheme
       {
-        True ->
-          lexer
-          |> advance
-          |> do_try_parse_int(literal <> grapheme)
-        False -> #(lexer, literal)
+        Some(peek) -> {
+          case
+            peek
+            |> is_digit
+          {
+            True ->
+              lexer
+              |> advance
+              |> do_try_parse_int(literal)
+            False -> #(lexer, literal)
+          }
+        }
+        None -> #(lexer, literal)
       }
+    }
     None -> #(lexer, literal)
   }
 }
