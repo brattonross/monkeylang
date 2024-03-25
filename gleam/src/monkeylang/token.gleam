@@ -14,6 +14,8 @@ pub type Token {
 
   LessThan
   GreaterThan
+  Equal
+  NotEqual
 
   Comma
   Semicolon
@@ -25,4 +27,9 @@ pub type Token {
 
   Function
   Let
+  True
+  False
+  If
+  Else
+  Return
 }

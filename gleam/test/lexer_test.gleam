@@ -28,6 +28,15 @@ pub fn next_token_test() {
       let result = add(five, ten);
       !-/*5;
       5 < 10 > 5;
+
+      if (5 < 10) {
+        return true;
+      } else {
+        return false;
+      }
+
+      10 == 10;
+      10 != 9;
 ",
       [
         token.Let,
@@ -77,6 +86,31 @@ pub fn next_token_test() {
         token.Int(10),
         token.GreaterThan,
         token.Int(5),
+        token.Semicolon,
+        token.If,
+        token.LParen,
+        token.Int(5),
+        token.LessThan,
+        token.Int(10),
+        token.RParen,
+        token.LBrace,
+        token.Return,
+        token.True,
+        token.Semicolon,
+        token.RBrace,
+        token.Else,
+        token.LBrace,
+        token.Return,
+        token.False,
+        token.Semicolon,
+        token.RBrace,
+        token.Int(10),
+        token.Equal,
+        token.Int(10),
+        token.Semicolon,
+        token.Int(10),
+        token.NotEqual,
+        token.Int(9),
         token.Semicolon,
         token.EOF,
       ],
