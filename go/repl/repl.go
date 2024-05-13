@@ -18,7 +18,7 @@ func Start(r io.Reader, w io.Writer) {
 	env := object.NewEnvironment()
 
 	for {
-		fmt.Fprintf(w, PROMPT)
+		fmt.Fprint(w, PROMPT)
 		scanned := scanner.Scan()
 		if !scanned {
 			return
