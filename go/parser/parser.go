@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/brattonross/interpreter/ast"
-	"github.com/brattonross/interpreter/lexer"
-	"github.com/brattonross/interpreter/token"
+	"github.com/brattonross/monkeylang/ast"
+	"github.com/brattonross/monkeylang/lexer"
+	"github.com/brattonross/monkeylang/token"
 )
 
 type (

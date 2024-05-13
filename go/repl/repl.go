@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/brattonross/interpreter/evaluator"
-	"github.com/brattonross/interpreter/lexer"
-	"github.com/brattonross/interpreter/object"
-	"github.com/brattonross/interpreter/parser"
+	"github.com/brattonross/monkeylang/evaluator"
+	"github.com/brattonross/monkeylang/lexer"
+	"github.com/brattonross/monkeylang/object"
+	"github.com/brattonross/monkeylang/parser"
 )
 
 const PROMPT = ">> "

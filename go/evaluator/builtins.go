@@ -1,6 +1,6 @@
 package evaluator
 
-import "github.com/brattonross/interpreter/object"
+import "github.com/brattonross/monkeylang/object"
 
 var builtins = map[string]*object.Builtin{
 	"len": {

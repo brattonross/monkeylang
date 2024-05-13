@@ -3,8 +3,8 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/brattonross/interpreter/ast"
-	"github.com/brattonross/interpreter/object"
+	"github.com/brattonross/monkeylang/ast"
+	"github.com/brattonross/monkeylang/object"
 )
 
 var (
