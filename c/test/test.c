@@ -76,6 +76,14 @@ void test_next_token(void) {
       {.type = TOKEN_FALSE, .literal = "false"},
       {.type = TOKEN_SEMICOLON, .literal = ";"},
       {.type = TOKEN_RIGHT_BRACE, .literal = "}"},
+      {.type = TOKEN_INT, .literal = "10"},
+      {.type = TOKEN_EQUAL, .literal = "=="},
+      {.type = TOKEN_INT, .literal = "10"},
+      {.type = TOKEN_SEMICOLON, .literal = ";"},
+      {.type = TOKEN_INT, .literal = "10"},
+      {.type = TOKEN_NOT_EQUAL, .literal = "!="},
+      {.type = TOKEN_INT, .literal = "9"},
+      {.type = TOKEN_SEMICOLON, .literal = ";"},
       {.type = TOKEN_EOF, .literal = ""},
   };
   lexer_t *l = new_lexer("let five = 5;\n"
@@ -94,6 +102,9 @@ void test_next_token(void) {
                          "} else {\n"
                          "  return false;\n"
                          "}\n"
+                         "\n"
+                         "10 == 10;\n"
+                         "10 != 9;\n"
                          "");
   int i = 0;
   for (token_t actual = next_token(l); actual.type != EOF;
