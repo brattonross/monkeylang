@@ -1,2 +1,13 @@
+.PHONY: test
+
 build:
-	zig cc src/main.c src/lexer.c -o main.out
+	mkdir -p bin
+	zig cc src/*.c -o bin/monkey
+
+run: build
+	./bin/monkey
+
+test:
+	mkdir -p bin
+	zig cc test/*.c src/lexer.c -o bin/test
+	./bin/test

@@ -1,16 +1,22 @@
+#include "token.h"
 #include <stdlib.h>
 
-#include "token.h"
+#ifndef __LEXER_H
+#define __LEXER_H
 
 typedef struct {
-  char *input;
-  size_t position;
-  size_t read_position;
-  char ch;
+  const char *input;
+  size_t pos;
 } lexer_t;
 
-void lexer_read_char(lexer_t *lexer);
+lexer_t *new_lexer(const char *input);
 
-lexer_t *lexer_new(char *input);
+char current_char(lexer_t *l);
 
-token_t lexer_next_token(lexer_t *l);
+void read_char(lexer_t *l);
+
+token_t next_token(lexer_t *l);
+
+char *read_identifier(lexer_t *l);
+
+#endif // __LEXER_H

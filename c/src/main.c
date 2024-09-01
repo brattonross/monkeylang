@@ -14,10 +14,10 @@ int main() {
     if (read == EOF) {
       break;
     }
-    lexer_t *lexer = lexer_new(input);
-    for (token_t tok = lexer_next_token(lexer); tok.token_type != END_OF_FILE;
-         tok = lexer_next_token(lexer)) {
-      printf("type: %d, literal: %s\n", tok.token_type, tok.literal);
+    lexer_t *lexer = new_lexer(input);
+    for (token_t tok = next_token(lexer); tok.type != EOF;
+         tok = next_token(lexer)) {
+      printf("type: %d, literal: %s\n", tok.type, tok.literal);
     }
     free(input);
   }

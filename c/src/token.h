@@ -1,41 +1,50 @@
+#ifndef __TOKEN_H
+#define __TOKEN_H
+
 typedef enum {
-  END_OF_FILE = 0,
-  ILLEGAL,
+  TOKEN_EOF = -1,
+  TOKEN_ILLEGAL,
 
-  IDENT,
-  INT,
+  TOKEN_IDENT,
+  TOKEN_INT,
 
-  ASSIGN,
-  PLUS,
-  MINUS,
-  BANG,
-  ASTERISK,
-  SLASH,
+  TOKEN_ASSIGN,
+  TOKEN_PLUS,
+  TOKEN_MINUS,
+  TOKEN_BANG,
+  TOKEN_ASTERISK,
+  TOKEN_SLASH,
 
-  LT,
-  GT,
+  TOKEN_LESS_THAN,
+  TOKEN_GREATER_THAN,
 
-  EQ,
-  NOT_EQ,
+  TOKEN_EQUAL,
+  TOKEN_NOT_EQUAL,
 
-  COMMA,
-  SEMICOLON,
+  TOKEN_COMMA,
+  TOKEN_SEMICOLON,
 
-  LPAREN,
-  RPAREN,
-  LBRACE,
-  RBRACE,
+  TOKEN_LEFT_PAREN,
+  TOKEN_RIGHT_PAREN,
+  TOKEN_LEFT_BRACE,
+  TOKEN_RIGHT_BRACE,
 
-  FUNCTION,
-  LET,
-  TRUE,
-  FALSE,
-  IF,
-  ELSE,
-  RETURN,
+  TOKEN_FUNCTION,
+  TOKEN_LET,
+  TOKEN_TRUE,
+  TOKEN_FALSE,
+  TOKEN_IF,
+  TOKEN_ELSE,
+  TOKEN_RETURN,
 } token_type_t;
 
 typedef struct {
-  token_type_t token_type;
-  char *literal;
+  token_type_t type;
+  const char *literal;
 } token_t;
+
+token_t new_token(token_type_t type, const char *literal);
+
+// const token_t token_eq = {.type = EQ, .literal = "=="};
+
+#endif // __TOKEN_H
