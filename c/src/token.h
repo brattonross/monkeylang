@@ -5,7 +5,7 @@ typedef enum {
   TOKEN_EOF = -1,
   TOKEN_ILLEGAL,
 
-  TOKEN_IDENT,
+  TOKEN_IDENTIFIER,
   TOKEN_INT,
 
   TOKEN_ASSIGN,
@@ -42,9 +42,5 @@ typedef struct {
   token_type_t type;
   const char *literal;
 } token_t;
-
-token_t new_token(token_type_t type, const char *literal);
-
-// const token_t token_eq = {.type = EQ, .literal = "=="};
 
 #endif // __TOKEN_H

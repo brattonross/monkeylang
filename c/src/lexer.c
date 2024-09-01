@@ -49,7 +49,7 @@ token_type_t lookup_ident(char *ident) {
   } else if (strncmp(ident, "fn", 2) == 0) {
     return TOKEN_FUNCTION;
   } else {
-    return TOKEN_IDENT;
+    return TOKEN_IDENTIFIER;
   }
 }
 
