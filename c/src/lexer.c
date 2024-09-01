@@ -43,14 +43,27 @@ char *read_number(lexer_t *l) {
   return strndup(l->input + pos, l->pos - pos);
 }
 
+static const token_t identifier_table[] = {
+    {.type = TOKEN_LET, .literal = "let"},
+    {.type = TOKEN_FUNCTION, .literal = "fn"},
+    {.type = TOKEN_TRUE, .literal = "true"},
+    {.type = TOKEN_FALSE, .literal = "false"},
+    {.type = TOKEN_IF, .literal = "if"},
+    {.type = TOKEN_ELSE, .literal = "else"},
+    {.type = TOKEN_RETURN, .literal = "return"},
+};
+static const size_t total_identifiers =
+    sizeof identifier_table / sizeof *identifier_table;
+
 token_type_t lookup_ident(char *ident) {
-  if (strncmp(ident, "let", 3) == 0) {
-    return TOKEN_LET;
-  } else if (strncmp(ident, "fn", 2) == 0) {
-    return TOKEN_FUNCTION;
-  } else {
-    return TOKEN_IDENTIFIER;
+  token_type_t t = TOKEN_IDENTIFIER;
+  for (int i = 0; i < total_identifiers; ++i) {
+    if (strcmp(ident, identifier_table[i].literal) == 0) {
+      t = identifier_table[i].type;
+      break;
+    }
   }
+  return t;
 }
 
 bool is_whitespace(char c) {
