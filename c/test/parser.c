@@ -4,6 +4,13 @@
 #include "parser.h"
 #include "unity.h"
 
+void check_parser_errors(parser_t *p) {
+  for (int i = 0; i < p->errors->len; ++i) {
+    fprintf(stderr, "parser error: %s\n", (char *)p->errors->arr[i]);
+  }
+  TEST_ASSERT_EQUAL_INT(0, p->errors->len);
+}
+
 void test_let_statement(const statement_t *s, const char *expected_name) {
   TEST_ASSERT_EQUAL_STRING("let", statement_token_literal(s));
   TEST_ASSERT_EQUAL_INT(STATEMENT_LET, s->type);
@@ -19,6 +26,7 @@ void test_parser_let_statements(void) {
   TEST_ASSERT_NOT_NULL(p);
 
   program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
   TEST_ASSERT_NOT_NULL(prg);
   TEST_ASSERT_EQUAL_INT(3, prg->statements_len);
 

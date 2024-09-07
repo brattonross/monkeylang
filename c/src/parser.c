@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "array_list.h"
 #include "ast.h"
 #include "lexer.h"
 #include "token.h"
@@ -21,11 +22,29 @@ parser_t *parser_init(lexer_t *l) {
   p->lexer = l;
   p->current_token = NULL;
   p->peek_token = NULL;
+  p->errors = array_list_create(1);
 
   parser_next_token(p);
   parser_next_token(p);
 
   return p;
+}
+
+parser_error_t parser_peek_error(parser_t *p, token_type_t t) {
+  if (p == NULL) {
+    return PARSER_INVALID_ARGUMENT_ERROR;
+  }
+
+  char *msg;
+  if (asprintf(&msg, "expected next token to be %s, got %s",
+               token_type_humanize(t),
+               token_type_humanize(p->peek_token->type)) < 0) {
+    return PARSER_ALLOC_ERROR;
+  }
+  if (array_list_push(p->errors, msg) != ARRAY_LIST_SUCCESS) {
+    return PARSER_ALLOC_ERROR;
+  }
+  return PARSER_SUCCESS;
 }
 
 bool parser_current_token_is(const parser_t *p, token_type_t t) {
@@ -41,6 +60,7 @@ bool parser_expect_peek(parser_t *p, token_type_t t) {
     parser_next_token(p);
     return true;
   }
+  parser_peek_error(p, t);
   return false;
 }
 

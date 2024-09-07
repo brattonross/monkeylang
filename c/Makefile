@@ -9,10 +9,10 @@ run: build
 
 test:
 	mkdir -p bin
-	zig cc test/*.c src/ast.c src/lexer.c src/parser.c -o bin/test
+	zig cc test/*.c src/array_list.c src/ast.c src/lexer.c src/parser.c src/token.c -o bin/test
 	./bin/test
 
 test-debug:
 	mkdir -p bin
-	zig cc -g test/*.c src/ast.c src/lexer.c src/parser.c -o bin/test
+	zig cc -g test/*.c src/array_list.c src/ast.c src/lexer.c src/parser.c src/token.c -o bin/test
 	gdb ./bin/test
