@@ -1,5 +1,5 @@
-#ifndef __TOKEN_H
-#define __TOKEN_H
+#ifndef __TOKEN_H__
+#define __TOKEN_H__
 
 typedef enum {
   TOKEN_EOF = -1,
@@ -40,7 +40,7 @@ typedef enum {
 
 typedef struct {
   token_type_t type;
-  const char *literal;
+  char *literal;
 } token_t;
 
-#endif // __TOKEN_H
+#endif // __TOKEN_H__

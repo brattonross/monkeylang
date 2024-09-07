@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "token.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -14,12 +15,25 @@ int main() {
     if (read == EOF) {
       break;
     }
-    lexer_t *lexer = new_lexer(input);
-    for (token_t tok = next_token(lexer); tok.type != EOF;
-         tok = next_token(lexer)) {
-      printf("type: %d, literal: %s\n", tok.type, tok.literal);
+    lexer_t *lexer = lexer_init(input);
+    if (lexer == NULL) {
+      perror("failed to initialize lexer");
+      abort();
     }
+
+    token_t *token = lexer_next_token(lexer);
+    while (token->type != TOKEN_EOF) {
+      if (token == NULL) {
+        perror("failed to get next token");
+        abort();
+      }
+      token = lexer_next_token(lexer);
+      printf("type: %d, literal: %s\n", token->type, token->literal);
+    }
+
+    free(token);
     free(input);
+    lexer_free(lexer);
   }
 
   return 0;

@@ -3,15 +3,22 @@
 #include <stdio.h>
 #include <string.h>
 
-lexer_t *new_lexer(const char *input) {
-  lexer_t *l = malloc(sizeof(lexer_t));
-  if (l != NULL) {
-    l->input = input;
+lexer_t *lexer_init(const char *input) {
+  if (input == NULL) {
+    return NULL;
   }
+  lexer_t *l = malloc(sizeof(lexer_t));
+  if (l == NULL) {
+    return NULL;
+  }
+  l->input = input;
+  l->pos = 0;
   return l;
 }
 
-char current_char(lexer_t *l) {
+void lexer_free(lexer_t *l) { free(l); }
+
+char lexer_current_char(lexer_t *l) {
   size_t len = strlen(l->input);
   if (l->pos >= len) {
     return EOF;
@@ -19,7 +26,7 @@ char current_char(lexer_t *l) {
   return l->input[l->pos];
 }
 
-void read_char(lexer_t *l) { l->pos++; }
+void lexer_advance(lexer_t *l) { l->pos++; }
 
 bool is_letter(char ch) {
   return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z') || ch == '_';
@@ -27,18 +34,18 @@ bool is_letter(char ch) {
 
 bool is_digit(char ch) { return '0' <= ch && ch <= '9'; }
 
-char *read_identifier(lexer_t *l) {
+char *lexer_read_identifier(lexer_t *l) {
   size_t pos = l->pos;
-  while (is_letter(current_char(l))) {
-    read_char(l);
+  while (is_letter(lexer_current_char(l))) {
+    lexer_advance(l);
   }
   return strndup(l->input + pos, l->pos - pos);
 }
 
-char *read_number(lexer_t *l) {
+char *lexer_read_number(lexer_t *l) {
   int pos = l->pos;
-  while (is_digit(current_char(l))) {
-    read_char(l);
+  while (is_digit(lexer_current_char(l))) {
+    lexer_advance(l);
   }
   return strndup(l->input + pos, l->pos - pos);
 }
@@ -55,7 +62,7 @@ static const token_t identifier_table[] = {
 static const size_t total_identifiers =
     sizeof identifier_table / sizeof *identifier_table;
 
-token_type_t lookup_ident(char *ident) {
+token_type_t lookup_ident(const char *ident) {
   token_type_t t = TOKEN_IDENTIFIER;
   for (int i = 0; i < total_identifiers; ++i) {
     if (strcmp(ident, identifier_table[i].literal) == 0) {
@@ -70,13 +77,13 @@ bool is_whitespace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-void skip_whitespace(lexer_t *l) {
-  while (is_whitespace(current_char(l))) {
-    read_char(l);
+void lexer_skip_whitespace(lexer_t *l) {
+  while (is_whitespace(lexer_current_char(l))) {
+    lexer_advance(l);
   }
 }
 
-char peek_char(lexer_t *l) {
+char lexer_peek_char(lexer_t *l) {
   size_t peek_pos = l->pos + 1;
   if (peek_pos >= strlen(l->input)) {
     return EOF;
@@ -84,79 +91,120 @@ char peek_char(lexer_t *l) {
   return l->input[peek_pos];
 }
 
-token_t next_token(lexer_t *l) {
-  skip_whitespace(l);
+token_t *lexer_next_token(lexer_t *l) {
+  if (l == NULL) {
+    return NULL;
+  }
+
+  lexer_skip_whitespace(l);
 
   token_t *t = malloc(sizeof(token_t));
-  switch (current_char(l)) {
+  if (t == NULL) {
+    return NULL;
+  }
+
+  t->literal = NULL;
+
+  switch (lexer_current_char(l)) {
   case '=':
-    if (peek_char(l) == '=') {
-      read_char(l);
-      t = &(token_t){.type = TOKEN_EQUAL, .literal = "=="};
+    if (lexer_peek_char(l) == '=') {
+      lexer_advance(l);
+      t->type = TOKEN_EQUAL;
+      t->literal = strdup("==");
     } else {
-      t = &(token_t){.type = TOKEN_ASSIGN, .literal = "="};
+      t->type = TOKEN_ASSIGN;
+      t->literal = strdup("=");
     }
     break;
   case ';':
-    t = &(token_t){.type = TOKEN_SEMICOLON, .literal = ";"};
+    t->type = TOKEN_SEMICOLON;
+    t->literal = strdup(";");
     break;
   case '(':
-    t = &(token_t){.type = TOKEN_LEFT_PAREN, .literal = "("};
+    t->type = TOKEN_LEFT_PAREN;
+    t->literal = strdup("(");
     break;
   case ')':
-    t = &(token_t){.type = TOKEN_RIGHT_PAREN, .literal = ")"};
+    t->type = TOKEN_RIGHT_PAREN;
+    t->literal = strdup(")");
     break;
   case ',':
-    t = &(token_t){.type = TOKEN_COMMA, .literal = ","};
+    t->type = TOKEN_COMMA;
+    t->literal = strdup(",");
     break;
   case '+':
-    t = &(token_t){.type = TOKEN_PLUS, .literal = "+"};
+    t->type = TOKEN_PLUS;
+    t->literal = strdup("+");
     break;
   case '-':
-    t = &(token_t){.type = TOKEN_MINUS, .literal = "-"};
+    t->type = TOKEN_MINUS;
+    t->literal = strdup("-");
     break;
   case '!':
-    if (peek_char(l) == '=') {
-      read_char(l);
-      t = &(token_t){.type = TOKEN_NOT_EQUAL, .literal = "!="};
+    if (lexer_peek_char(l) == '=') {
+      lexer_advance(l);
+      t->type = TOKEN_NOT_EQUAL;
+      t->literal = strdup("!=");
     } else {
-      t = &(token_t){.type = TOKEN_BANG, .literal = "!"};
+      t->type = TOKEN_BANG;
+      t->literal = strdup("!");
     }
     break;
   case '/':
-    t = &(token_t){.type = TOKEN_SLASH, .literal = "/"};
+    t->type = TOKEN_SLASH;
+    t->literal = strdup("/");
     break;
   case '*':
-    t = &(token_t){.type = TOKEN_ASTERISK, .literal = "*"};
+    t->type = TOKEN_ASTERISK;
+    t->literal = strdup("*");
     break;
   case '<':
-    t = &(token_t){.type = TOKEN_LESS_THAN, .literal = "<"};
+    t->type = TOKEN_LESS_THAN;
+    t->literal = strdup("<");
     break;
   case '>':
-    t = &(token_t){.type = TOKEN_GREATER_THAN, .literal = ">"};
+    t->type = TOKEN_GREATER_THAN;
+    t->literal = strdup(">");
     break;
   case '{':
-    t = &(token_t){.type = TOKEN_LEFT_BRACE, .literal = "{"};
+    t->type = TOKEN_LEFT_BRACE;
+    t->literal = strdup("{");
     break;
   case '}':
-    t = &(token_t){.type = TOKEN_RIGHT_BRACE, .literal = "}"};
+    t->type = TOKEN_RIGHT_BRACE;
+    t->literal = strdup("}");
     break;
   case EOF:
-    t = &(token_t){.type = TOKEN_EOF, .literal = ""};
+    t->type = TOKEN_EOF;
+    t->literal = strdup("");
     break;
   default:
-    if (is_letter(current_char(l))) {
-      char *literal = read_identifier(l);
-      token_type_t type = lookup_ident(literal);
-      return (token_t){.type = type, .literal = literal};
-    } else if (is_digit(current_char(l))) {
-      return (token_t){.type = TOKEN_INT, .literal = read_number(l)};
+    if (is_letter(lexer_current_char(l))) {
+      t->literal = lexer_read_identifier(l);
+      t->type = lookup_ident(t->literal);
+      return t;
+    } else if (is_digit(lexer_current_char(l))) {
+      t->type = TOKEN_INT;
+      t->literal = lexer_read_number(l);
+      return t;
     } else {
-      t = &(token_t){.type = TOKEN_ILLEGAL,
-                     .literal = &(char){current_char(l)}};
+      t->type = TOKEN_ILLEGAL;
+      t->literal = malloc(2 * sizeof(char));
+      if (t->literal == NULL) {
+        free(t);
+        return NULL;
+      }
+      t->literal[0] = lexer_current_char(l);
+      t->literal[1] = '\0';
     }
   }
 
-  read_char(l);
-  return *t;
+  lexer_advance(l);
+
+  if (t->literal == NULL) {
+    free(t);
+    return NULL;
+  }
+
+  return t;
 }
