@@ -66,6 +66,7 @@ bool parser_expect_peek(parser_t *p, token_type_t t) {
 
 void free_statement(statement_t *s) {
   free(s->value.let);
+  free(s->value.ret);
   free(s);
 }
 
@@ -81,7 +82,6 @@ statement_t *parse_let_statement(parser_t *p) {
     free_statement(s);
     return NULL;
   }
-  s->value.let->type = STATEMENT_LET;
 
   s->value.let->token = malloc(sizeof(token_t));
   if (s->value.let->token == NULL) {
@@ -121,6 +121,34 @@ statement_t *parse_let_statement(parser_t *p) {
   return s;
 }
 
+statement_t *parse_return_statement(parser_t *p) {
+  statement_t *s = malloc(sizeof(statement_t));
+  if (s == NULL) {
+    return NULL;
+  }
+
+  s->type = STATEMENT_RETURN;
+  s->value.ret = malloc(sizeof(return_statement_t));
+  if (s->value.ret == NULL) {
+    free_statement(s);
+    return NULL;
+  }
+
+  s->value.ret->token = malloc(sizeof(token_t));
+  if (s->value.ret->token == NULL) {
+    free_statement(s);
+    return NULL;
+  }
+  memcpy(s->value.ret->token, p->current_token, sizeof(token_t));
+  s->value.ret->token->literal = strdup(p->current_token->literal);
+
+  while (!parser_current_token_is(p, TOKEN_SEMICOLON)) {
+    parser_next_token(p);
+  }
+
+  return s;
+}
+
 statement_t *parser_parse_statement(parser_t *p) {
   if (p == NULL) {
     return NULL;
@@ -128,6 +156,8 @@ statement_t *parser_parse_statement(parser_t *p) {
   switch (p->current_token->type) {
   case TOKEN_LET:
     return parse_let_statement(p);
+  case TOKEN_RETURN:
+    return parse_return_statement(p);
   default:
     return NULL;
   }

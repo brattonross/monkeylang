@@ -11,6 +11,7 @@ int main(void) {
 
   RUN_TEST(test_lexer_next_token);
   RUN_TEST(test_parser_let_statements);
+  RUN_TEST(test_parser_return_statements);
 
   return UNITY_END();
 }

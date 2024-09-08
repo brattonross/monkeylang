@@ -40,3 +40,24 @@ void test_parser_let_statements(void) {
     test_let_statement(statement, tests[i]);
   }
 }
+
+void test_parser_return_statements(void) {
+  lexer_t *l = lexer_init("return 5;\n"
+                          "return 10;\n"
+                          "return 993322;\n"
+                          "");
+  parser_t *p = parser_init(l);
+  TEST_ASSERT_NOT_NULL(p);
+
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_NOT_NULL(prg);
+  TEST_ASSERT_EQUAL_INT(3, prg->statements_len);
+
+  for (int i = 0; i < prg->statements_len; ++i) {
+    statement_t *s = prg->statements[i];
+    TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, s->type);
+    TEST_ASSERT_EQUAL_STRING("return", statement_token_literal(s));
+  }
+}

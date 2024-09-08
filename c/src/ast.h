@@ -16,19 +16,25 @@ const char *identifier_token_literal(identifier_t *i);
 
 typedef enum {
   STATEMENT_LET,
+  STATEMENT_RETURN,
 } statement_type_t;
 
 typedef struct {
-  statement_type_t type;
   token_t *token;
   identifier_t *name;
   expression_t value;
 } let_statement_t;
 
 typedef struct {
+  token_t *token;
+  expression_t *value;
+} return_statement_t;
+
+typedef struct {
   statement_type_t type;
   union {
     let_statement_t *let;
+    return_statement_t *ret;
   } value;
 } statement_t;
 
