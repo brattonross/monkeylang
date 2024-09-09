@@ -2,7 +2,29 @@
 #include <stdio.h>
 #include <string.h>
 
-char *expression_to_string(expression_t *e) { return ""; }
+static const char *prefix_expression_fmt = "(%s%s)";
+char *expression_to_string(expression_t *e) {
+  switch (e->type) {
+  case EXPRESSION_IDENTIFIER:
+    return strdup(e->value.ident->value);
+  case EXPRESSION_INTEGER_LITERAL:
+    return strdup(e->value.integer->token->literal);
+  case EXPRESSION_PREFIX: {
+    char *right_str = expression_to_string(e->value.prefix->right);
+    size_t buf_size =
+        snprintf(NULL, 0, "(%s%s)", e->value.prefix->op, right_str);
+    char *buf = malloc(buf_size + 1);
+    if (buf == NULL) {
+      free(right_str);
+      return NULL;
+    }
+    snprintf(buf, buf_size + 1, prefix_expression_fmt, e->value.prefix->op,
+             right_str);
+    free(right_str);
+    return buf;
+  }
+  }
+}
 
 const char *statement_token_literal(const statement_t *s) {
   switch (s->type) {
@@ -40,6 +62,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.ident->token->literal);
   case EXPRESSION_INTEGER_LITERAL:
     return strdup(e->value.integer->token->literal);
+  case EXPRESSION_PREFIX:
+    return strdup(e->value.prefix->token->literal);
   }
 }
 

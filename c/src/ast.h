@@ -4,6 +4,8 @@
 #include "token.h"
 #include <stdlib.h>
 
+typedef struct expression_t expression_t;
+
 typedef struct {
   token_t *token;
   const char *value;
@@ -16,18 +18,26 @@ typedef struct {
   int64_t value;
 } integer_literal_t;
 
+typedef struct {
+  token_t *token;
+  char *op;
+  expression_t *right;
+} prefix_expression_t;
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
+  EXPRESSION_PREFIX,
 } expression_type_t;
 
-typedef struct {
+struct expression_t {
   expression_type_t type;
   union {
     identifier_t *ident;
     integer_literal_t *integer;
+    prefix_expression_t *prefix;
   } value;
-} expression_t;
+};
 
 typedef enum {
   STATEMENT_LET,

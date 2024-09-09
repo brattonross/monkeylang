@@ -97,3 +97,44 @@ void test_parser_integer_literal_expression(void) {
   TEST_ASSERT_EQUAL_INT(5, integer->value);
   TEST_ASSERT_EQUAL_STRING("5", integer->token->literal);
 }
+
+void test_integer_literal(expression_t *exp, int64_t value) {
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, exp->type);
+
+  integer_literal_t *integer = exp->value.integer;
+  TEST_ASSERT_EQUAL_INT64(value, integer->value);
+  char buf[sizeof(int64_t) * 8 + 1];
+  sprintf(buf, "%ld", integer->value);
+  TEST_ASSERT_EQUAL_STRING(buf, integer->token->literal);
+}
+
+void test_parser_prefix_expressions(void) {
+  typedef struct {
+    char *input;
+    char *op;
+    int64_t value;
+  } test_case_t;
+  static const test_case_t test_cases[] = {
+      {.input = "!5;", .op = "!", .value = 5},
+      {.input = "-15;", .op = "-", .value = 15},
+  };
+  static const size_t test_cases_len = 2;
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    lexer_t *l = lexer_init(test_cases[i].input);
+    parser_t *p = parser_init(l);
+
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+    expression_statement_t *s = prg->statements[0]->value.exp;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_PREFIX, s->expression->type);
+
+    prefix_expression_t *exp = s->expression->value.prefix;
+    TEST_ASSERT_EQUAL_STRING(test_cases[i].op, exp->op);
+
+    test_integer_literal(exp->right, test_cases[i].value);
+  }
+}

@@ -12,6 +12,7 @@ parser_error_t parser_register_infix(parser_t *p, token_type_t t,
                                      infix_parse_fn fn);
 expression_t *parser_parse_identifier(parser_t *p);
 expression_t *parser_parse_integer_literal(parser_t *p);
+expression_t *parser_parse_prefix_expression(parser_t *p);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -38,6 +39,8 @@ parser_t *parser_init(lexer_t *l) {
 
   parser_register_prefix(p, TOKEN_IDENTIFIER, parser_parse_identifier);
   parser_register_prefix(p, TOKEN_INT, parser_parse_integer_literal);
+  parser_register_prefix(p, TOKEN_BANG, parser_parse_prefix_expression);
+  parser_register_prefix(p, TOKEN_MINUS, parser_parse_prefix_expression);
 
   p->infix_parse_fns = malloc(1);
   if (p->infix_parse_fns == NULL) {
@@ -85,6 +88,22 @@ parser_error_t parser_peek_error(parser_t *p, token_type_t t) {
   if (asprintf(&msg, "expected next token to be %s, got %s",
                token_type_humanize(t),
                token_type_humanize(p->peek_token->type)) < 0) {
+    return PARSER_ALLOC_ERROR;
+  }
+  if (array_list_push(p->errors, msg) != ARRAY_LIST_SUCCESS) {
+    return PARSER_ALLOC_ERROR;
+  }
+  return PARSER_SUCCESS;
+}
+
+parser_error_t parser_no_prefix_parser_fn_error(parser_t *p, token_type_t t) {
+  if (p == NULL) {
+    return PARSER_INVALID_ARGUMENT_ERROR;
+  }
+
+  char *msg;
+  if (asprintf(&msg, "no prefix parse function found for token type %s",
+               token_type_humanize(t))) {
     return PARSER_ALLOC_ERROR;
   }
   if (array_list_push(p->errors, msg) != ARRAY_LIST_SUCCESS) {
@@ -211,6 +230,7 @@ expression_t *parser_parse_expression(parser_t *p,
                                       parser_precedence_t precedence) {
   prefix_parse_fn prefix = p->prefix_parse_fns[p->current_token->type];
   if (prefix == NULL) {
+    parser_no_prefix_parser_fn_error(p, p->current_token->type);
     return NULL;
   }
   expression_t *left = prefix(p);
@@ -316,6 +336,37 @@ expression_t *parser_parse_integer_literal(parser_t *p) {
   e->value.integer->token->type = TOKEN_INT;
   e->value.integer->token->literal = strdup(p->current_token->literal);
   e->value.integer->value = strtol(p->current_token->literal, NULL, 10);
+
+  return e;
+}
+
+expression_t *parser_parse_prefix_expression(parser_t *p) {
+  expression_t *e = malloc(sizeof(expression_t));
+  if (e == NULL) {
+    return NULL;
+  }
+
+  e->type = EXPRESSION_PREFIX;
+  e->value.prefix = malloc(sizeof(prefix_expression_t));
+  if (e->value.prefix == NULL) {
+    free(e);
+    return NULL;
+  }
+
+  e->value.prefix->token = malloc(sizeof(token_t));
+  if (e->value.prefix->token == NULL) {
+    free(e);
+    free(e->value.prefix->token);
+    return NULL;
+  }
+
+  e->value.prefix->token->type = p->current_token->type;
+  e->value.prefix->token->literal = strdup(p->current_token->literal);
+  e->value.prefix->op = strdup(p->current_token->literal);
+
+  parser_next_token(p);
+
+  e->value.prefix->right = parser_parse_expression(p, PARSER_PRECEDENCE_PREFIX);
 
   return e;
 }
