@@ -4,9 +4,6 @@
 #include "token.h"
 #include <stdlib.h>
 
-typedef union {
-} expression_t;
-
 typedef struct {
   token_t *token;
   const char *value;
@@ -14,15 +11,34 @@ typedef struct {
 
 const char *identifier_token_literal(identifier_t *i);
 
+typedef struct {
+  token_t *token;
+  int64_t value;
+} integer_literal_t;
+
+typedef enum {
+  EXPRESSION_IDENTIFIER,
+  EXPRESSION_INTEGER_LITERAL,
+} expression_type_t;
+
+typedef struct {
+  expression_type_t type;
+  union {
+    identifier_t *ident;
+    integer_literal_t *integer;
+  } value;
+} expression_t;
+
 typedef enum {
   STATEMENT_LET,
   STATEMENT_RETURN,
+  STATEMENT_EXPRESSION,
 } statement_type_t;
 
 typedef struct {
   token_t *token;
   identifier_t *name;
-  expression_t value;
+  expression_t *value;
 } let_statement_t;
 
 typedef struct {
@@ -31,10 +47,16 @@ typedef struct {
 } return_statement_t;
 
 typedef struct {
+  token_t *token;
+  expression_t *expression;
+} expression_statement_t;
+
+typedef struct {
   statement_type_t type;
   union {
     let_statement_t *let;
     return_statement_t *ret;
+    expression_statement_t *exp;
   } value;
 } statement_t;
 
@@ -49,5 +71,6 @@ typedef struct {
 void program_free(program_t *p);
 
 const char *program_token_literal(const program_t *p);
+const char *program_to_string(const program_t *p);
 
 #endif // __AST_H__

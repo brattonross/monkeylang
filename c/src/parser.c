@@ -6,6 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
+parser_error_t parser_register_prefix(parser_t *p, token_type_t t,
+                                      prefix_parse_fn fn);
+parser_error_t parser_register_infix(parser_t *p, token_type_t t,
+                                     infix_parse_fn fn);
+expression_t *parser_parse_identifier(parser_t *p);
+expression_t *parser_parse_integer_literal(parser_t *p);
+
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
   p->peek_token = lexer_next_token(p->lexer);
@@ -24,10 +31,49 @@ parser_t *parser_init(lexer_t *l) {
   p->peek_token = NULL;
   p->errors = array_list_create(1);
 
+  p->prefix_parse_fns = malloc(1);
+  if (p->prefix_parse_fns == NULL) {
+    return NULL;
+  }
+
+  parser_register_prefix(p, TOKEN_IDENTIFIER, parser_parse_identifier);
+  parser_register_prefix(p, TOKEN_INT, parser_parse_integer_literal);
+
+  p->infix_parse_fns = malloc(1);
+  if (p->infix_parse_fns == NULL) {
+    return NULL;
+  }
+
   parser_next_token(p);
   parser_next_token(p);
 
   return p;
+}
+
+parser_error_t parser_register_prefix(parser_t *p, token_type_t t,
+                                      prefix_parse_fn fn) {
+  prefix_parse_fn *tmp = realloc(
+      p->prefix_parse_fns, p->prefix_parse_fns_len + sizeof(prefix_parse_fn));
+  if (tmp == NULL) {
+    return PARSER_ALLOC_ERROR;
+  }
+  p->prefix_parse_fns = tmp;
+  p->prefix_parse_fns[t] = fn;
+  p->prefix_parse_fns_len++;
+  return PARSER_SUCCESS;
+}
+
+parser_error_t parser_register_infix(parser_t *p, token_type_t t,
+                                     infix_parse_fn fn) {
+  infix_parse_fn *tmp = realloc(p->infix_parse_fns, p->infix_parse_fns_len +
+                                                        sizeof(infix_parse_fn));
+  if (tmp == NULL) {
+    return PARSER_ALLOC_ERROR;
+  }
+  p->infix_parse_fns = tmp;
+  p->infix_parse_fns[t] = fn;
+  p->infix_parse_fns_len++;
+  return PARSER_SUCCESS;
 }
 
 parser_error_t parser_peek_error(parser_t *p, token_type_t t) {
@@ -65,8 +111,17 @@ bool parser_expect_peek(parser_t *p, token_type_t t) {
 }
 
 void free_statement(statement_t *s) {
-  free(s->value.let);
-  free(s->value.ret);
+  switch (s->type) {
+  case STATEMENT_LET:
+    free(s->value.let);
+    break;
+  case STATEMENT_RETURN:
+    free(s->value.ret);
+    break;
+  case STATEMENT_EXPRESSION:
+    free(s->value.exp);
+    break;
+  }
   free(s);
 }
 
@@ -114,6 +169,9 @@ statement_t *parse_let_statement(parser_t *p) {
     return NULL;
   }
 
+  // TODO:
+  s->value.let->value = NULL;
+
   while (!parser_current_token_is(p, TOKEN_SEMICOLON)) {
     parser_next_token(p);
   }
@@ -149,6 +207,51 @@ statement_t *parse_return_statement(parser_t *p) {
   return s;
 }
 
+expression_t *parser_parse_expression(parser_t *p,
+                                      parser_precedence_t precedence) {
+  prefix_parse_fn prefix = p->prefix_parse_fns[p->current_token->type];
+  if (prefix == NULL) {
+    return NULL;
+  }
+  expression_t *left = prefix(p);
+  return left;
+}
+
+statement_t *parse_expression_statement(parser_t *p) {
+  statement_t *s = malloc(sizeof(statement_t));
+  if (s == NULL) {
+    return NULL;
+  }
+
+  s->type = STATEMENT_EXPRESSION;
+  s->value.exp = malloc(sizeof(expression_statement_t));
+  if (s->value.exp == NULL) {
+    free_statement(s);
+    return NULL;
+  }
+
+  s->value.exp->token = malloc(sizeof(token_t));
+  if (s->value.exp->token == NULL) {
+    free_statement(s);
+    return NULL;
+  }
+  memcpy(s->value.exp->token, p->current_token, sizeof(token_t));
+  s->value.exp->token->literal = strdup(p->current_token->literal);
+
+  s->value.exp->expression =
+      parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+  if (s->value.exp->expression == NULL) {
+    free_statement(s);
+    return NULL;
+  }
+
+  while (!parser_current_token_is(p, TOKEN_SEMICOLON)) {
+    parser_next_token(p);
+  }
+
+  return s;
+}
+
 statement_t *parser_parse_statement(parser_t *p) {
   if (p == NULL) {
     return NULL;
@@ -159,8 +262,62 @@ statement_t *parser_parse_statement(parser_t *p) {
   case TOKEN_RETURN:
     return parse_return_statement(p);
   default:
+    return parse_expression_statement(p);
+  }
+}
+
+expression_t *parser_parse_identifier(parser_t *p) {
+  expression_t *e = malloc(sizeof(expression_t));
+  if (e == NULL) {
     return NULL;
   }
+
+  e->type = EXPRESSION_IDENTIFIER;
+  e->value.ident = malloc(sizeof(identifier_t));
+  if (e->value.ident == NULL) {
+    free(e);
+    return NULL;
+  }
+
+  e->value.ident->token = malloc(sizeof(token_t));
+  if (e->value.ident->token == NULL) {
+    free(e);
+    free(e->value.ident->token);
+    return NULL;
+  }
+
+  e->value.ident->token->type = TOKEN_IDENTIFIER;
+  e->value.ident->token->literal = strdup(p->current_token->literal);
+  e->value.ident->value = strdup(p->current_token->literal);
+
+  return e;
+}
+
+expression_t *parser_parse_integer_literal(parser_t *p) {
+  expression_t *e = malloc(sizeof(expression_t));
+  if (e == NULL) {
+    return NULL;
+  }
+
+  e->type = EXPRESSION_INTEGER_LITERAL;
+  e->value.integer = malloc(sizeof(integer_literal_t));
+  if (e->value.integer == NULL) {
+    free(e);
+    return NULL;
+  }
+
+  e->value.integer->token = malloc(sizeof(token_t));
+  if (e->value.integer->token == NULL) {
+    free(e);
+    free(e->value.integer->token);
+    return NULL;
+  }
+
+  e->value.integer->token->type = TOKEN_INT;
+  e->value.integer->token->literal = strdup(p->current_token->literal);
+  e->value.integer->value = strtol(p->current_token->literal, NULL, 10);
+
+  return e;
 }
 
 program_t *parser_parse_program(parser_t *p) {

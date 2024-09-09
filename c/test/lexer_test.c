@@ -1,3 +1,4 @@
+#include "lexer_test.h"
 #include "../src/lexer.h"
 #include "unity.h"
 

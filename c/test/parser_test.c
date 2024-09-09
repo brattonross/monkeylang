@@ -1,7 +1,7 @@
-#include "../src/parser.h"
+#include "parser_test.h"
 #include "../src/ast.h"
 #include "../src/lexer.h"
-#include "parser.h"
+#include "../src/parser.h"
 #include "unity.h"
 
 void check_parser_errors(parser_t *p) {
@@ -60,4 +60,40 @@ void test_parser_return_statements(void) {
     TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, s->type);
     TEST_ASSERT_EQUAL_STRING("return", statement_token_literal(s));
   }
+}
+
+void test_parser_identifier_expression(void) {
+  lexer_t *l = lexer_init("foobar;");
+  parser_t *p = parser_init(l);
+
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, s->expression->type);
+
+  identifier_t *ident = s->expression->value.ident;
+  TEST_ASSERT_EQUAL_STRING("foobar", ident->value);
+  TEST_ASSERT_EQUAL_STRING("foobar", identifier_token_literal(ident));
+}
+
+void test_parser_integer_literal_expression(void) {
+  lexer_t *l = lexer_init("5;");
+  parser_t *p = parser_init(l);
+
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, s->expression->type);
+
+  integer_literal_t *integer = s->expression->value.integer;
+  TEST_ASSERT_EQUAL_INT(5, integer->value);
+  TEST_ASSERT_EQUAL_STRING("5", integer->token->literal);
 }
