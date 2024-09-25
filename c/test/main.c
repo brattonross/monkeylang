@@ -16,6 +16,7 @@ int main(void) {
   RUN_TEST(test_program_to_string);
   RUN_TEST(test_parser_identifier_expression);
   RUN_TEST(test_parser_prefix_expressions);
+  RUN_TEST(test_parser_infix_expressions);
 
   return UNITY_END();
 }

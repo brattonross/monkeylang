@@ -3,6 +3,8 @@
 #include "../src/lexer.h"
 #include "../src/parser.h"
 #include "unity.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 void check_parser_errors(parser_t *p) {
   for (int i = 0; i < p->errors->len; ++i) {
@@ -136,5 +138,39 @@ void test_parser_prefix_expressions(void) {
     TEST_ASSERT_EQUAL_STRING(test_cases[i].op, exp->op);
 
     test_integer_literal(exp->right, test_cases[i].value);
+  }
+}
+
+void test_parser_infix_expressions(void) {
+  typedef struct {
+    char *input;
+    int64_t left_value;
+    char *operator;
+    int64_t right_value;
+  } test_case_t;
+  static const test_case_t test_cases[] = {
+      {"5 + 5;", 5, "+", 5},   {"5 - 5;", 5, "-", 5},   {"5 * 5;", 5, "*", 5},
+      {"5 / 5;", 5, "/", 5},   {"5 > 5;", 5, ">", 5},   {"5 < 5;", 5, "<", 5},
+      {"5 == 5;", 5, "==", 5}, {"5 != 5;", 5, "!=", 5},
+  };
+  static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    lexer_t *l = lexer_init(test_cases[i].input);
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+    expression_statement_t *s = prg->statements[0]->value.exp;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, s->expression->type);
+
+    infix_expression_t *exp = s->expression->value.infix;
+
+    test_integer_literal(exp->left, test_cases[i].left_value);
+    TEST_ASSERT_EQUAL_STRING(test_cases[i].operator, exp->op);
+    test_integer_literal(exp->right, test_cases[i].right_value);
   }
 }

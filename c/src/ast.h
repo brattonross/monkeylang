@@ -24,10 +24,18 @@ typedef struct {
   expression_t *right;
 } prefix_expression_t;
 
+typedef struct {
+  token_t *token;
+  expression_t *left;
+  char *op;
+  expression_t *right;
+} infix_expression_t;
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
   EXPRESSION_PREFIX,
+  EXPRESSION_INFIX,
 } expression_type_t;
 
 struct expression_t {
@@ -36,6 +44,7 @@ struct expression_t {
     identifier_t *ident;
     integer_literal_t *integer;
     prefix_expression_t *prefix;
+    infix_expression_t *infix;
   } value;
 };
 

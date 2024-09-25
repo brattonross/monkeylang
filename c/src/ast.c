@@ -3,6 +3,7 @@
 #include <string.h>
 
 static const char *prefix_expression_fmt = "(%s%s)";
+static const char *infix_expression_fmt = "(%s %s %s)";
 char *expression_to_string(expression_t *e) {
   switch (e->type) {
   case EXPRESSION_IDENTIFIER:
@@ -11,8 +12,8 @@ char *expression_to_string(expression_t *e) {
     return strdup(e->value.integer->token->literal);
   case EXPRESSION_PREFIX: {
     char *right_str = expression_to_string(e->value.prefix->right);
-    size_t buf_size =
-        snprintf(NULL, 0, "(%s%s)", e->value.prefix->op, right_str);
+    size_t buf_size = snprintf(NULL, 0, prefix_expression_fmt,
+                               e->value.prefix->op, right_str);
     char *buf = malloc(buf_size + 1);
     if (buf == NULL) {
       free(right_str);
@@ -20,6 +21,23 @@ char *expression_to_string(expression_t *e) {
     }
     snprintf(buf, buf_size + 1, prefix_expression_fmt, e->value.prefix->op,
              right_str);
+    free(right_str);
+    return buf;
+  }
+  case EXPRESSION_INFIX: {
+    char *left_str = expression_to_string(e->value.infix->left);
+    char *right_str = expression_to_string(e->value.infix->right);
+    size_t buf_size = snprintf(NULL, 0, infix_expression_fmt, left_str,
+                               e->value.infix->op, right_str);
+    char *buf = malloc(buf_size + 1);
+    if (buf == NULL) {
+      free(left_str);
+      free(right_str);
+      return NULL;
+    }
+    snprintf(buf, buf_size + 1, infix_expression_fmt, left_str,
+             e->value.infix->op, right_str);
+    free(left_str);
     free(right_str);
     return buf;
   }
@@ -64,6 +82,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.integer->token->literal);
   case EXPRESSION_PREFIX:
     return strdup(e->value.prefix->token->literal);
+  case EXPRESSION_INFIX:
+    return strdup(e->value.infix->token->literal);
   }
 }
 

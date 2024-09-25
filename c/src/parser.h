@@ -17,10 +17,6 @@ struct parser_t {
   token_t *current_token;
   token_t *peek_token;
   array_list_t *errors;
-  prefix_parse_fn *prefix_parse_fns;
-  size_t prefix_parse_fns_len;
-  infix_parse_fn *infix_parse_fns;
-  size_t infix_parse_fns_len;
 };
 
 typedef enum {
@@ -30,9 +26,7 @@ typedef enum {
 } parser_error_t;
 
 parser_t *parser_init(lexer_t *l);
-
 program_t *parser_parse_program(parser_t *p);
-
 parser_error_t parser_peek_error(parser_t *p, token_type_t t);
 
 typedef enum {
