@@ -16,6 +16,7 @@ expression_t *parser_parse_identifier(parser_t *p);
 expression_t *parser_parse_integer_literal(parser_t *p);
 expression_t *parser_parse_prefix_expression(parser_t *p);
 expression_t *parser_parse_infix_expression(parser_t *p, expression_t *e);
+expression_t *parser_parse_boolean_literal(parser_t *p);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -50,6 +51,9 @@ prefix_parse_fn parser_prefix_fn(token_type_t t) {
   case TOKEN_BANG:
   case TOKEN_MINUS:
     return parser_parse_prefix_expression;
+  case TOKEN_TRUE:
+  case TOKEN_FALSE:
+    return parser_parse_boolean_literal;
   default:
     return NULL;
   }
@@ -358,8 +362,8 @@ expression_t *parser_parse_integer_literal(parser_t *p) {
 
   e->value.integer->token = malloc(sizeof(token_t));
   if (e->value.integer->token == NULL) {
+    free(e->value.integer);
     free(e);
-    free(e->value.integer->token);
     return NULL;
   }
 
@@ -367,6 +371,30 @@ expression_t *parser_parse_integer_literal(parser_t *p) {
   e->value.integer->token->literal = strdup(p->current_token->literal);
   e->value.integer->value = strtol(p->current_token->literal, NULL, 10);
 
+  return e;
+}
+
+expression_t *parser_parse_boolean_literal(parser_t *p) {
+  expression_t *e = malloc(sizeof(expression_t));
+  if (e == NULL) {
+    return NULL;
+  }
+
+  e->type = EXPRESSION_BOOLEAN_LITERAL;
+  e->value.boolean = malloc(sizeof(boolean_literal_t));
+  if (e->value.boolean == NULL) {
+    free(e);
+    return NULL;
+  }
+
+  e->value.boolean->token = malloc(sizeof(token_t));
+  if (e->value.boolean->token == NULL) {
+    free(e->value.boolean);
+    free(e);
+    return NULL;
+  }
+  memcpy(e->value.boolean->token, p->current_token, sizeof(token_t));
+  e->value.boolean->value = parser_current_token_is(p, TOKEN_TRUE);
   return e;
 }
 

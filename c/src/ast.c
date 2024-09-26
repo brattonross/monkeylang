@@ -41,6 +41,9 @@ char *expression_to_string(expression_t *e) {
     free(right_str);
     return buf;
   }
+  case EXPRESSION_BOOLEAN_LITERAL: {
+    return strdup(e->value.boolean->token->literal);
+  }
   }
 }
 
@@ -84,6 +87,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.prefix->token->literal);
   case EXPRESSION_INFIX:
     return strdup(e->value.infix->token->literal);
+  case EXPRESSION_BOOLEAN_LITERAL:
+    return strdup(e->value.boolean->token->literal);
   }
 }
 

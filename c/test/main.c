@@ -16,6 +16,7 @@ int main(void) {
   RUN_TEST(test_parser_prefix_expressions);
   RUN_TEST(test_parser_infix_expressions);
   RUN_TEST(test_operator_precedence_parsing);
+  RUN_TEST(test_parser_boolean_literal_expression);
 
   return UNITY_END();
 }

@@ -72,7 +72,6 @@ void test_parser_identifier_expression(void) {
   program_t *prg = parser_parse_program(p);
   check_parser_errors(p);
 
-  printf("prg->statements_len == %zu\n", prg->statements_len);
   TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
   TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
 
@@ -242,4 +241,22 @@ void test_operator_precedence_parsing(void) {
 
     TEST_ASSERT_EQUAL_STRING(test_cases[i].expected, program_to_string(prg));
   }
+}
+
+void test_parser_boolean_literal_expression(void) {
+  lexer_t *l = lexer_init("true;");
+  parser_t *p = parser_init(l);
+
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_BOOLEAN_LITERAL, s->expression->type);
+
+  boolean_literal_t *boolean = s->expression->value.boolean;
+  TEST_ASSERT_EQUAL(true, boolean->value);
+  TEST_ASSERT_EQUAL_STRING("true", boolean->token->literal);
 }

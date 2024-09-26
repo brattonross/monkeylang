@@ -5,3 +5,4 @@ void test_parser_integer_literal_expression(void);
 void test_parser_prefix_expressions(void);
 void test_parser_infix_expressions(void);
 void test_operator_precedence_parsing(void);
+void test_parser_boolean_literal_expression(void);
