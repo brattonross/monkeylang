@@ -111,6 +111,15 @@ void test_integer_literal(expression_t *exp, int64_t value) {
   TEST_ASSERT_EQUAL_STRING(buf, integer->token->literal);
 }
 
+void test_boolean_literal(expression_t *exp, bool value) {
+  TEST_ASSERT_EQUAL(EXPRESSION_BOOLEAN_LITERAL, exp->type);
+
+  boolean_literal_t *boolean = exp->value.boolean;
+  TEST_ASSERT_EQUAL(value, boolean->value);
+  char *buf = boolean->value ? "true" : "false";
+  TEST_ASSERT_EQUAL_STRING(buf, boolean->token->literal);
+}
+
 void test_parser_prefix_expressions(void) {
   typedef struct {
     char *input;
@@ -148,11 +157,20 @@ void test_parser_infix_expressions(void) {
     int64_t left_value;
     char *operator;
     int64_t right_value;
+    expression_type_t value_type;
   } test_case_t;
   static const test_case_t test_cases[] = {
-      {"5 + 5;", 5, "+", 5},   {"5 - 5;", 5, "-", 5},   {"5 * 5;", 5, "*", 5},
-      {"5 / 5;", 5, "/", 5},   {"5 > 5;", 5, ">", 5},   {"5 < 5;", 5, "<", 5},
-      {"5 == 5;", 5, "==", 5}, {"5 != 5;", 5, "!=", 5},
+      {"5 + 5;", 5, "+", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 - 5;", 5, "-", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 * 5;", 5, "*", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 / 5;", 5, "/", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 > 5;", 5, ">", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 < 5;", 5, "<", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 == 5;", 5, "==", 5, EXPRESSION_INTEGER_LITERAL},
+      {"5 != 5;", 5, "!=", 5, EXPRESSION_INTEGER_LITERAL},
+      {"true == true", true, "==", true, EXPRESSION_BOOLEAN_LITERAL},
+      {"true != false", true, "!=", false, EXPRESSION_BOOLEAN_LITERAL},
+      {"false == false", false, "==", false, EXPRESSION_BOOLEAN_LITERAL},
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
@@ -170,9 +188,15 @@ void test_parser_infix_expressions(void) {
 
     infix_expression_t *exp = s->expression->value.infix;
 
-    test_integer_literal(exp->left, test_cases[i].left_value);
     TEST_ASSERT_EQUAL_STRING(test_cases[i].operator, exp->op);
-    test_integer_literal(exp->right, test_cases[i].right_value);
+
+    if (test_cases[i].value_type == EXPRESSION_BOOLEAN_LITERAL) {
+      test_boolean_literal(exp->left, test_cases[i].left_value);
+      test_boolean_literal(exp->right, test_cases[i].right_value);
+    } else {
+      test_integer_literal(exp->left, test_cases[i].left_value);
+      test_integer_literal(exp->right, test_cases[i].right_value);
+    }
   }
 }
 
@@ -229,6 +253,22 @@ void test_operator_precedence_parsing(void) {
       {
           "3 + 4 * 5 == 3 * 1 + 4 * 5",
           "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+      },
+      {
+          "true",
+          "true",
+      },
+      {
+          "false",
+          "false",
+      },
+      {
+          "3 > 5 == false",
+          "((3 > 5) == false)",
+      },
+      {
+          "3 < 5 == true",
+          "((3 < 5) == true)",
       },
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
