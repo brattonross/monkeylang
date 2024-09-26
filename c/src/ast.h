@@ -36,12 +36,21 @@ typedef struct {
   bool value;
 } boolean_literal_t;
 
+typedef struct block_statement_t block_statement_t;
+typedef struct {
+  token_t *token;
+  expression_t *condition;
+  block_statement_t *consequence;
+  block_statement_t *alternative;
+} if_expression_t;
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
   EXPRESSION_PREFIX,
   EXPRESSION_INFIX,
   EXPRESSION_BOOLEAN_LITERAL,
+  EXPRESSION_IF,
 } expression_type_t;
 
 struct expression_t {
@@ -52,6 +61,7 @@ struct expression_t {
     prefix_expression_t *prefix;
     infix_expression_t *infix;
     boolean_literal_t *boolean;
+    if_expression_t *if_;
   } value;
 };
 
@@ -59,7 +69,10 @@ typedef enum {
   STATEMENT_LET,
   STATEMENT_RETURN,
   STATEMENT_EXPRESSION,
+  STATEMENT_BLOCK,
 } statement_type_t;
+
+typedef struct statement_t statement_t;
 
 typedef struct {
   token_t *token;
@@ -77,14 +90,21 @@ typedef struct {
   expression_t *expression;
 } expression_statement_t;
 
-typedef struct {
+struct block_statement_t {
+  token_t *token;
+  statement_t **statements;
+  size_t statements_len;
+};
+
+struct statement_t {
   statement_type_t type;
   union {
     let_statement_t *let;
     return_statement_t *ret;
     expression_statement_t *exp;
+    block_statement_t *block;
   } value;
-} statement_t;
+};
 
 const char *statement_token_literal(const statement_t *s);
 

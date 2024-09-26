@@ -320,3 +320,78 @@ void test_parser_boolean_literal_expression(void) {
   TEST_ASSERT_EQUAL(true, boolean->value);
   TEST_ASSERT_EQUAL_STRING("true", boolean->token->literal);
 }
+
+void test_parser_if_expression(void) {
+  lexer_t *l = lexer_init("if (x < y) { x }");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IF, s->expression->type);
+
+  if_expression_t *exp = s->expression->value.if_;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, exp->condition->type);
+
+  expression_t *left = exp->condition->value.infix->left;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, left->type);
+  TEST_ASSERT_EQUAL_STRING("x", left->value.ident->value);
+
+  TEST_ASSERT_EQUAL_STRING("<", exp->condition->value.infix->op);
+
+  expression_t *right = exp->condition->value.infix->right;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, right->type);
+  TEST_ASSERT_EQUAL_STRING("y", right->value.ident->value);
+
+  TEST_ASSERT_EQUAL_INT(1, exp->consequence->statements_len);
+  expression_statement_t *consequence =
+      exp->consequence->statements[0]->value.exp;
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, consequence->expression->type);
+  TEST_ASSERT_EQUAL_STRING("x", consequence->expression->value.ident->value);
+
+  TEST_ASSERT_NULL(exp->alternative);
+}
+
+void test_parser_if_else_expression(void) {
+  lexer_t *l = lexer_init("if (x < y) { x } else { y }");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IF, s->expression->type);
+
+  if_expression_t *exp = s->expression->value.if_;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, exp->condition->type);
+
+  expression_t *left = exp->condition->value.infix->left;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, left->type);
+  TEST_ASSERT_EQUAL_STRING("x", left->value.ident->value);
+
+  TEST_ASSERT_EQUAL_STRING("<", exp->condition->value.infix->op);
+
+  expression_t *right = exp->condition->value.infix->right;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, right->type);
+  TEST_ASSERT_EQUAL_STRING("y", right->value.ident->value);
+
+  TEST_ASSERT_EQUAL_INT(1, exp->consequence->statements_len);
+  expression_statement_t *consequence =
+      exp->consequence->statements[0]->value.exp;
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, consequence->expression->type);
+  TEST_ASSERT_EQUAL_STRING("x", consequence->expression->value.ident->value);
+
+  TEST_ASSERT_EQUAL_INT(1, exp->alternative->statements_len);
+  expression_statement_t *alternative =
+      exp->alternative->statements[0]->value.exp;
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, alternative->expression->type);
+  TEST_ASSERT_EQUAL_STRING("y", alternative->expression->value.ident->value);
+}

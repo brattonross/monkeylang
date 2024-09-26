@@ -2,6 +2,39 @@
 #include <stdio.h>
 #include <string.h>
 
+char *statement_to_string(statement_t *s);
+char *block_statement_to_string(block_statement_t *s) {
+  if (s == NULL || s->statements_len == 0 || s->statements == NULL) {
+    return strdup("");
+  }
+
+  size_t total_len = 1;
+  for (size_t i = 0; i < s->statements_len; ++i) {
+    char *tmp = statement_to_string(s->statements[i]);
+    if (tmp != NULL) {
+      total_len += strlen(tmp);
+      free(tmp);
+    }
+  }
+
+  char *res = malloc(total_len);
+  char *out = res;
+  *out = '\0';
+
+  for (size_t i = 0; i < s->statements_len; ++i) {
+    char *tmp = statement_to_string(s->statements[i]);
+    if (tmp != NULL) {
+      size_t len = strlen(tmp);
+      memcpy(out, tmp, len);
+      out += len;
+      free(tmp);
+    }
+  }
+
+  *out = '\0';
+  return res;
+}
+
 static const char *prefix_expression_fmt = "(%s%s)";
 static const char *infix_expression_fmt = "(%s %s %s)";
 char *expression_to_string(expression_t *e) {
@@ -44,6 +77,37 @@ char *expression_to_string(expression_t *e) {
   case EXPRESSION_BOOLEAN_LITERAL: {
     return strdup(e->value.boolean->token->literal);
   }
+  case EXPRESSION_IF: {
+    char *condition_str = expression_to_string(e->value.if_->condition);
+    char *consequence_str =
+        block_statement_to_string(e->value.if_->consequence);
+    size_t buf_size =
+        snprintf(NULL, 0, "if %s %s", condition_str, consequence_str);
+    char *buf = malloc(buf_size + 1);
+    if (buf == NULL) {
+      free(condition_str);
+      free(consequence_str);
+      return NULL;
+    }
+    snprintf(buf, buf_size + 1, "if %s %s", condition_str, consequence_str);
+    free(condition_str);
+    free(consequence_str);
+
+    if (e->value.if_->alternative != NULL) {
+      char *alternative_str =
+          block_statement_to_string(e->value.if_->alternative);
+      size_t buf_size = snprintf(NULL, 0, "else %s", alternative_str);
+      buf = realloc(buf, strlen(buf) + buf_size);
+      if (buf == NULL) {
+        free(alternative_str);
+        return NULL;
+      }
+      snprintf(buf, buf_size + 1, "else %s", alternative_str);
+      free(alternative_str);
+    }
+
+    return buf;
+  }
   }
 }
 
@@ -55,6 +119,8 @@ const char *statement_token_literal(const statement_t *s) {
     return strdup(s->value.ret->token->literal);
   case STATEMENT_EXPRESSION:
     return strdup(s->value.exp->token->literal);
+  case STATEMENT_BLOCK:
+    return strdup(s->value.block->token->literal);
   }
 }
 
@@ -89,6 +155,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.infix->token->literal);
   case EXPRESSION_BOOLEAN_LITERAL:
     return strdup(e->value.boolean->token->literal);
+  case EXPRESSION_IF:
+    return strdup(e->value.if_->token->literal);
   }
 }
 
@@ -132,6 +200,8 @@ char *statement_to_string(statement_t *s) {
     return return_statement_to_string(s->value.ret);
   case STATEMENT_EXPRESSION:
     return expression_statement_to_string(s->value.exp);
+  case STATEMENT_BLOCK:
+    return block_statement_to_string(s->value.block);
   }
 }
 
@@ -143,21 +213,8 @@ char *program_to_string(const program_t *p) {
   str[0] = '\0';
 
   for (size_t i = 0; i < p->statements_len; ++i) {
-    char *statement_str = NULL;
-
     statement_t *s = p->statements[i];
-    switch (s->type) {
-    case STATEMENT_LET:
-      statement_str = let_statement_to_string(s->value.let);
-      break;
-    case STATEMENT_RETURN:
-      statement_str = return_statement_to_string(s->value.ret);
-      break;
-    case STATEMENT_EXPRESSION:
-      statement_str = expression_statement_to_string(s->value.exp);
-      break;
-    }
-
+    char *statement_str = statement_to_string(s);
     if (statement_str == NULL) {
       free(str);
       return NULL;
