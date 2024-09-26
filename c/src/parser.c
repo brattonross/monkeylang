@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+expression_t *parser_parse_expression(parser_t *p,
+                                      parser_precedence_t precedence);
 parser_error_t parser_register_prefix(parser_t *p, token_type_t t,
                                       prefix_parse_fn fn);
 parser_error_t parser_register_infix(parser_t *p, token_type_t t,
@@ -180,7 +182,6 @@ statement_t *parse_let_statement(parser_t *p) {
     return NULL;
   }
   memcpy(s->value.let->token, p->current_token, sizeof(token_t));
-  s->value.let->token->literal = strdup(p->current_token->literal);
 
   if (!parser_expect_peek(p, TOKEN_IDENTIFIER)) {
     free_statement(s);
@@ -205,8 +206,8 @@ statement_t *parse_let_statement(parser_t *p) {
     return NULL;
   }
 
-  // TODO:
-  s->value.let->value = NULL;
+  parser_next_token(p);
+  s->value.let->value = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
 
   while (!parser_current_token_is(p, TOKEN_SEMICOLON)) {
     parser_next_token(p);
@@ -294,7 +295,7 @@ statement_t *parse_expression_statement(parser_t *p) {
     return NULL;
   }
 
-  while (!parser_current_token_is(p, TOKEN_SEMICOLON)) {
+  if (parser_peek_token_is(p, TOKEN_SEMICOLON)) {
     parser_next_token(p);
   }
 
@@ -461,7 +462,7 @@ program_t *parser_parse_program(parser_t *p) {
     return NULL;
   }
 
-  while ((p->current_token->type != TOKEN_EOF)) {
+  while (p->current_token->type != TOKEN_EOF) {
     statement_t *statement = parser_parse_statement(p);
     if (prg->statements_len == prg->statements_cap) {
       prg->statements_cap *= 2;

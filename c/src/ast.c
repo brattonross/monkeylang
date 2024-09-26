@@ -64,7 +64,7 @@ void program_free(program_t *p) {
   free(p);
 }
 
-const char *program_token_literal(const program_t *p) {
+char *program_token_literal(const program_t *p) {
   if (p->statements_len > 0) {
     return strdup(statement_token_literal(p->statements[0]));
   }
@@ -130,14 +130,14 @@ char *statement_to_string(statement_t *s) {
   }
 }
 
-const char *program_to_string(const program_t *p) {
+char *program_to_string(const program_t *p) {
   char *str = malloc(1);
   if (str == NULL) {
     return NULL;
   }
   str[0] = '\0';
 
-  for (int i = 0; i < p->statements_len; ++i) {
+  for (size_t i = 0; i < p->statements_len; ++i) {
     char *statement_str = NULL;
 
     statement_t *s = p->statements[i];

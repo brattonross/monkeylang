@@ -23,15 +23,14 @@ void array_list_free(array_list_t *list) {
   if (list == NULL) {
     return;
   }
-  for (int i = 0; i < list->len; ++i) {
+  for (size_t i = 0; i < list->len; ++i) {
     free(list->arr[i]);
   }
   free(list->arr);
   free(list);
 }
 
-const array_list_error_t array_list_resize(array_list_t *list,
-                                           const size_t cap) {
+array_list_error_t array_list_resize(array_list_t *list, const size_t cap) {
   char **temp = realloc(list->arr, sizeof(char *) * cap);
   if (temp == NULL) {
     return ARRAY_LIST_ALLOC_ERROR;
@@ -41,7 +40,7 @@ const array_list_error_t array_list_resize(array_list_t *list,
   return ARRAY_LIST_SUCCESS;
 }
 
-const array_list_error_t array_list_push(array_list_t *list, const char *el) {
+array_list_error_t array_list_push(array_list_t *list, const char *el) {
   if (list->len == list->cap) {
     array_list_error_t err = array_list_resize(list, list->cap * 2);
     if (err != ARRAY_LIST_SUCCESS) {
@@ -56,7 +55,7 @@ const array_list_error_t array_list_push(array_list_t *list, const char *el) {
   return ARRAY_LIST_SUCCESS;
 }
 
-const array_list_error_t array_list_get(array_list_t *list, int i, char *el) {
+array_list_error_t array_list_get(array_list_t *list, size_t i, char *el) {
   if (i < 0 || i >= list->len) {
     return ARRAY_LIST_INDEX_OUT_OF_BOUNDS_ERROR;
   }
@@ -64,8 +63,8 @@ const array_list_error_t array_list_get(array_list_t *list, int i, char *el) {
   return ARRAY_LIST_SUCCESS;
 }
 
-const array_list_error_t array_list_set(array_list_t *list, const int i,
-                                        const char *el) {
+array_list_error_t array_list_set(array_list_t *list, const size_t i,
+                                  const char *el) {
   if (i < 0 || i >= list->len) {
     return ARRAY_LIST_INDEX_OUT_OF_BOUNDS_ERROR;
   }
@@ -73,14 +72,14 @@ const array_list_error_t array_list_set(array_list_t *list, const int i,
   return ARRAY_LIST_SUCCESS;
 }
 
-const array_list_error_t array_list_remove(array_list_t *list, const int i) {
+array_list_error_t array_list_remove(array_list_t *list, const size_t i) {
   if (i < 0 || i >= list->len) {
     return ARRAY_LIST_INDEX_OUT_OF_BOUNDS_ERROR;
   }
 
   free(list->arr[i]);
 
-  for (int j = i; j < list->len - 1; ++j) {
+  for (size_t j = i; j < list->len - 1; ++j) {
     list->arr[j] = list->arr[j + 1];
   }
   list->len--;

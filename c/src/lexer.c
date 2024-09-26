@@ -64,7 +64,7 @@ static const size_t total_identifiers =
 
 token_type_t lookup_ident(const char *ident) {
   token_type_t t = TOKEN_IDENTIFIER;
-  for (int i = 0; i < total_identifiers; ++i) {
+  for (size_t i = 0; i < total_identifiers; ++i) {
     if (strcmp(ident, identifier_table[i].literal) == 0) {
       t = identifier_table[i].type;
       break;

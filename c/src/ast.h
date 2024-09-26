@@ -89,7 +89,7 @@ typedef struct {
 
 void program_free(program_t *p);
 
-const char *program_token_literal(const program_t *p);
-const char *program_to_string(const program_t *p);
+char *program_token_literal(const program_t *p);
+char *program_to_string(const program_t *p);
 
 #endif // __AST_H__

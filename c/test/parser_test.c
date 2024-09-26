@@ -4,10 +4,11 @@
 #include "../src/parser.h"
 #include "unity.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 void check_parser_errors(parser_t *p) {
-  for (int i = 0; i < p->errors->len; ++i) {
+  for (size_t i = 0; i < p->errors->len; ++i) {
     fprintf(stderr, "parser error: %s\n", (char *)p->errors->arr[i]);
   }
   TEST_ASSERT_EQUAL_INT(0, p->errors->len);
@@ -37,7 +38,7 @@ void test_parser_let_statements(void) {
       "y",
       "foobar",
   };
-  for (int i = 0; i < prg->statements_len; ++i) {
+  for (size_t i = 0; i < prg->statements_len; ++i) {
     statement_t *statement = prg->statements[i];
     test_let_statement(statement, tests[i]);
   }
@@ -57,7 +58,7 @@ void test_parser_return_statements(void) {
   TEST_ASSERT_NOT_NULL(prg);
   TEST_ASSERT_EQUAL_INT(3, prg->statements_len);
 
-  for (int i = 0; i < prg->statements_len; ++i) {
+  for (size_t i = 0; i < prg->statements_len; ++i) {
     statement_t *s = prg->statements[i];
     TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, s->type);
     TEST_ASSERT_EQUAL_STRING("return", statement_token_literal(s));
@@ -71,6 +72,7 @@ void test_parser_identifier_expression(void) {
   program_t *prg = parser_parse_program(p);
   check_parser_errors(p);
 
+  printf("prg->statements_len == %zu\n", prg->statements_len);
   TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
   TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
 
@@ -172,5 +174,72 @@ void test_parser_infix_expressions(void) {
     test_integer_literal(exp->left, test_cases[i].left_value);
     TEST_ASSERT_EQUAL_STRING(test_cases[i].operator, exp->op);
     test_integer_literal(exp->right, test_cases[i].right_value);
+  }
+}
+
+void test_operator_precedence_parsing(void) {
+  typedef struct {
+    char *input;
+    char *expected;
+  } test_case_t;
+  static const test_case_t test_cases[] = {
+      {
+          "-a * b",
+          "((-a) * b)",
+      },
+      {
+          "!-a",
+          "(!(-a))",
+      },
+      {
+          "a + b + c",
+          "((a + b) + c)",
+      },
+      {
+          "a + b - c",
+          "((a + b) - c)",
+      },
+      {
+          "a * b * c",
+          "((a * b) * c)",
+      },
+      {
+          "a * b / c",
+          "((a * b) / c)",
+      },
+      {
+          "a + b / c",
+          "(a + (b / c))",
+      },
+      {
+          "a + b * c + d / e - f",
+          "(((a + (b * c)) + (d / e)) - f)",
+      },
+      {
+          "3 + 4; -5 * 5",
+          "(3 + 4)((-5) * 5)",
+      },
+      {
+          "5 > 4 == 3 < 4",
+          "((5 > 4) == (3 < 4))",
+      },
+      {
+          "5 < 4 != 3 > 4",
+          "((5 < 4) != (3 > 4))",
+      },
+      {
+          "3 + 4 * 5 == 3 * 1 + 4 * 5",
+          "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+      },
+  };
+  static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    lexer_t *l = lexer_init(test_cases[i].input);
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_STRING(test_cases[i].expected, program_to_string(prg));
   }
 }

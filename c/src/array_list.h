@@ -17,11 +17,10 @@ typedef enum {
 
 array_list_t *array_list_create(const size_t cap);
 void array_list_free(array_list_t *list);
-const array_list_error_t array_list_push(array_list_t *list, const char *el);
-const array_list_error_t array_list_get(array_list_t *list, const int i,
-                                        char *el);
-const array_list_error_t array_list_set(array_list_t *list, const int i,
-                                        const char *el);
-const array_list_error_t array_list_remove(array_list_t *list, const int i);
+array_list_error_t array_list_push(array_list_t *list, const char *el);
+array_list_error_t array_list_get(array_list_t *list, const size_t i, char *el);
+array_list_error_t array_list_set(array_list_t *list, const size_t i,
+                                  const char *el);
+array_list_error_t array_list_remove(array_list_t *list, const size_t i);
 
 #endif
