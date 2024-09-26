@@ -17,6 +17,7 @@ expression_t *parser_parse_integer_literal(parser_t *p);
 expression_t *parser_parse_prefix_expression(parser_t *p);
 expression_t *parser_parse_infix_expression(parser_t *p, expression_t *e);
 expression_t *parser_parse_boolean_literal(parser_t *p);
+expression_t *parser_parse_grouped_expression(parser_t *p);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -54,6 +55,8 @@ prefix_parse_fn parser_prefix_fn(token_type_t t) {
   case TOKEN_TRUE:
   case TOKEN_FALSE:
     return parser_parse_boolean_literal;
+  case TOKEN_LEFT_PAREN:
+    return parser_parse_grouped_expression;
   default:
     return NULL;
   }
@@ -396,6 +399,16 @@ expression_t *parser_parse_boolean_literal(parser_t *p) {
   memcpy(e->value.boolean->token, p->current_token, sizeof(token_t));
   e->value.boolean->value = parser_current_token_is(p, TOKEN_TRUE);
   return e;
+}
+
+expression_t *parser_parse_grouped_expression(parser_t *p) {
+  parser_next_token(p);
+  expression_t *exp = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+  if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
+    free(exp);
+    return NULL;
+  }
+  return exp;
 }
 
 expression_t *parser_parse_prefix_expression(parser_t *p) {
