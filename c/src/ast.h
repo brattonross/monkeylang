@@ -37,12 +37,20 @@ typedef struct {
 } boolean_literal_t;
 
 typedef struct block_statement_t block_statement_t;
+
 typedef struct {
   token_t *token;
   expression_t *condition;
   block_statement_t *consequence;
   block_statement_t *alternative;
 } if_expression_t;
+
+typedef struct {
+  token_t *token;
+  identifier_t **parameters;
+  size_t parameters_len;
+  block_statement_t *body;
+} function_literal_t;
 
 typedef enum {
   EXPRESSION_IDENTIFIER,
@@ -51,6 +59,7 @@ typedef enum {
   EXPRESSION_INFIX,
   EXPRESSION_BOOLEAN_LITERAL,
   EXPRESSION_IF,
+  EXPRESSION_FUNCTION_LITERAL,
 } expression_type_t;
 
 struct expression_t {
@@ -62,6 +71,7 @@ struct expression_t {
     infix_expression_t *infix;
     boolean_literal_t *boolean;
     if_expression_t *if_;
+    function_literal_t *fn;
   } value;
 };
 

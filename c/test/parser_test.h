@@ -8,3 +8,5 @@ void test_operator_precedence_parsing(void);
 void test_parser_boolean_literal_expression(void);
 void test_parser_if_expression(void);
 void test_parser_if_else_expression(void);
+void test_parser_function_literal_parsing(void);
+void test_parser_function_parameter_parsing(void);

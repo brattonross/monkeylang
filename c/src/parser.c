@@ -19,6 +19,7 @@ expression_t *parser_parse_infix_expression(parser_t *p, expression_t *e);
 expression_t *parser_parse_boolean_literal(parser_t *p);
 expression_t *parser_parse_grouped_expression(parser_t *p);
 expression_t *parser_parse_if_expression(parser_t *p);
+expression_t *parser_parse_function_literal(parser_t *p);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -60,6 +61,8 @@ prefix_parse_fn parser_prefix_fn(token_type_t t) {
     return parser_parse_grouped_expression;
   case TOKEN_IF:
     return parser_parse_if_expression;
+  case TOKEN_FUNCTION:
+    return parser_parse_function_literal;
   default:
     return NULL;
   }
@@ -518,6 +521,123 @@ expression_t *parser_parse_if_expression(parser_t *p) {
 
     e->value.if_->alternative = parser_parse_block_statement(p);
   }
+
+  return e;
+}
+
+void parser_parse_function_parameters(parser_t *p, function_literal_t *fn) {
+  if (parser_peek_token_is(p, TOKEN_RIGHT_PAREN)) {
+    parser_next_token(p);
+    return;
+  }
+
+  parser_next_token(p);
+
+  identifier_t *ident = malloc(sizeof(identifier_t));
+  if (ident == NULL) {
+    return;
+  }
+
+  ident->token = malloc(sizeof(token_t));
+  if (ident->token == NULL) {
+    free(ident);
+    return;
+  }
+  memcpy(ident->token, p->current_token, sizeof(token_t));
+
+  ident->value = strdup(p->current_token->literal);
+
+  fn->parameters_len++;
+  if (fn->parameters == NULL) {
+    fn->parameters = calloc(1, sizeof(identifier_t));
+  } else {
+    fn->parameters =
+        realloc(fn->parameters, fn->parameters_len * sizeof(identifier_t));
+  }
+  fn->parameters[fn->parameters_len - 1] = ident;
+
+  while (parser_peek_token_is(p, TOKEN_COMMA)) {
+    parser_next_token(p);
+    parser_next_token(p);
+
+    identifier_t *ident = malloc(sizeof(identifier_t));
+    if (ident == NULL) {
+      return;
+    }
+
+    ident->token = malloc(sizeof(token_t));
+    if (ident->token == NULL) {
+      free(ident);
+      return;
+    }
+    memcpy(ident->token, p->current_token, sizeof(token_t));
+
+    ident->value = strdup(p->current_token->literal);
+
+    fn->parameters_len++;
+    if (fn->parameters == NULL) {
+      fn->parameters = calloc(1, sizeof(identifier_t));
+    } else {
+      fn->parameters =
+          realloc(fn->parameters, fn->parameters_len * sizeof(identifier_t));
+    }
+    fn->parameters[fn->parameters_len - 1] = ident;
+  }
+
+  if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
+    for (size_t i = 0; i < fn->parameters_len; ++i) {
+      free(fn->parameters[i]);
+    }
+    free(fn->parameters);
+    fn->parameters_len = 0;
+    return;
+  }
+}
+
+expression_t *parser_parse_function_literal(parser_t *p) {
+  expression_t *e = malloc(sizeof(expression_t));
+  if (e == NULL) {
+    return NULL;
+  }
+
+  e->type = EXPRESSION_FUNCTION_LITERAL;
+  e->value.fn = malloc(sizeof(function_literal_t));
+  if (e->value.fn == NULL) {
+    free(e);
+    return NULL;
+  }
+
+  e->value.fn->token = malloc(sizeof(token_t));
+  if (e->value.fn->token == NULL) {
+    free(e->value.fn);
+    free(e);
+    return NULL;
+  }
+  memcpy(e->value.fn->token, p->current_token, sizeof(token_t));
+
+  if (!parser_expect_peek(p, TOKEN_LEFT_PAREN)) {
+    free(e->value.fn->token);
+    free(e->value.fn);
+    free(e);
+    return NULL;
+  }
+
+  e->value.fn->parameters = NULL;
+  e->value.fn->parameters_len = 0;
+  parser_parse_function_parameters(p, e->value.fn);
+
+  if (!parser_expect_peek(p, TOKEN_LEFT_BRACE)) {
+    free(e->value.fn->token);
+    for (size_t i = 0; i < e->value.fn->parameters_len; ++i) {
+      free(e->value.fn->parameters[i]);
+    }
+    free(e->value.fn->parameters);
+    free(e->value.fn);
+    free(e);
+    return NULL;
+  }
+
+  e->value.fn->body = parser_parse_block_statement(p);
 
   return e;
 }

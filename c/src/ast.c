@@ -35,6 +35,8 @@ char *block_statement_to_string(block_statement_t *s) {
   return res;
 }
 
+char *identifier_to_string(identifier_t *ident) { return strdup(ident->value); }
+
 static const char *prefix_expression_fmt = "(%s%s)";
 static const char *infix_expression_fmt = "(%s %s %s)";
 char *expression_to_string(expression_t *e) {
@@ -108,6 +110,56 @@ char *expression_to_string(expression_t *e) {
 
     return buf;
   }
+  case EXPRESSION_FUNCTION_LITERAL: {
+    function_literal_t *fn = e->value.fn;
+    size_t total_len = 1;
+    for (size_t i = 0; i < fn->parameters_len; ++i) {
+      char *tmp = identifier_to_string(fn->parameters[i]);
+      if (tmp != NULL) {
+        if (total_len > 1) {
+          total_len += 2; // ", "
+        }
+        total_len += strlen(tmp);
+        free(tmp);
+      }
+    }
+    total_len += 2; // ") "
+    char *body = block_statement_to_string(fn->body);
+    size_t body_len = strlen(body);
+    total_len += body_len;
+
+    char *res = malloc(total_len);
+    char *out = res;
+    *out = '\0';
+
+    memcpy(out, "fn(", 3);
+    out += 3;
+
+    size_t params_count = 0;
+    for (size_t i = 0; i < fn->parameters_len; ++i) {
+      char *tmp = identifier_to_string(fn->parameters[i]);
+      if (tmp != NULL) {
+        if (params_count > 0) {
+          memcpy(out, ", ", 2);
+          out += 2;
+        }
+        size_t len = strlen(tmp);
+        memcpy(out, tmp, len);
+        out += len;
+        free(tmp);
+        params_count++;
+      }
+    }
+
+    memcpy(out, ") ", 2);
+    out += 2;
+
+    memcpy(out, body, body_len);
+    out += body_len;
+
+    *out = '\0';
+    return res;
+  }
   }
 }
 
@@ -157,6 +209,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.boolean->token->literal);
   case EXPRESSION_IF:
     return strdup(e->value.if_->token->literal);
+  case EXPRESSION_FUNCTION_LITERAL:
+    return strdup(e->value.fn->token->literal);
   }
 }
 

@@ -395,3 +395,91 @@ void test_parser_if_else_expression(void) {
   TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, alternative->expression->type);
   TEST_ASSERT_EQUAL_STRING("y", alternative->expression->value.ident->value);
 }
+
+void test_parser_function_literal_parsing(void) {
+  lexer_t *l = lexer_init("fn(x, y) { x + y; }");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_FUNCTION_LITERAL, s->expression->type);
+
+  function_literal_t *fn = s->expression->value.fn;
+  TEST_ASSERT_EQUAL_INT(2, fn->parameters_len);
+  TEST_ASSERT_EQUAL_STRING("x", fn->parameters[0]->value);
+  TEST_ASSERT_EQUAL_STRING("y", fn->parameters[1]->value);
+
+  TEST_ASSERT_EQUAL_INT(1, fn->body->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, fn->body->statements[0]->type);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX,
+                        fn->body->statements[0]->value.exp->expression->type);
+  infix_expression_t *infix =
+      fn->body->statements[0]->value.exp->expression->value.infix;
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, infix->left->type);
+  TEST_ASSERT_EQUAL_STRING("x", infix->left->value.ident->value);
+
+  TEST_ASSERT_EQUAL_STRING("+", infix->op);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, infix->right->type);
+  TEST_ASSERT_EQUAL_STRING("y", infix->right->value.ident->value);
+}
+
+void test_parser_function_parameter_parsing(void) {
+  {
+    lexer_t *l = lexer_init("fn() {};");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+    expression_statement_t *s = prg->statements[0]->value.exp;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_FUNCTION_LITERAL, s->expression->type);
+
+    function_literal_t *fn = s->expression->value.fn;
+    TEST_ASSERT_EQUAL_INT(0, fn->parameters_len);
+    TEST_ASSERT_NULL(fn->parameters);
+  }
+
+  {
+    lexer_t *l = lexer_init("fn(x) {};");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+    expression_statement_t *s = prg->statements[0]->value.exp;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_FUNCTION_LITERAL, s->expression->type);
+
+    function_literal_t *fn = s->expression->value.fn;
+    TEST_ASSERT_EQUAL_INT(1, fn->parameters_len);
+    TEST_ASSERT_EQUAL_STRING("x", fn->parameters[0]->value);
+  }
+
+  {
+    lexer_t *l = lexer_init("fn(x, y, z) {};");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+    expression_statement_t *s = prg->statements[0]->value.exp;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_FUNCTION_LITERAL, s->expression->type);
+
+    function_literal_t *fn = s->expression->value.fn;
+    TEST_ASSERT_EQUAL_INT(3, fn->parameters_len);
+    TEST_ASSERT_EQUAL_STRING("x", fn->parameters[0]->value);
+    TEST_ASSERT_EQUAL_STRING("y", fn->parameters[1]->value);
+    TEST_ASSERT_EQUAL_STRING("z", fn->parameters[2]->value);
+  }
+}
