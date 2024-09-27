@@ -14,54 +14,95 @@ void check_parser_errors(parser_t *p) {
   TEST_ASSERT_EQUAL_INT(0, p->errors->len);
 }
 
-void test_let_statement(const statement_t *s, const char *expected_name) {
-  TEST_ASSERT_EQUAL_STRING("let", statement_token_literal(s));
-  TEST_ASSERT_EQUAL_INT(STATEMENT_LET, s->type);
-  TEST_ASSERT_EQUAL_STRING(expected_name, s->value.let->name->value);
-}
-
 void test_parser_let_statements(void) {
-  lexer_t *l = lexer_init("let x = 5;\n"
-                          "let y = 10;\n"
-                          "let foobar = 838383;\n"
-                          "");
-  parser_t *p = parser_init(l);
-  TEST_ASSERT_NOT_NULL(p);
+  {
+    lexer_t *l = lexer_init("let x = 5;");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
 
-  program_t *prg = parser_parse_program(p);
-  check_parser_errors(p);
-  TEST_ASSERT_NOT_NULL(prg);
-  TEST_ASSERT_EQUAL_INT(3, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_LET, prg->statements[0]->type);
+    TEST_ASSERT_EQUAL_STRING("x", prg->statements[0]->value.let->ident->value);
 
-  static const char *tests[] = {
-      "x",
-      "y",
-      "foobar",
-  };
-  for (size_t i = 0; i < prg->statements_len; ++i) {
-    statement_t *statement = prg->statements[i];
-    test_let_statement(statement, tests[i]);
+    expression_t *value = prg->statements[0]->value.let->value;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, value->type);
+    TEST_ASSERT_EQUAL_INT(5, value->value.integer->value);
+  }
+
+  {
+    lexer_t *l = lexer_init("let y = true;");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_LET, prg->statements[0]->type);
+    TEST_ASSERT_EQUAL_STRING("y", prg->statements[0]->value.let->ident->value);
+
+    expression_t *value = prg->statements[0]->value.let->value;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_BOOLEAN_LITERAL, value->type);
+    TEST_ASSERT_EQUAL(true, value->value.boolean->value);
+  }
+
+  {
+    lexer_t *l = lexer_init("let foobar = y;");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_LET, prg->statements[0]->type);
+    TEST_ASSERT_EQUAL_STRING("foobar",
+                             prg->statements[0]->value.let->ident->value);
+
+    expression_t *value = prg->statements[0]->value.let->value;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, value->type);
+    TEST_ASSERT_EQUAL_STRING("y", value->value.ident->value);
   }
 }
 
 void test_parser_return_statements(void) {
-  lexer_t *l = lexer_init("return 5;\n"
-                          "return 10;\n"
-                          "return 993322;\n"
-                          "");
-  parser_t *p = parser_init(l);
-  TEST_ASSERT_NOT_NULL(p);
+  {
+    lexer_t *l = lexer_init("return 5;");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
 
-  program_t *prg = parser_parse_program(p);
-  check_parser_errors(p);
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, prg->statements[0]->type);
 
-  TEST_ASSERT_NOT_NULL(prg);
-  TEST_ASSERT_EQUAL_INT(3, prg->statements_len);
+    return_statement_t *ret = prg->statements[0]->value.ret;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, ret->value->type);
+    TEST_ASSERT_EQUAL_INT(5, ret->value->value.integer->value);
+  }
 
-  for (size_t i = 0; i < prg->statements_len; ++i) {
-    statement_t *s = prg->statements[i];
-    TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, s->type);
-    TEST_ASSERT_EQUAL_STRING("return", statement_token_literal(s));
+  {
+    lexer_t *l = lexer_init("return true;");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, prg->statements[0]->type);
+
+    return_statement_t *ret = prg->statements[0]->value.ret;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_BOOLEAN_LITERAL, ret->value->type);
+    TEST_ASSERT_EQUAL(true, ret->value->value.boolean->value);
+  }
+
+  {
+    lexer_t *l = lexer_init("return foo;");
+    parser_t *p = parser_init(l);
+    program_t *prg = parser_parse_program(p);
+    check_parser_errors(p);
+
+    TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+    TEST_ASSERT_EQUAL_INT(STATEMENT_RETURN, prg->statements[0]->type);
+
+    return_statement_t *ret = prg->statements[0]->value.ret;
+    TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, ret->value->type);
+    TEST_ASSERT_EQUAL_STRING("foo", ret->value->value.ident->value);
   }
 }
 

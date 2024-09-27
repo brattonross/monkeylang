@@ -95,7 +95,7 @@ typedef struct statement_t statement_t;
 
 typedef struct {
   token_t *token;
-  identifier_t *name;
+  identifier_t *ident;
   expression_t *value;
 } let_statement_t;
 

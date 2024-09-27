@@ -209,18 +209,18 @@ statement_t *parse_let_statement(parser_t *p) {
     return NULL;
   }
 
-  s->value.let->name = malloc(sizeof(identifier_t));
-  if (s->value.let->name == NULL) {
+  s->value.let->ident = malloc(sizeof(identifier_t));
+  if (s->value.let->ident == NULL) {
     free_statement(s);
     return NULL;
   }
-  s->value.let->name->token = malloc(sizeof(token_t));
-  if (s->value.let->name->token == NULL) {
+  s->value.let->ident->token = malloc(sizeof(token_t));
+  if (s->value.let->ident->token == NULL) {
     free_statement(s);
     return NULL;
   }
-  memcpy(s->value.let->name->token, p->current_token, sizeof(token_t));
-  s->value.let->name->value = strdup(p->current_token->literal);
+  memcpy(s->value.let->ident->token, p->current_token, sizeof(token_t));
+  s->value.let->ident->value = strdup(p->current_token->literal);
 
   if (!parser_expect_peek(p, TOKEN_ASSIGN)) {
     free_statement(s);
@@ -256,9 +256,12 @@ statement_t *parse_return_statement(parser_t *p) {
     return NULL;
   }
   memcpy(s->value.ret->token, p->current_token, sizeof(token_t));
-  s->value.ret->token->literal = strdup(p->current_token->literal);
 
-  while (!parser_current_token_is(p, TOKEN_SEMICOLON)) {
+  parser_next_token(p);
+
+  s->value.ret->value = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+
+  if (parser_peek_token_is(p, TOKEN_SEMICOLON)) {
     parser_next_token(p);
   }
 
