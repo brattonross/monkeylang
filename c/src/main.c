@@ -1,6 +1,8 @@
 #include "array_list.h"
 #include "ast.h"
+#include "eval.h"
 #include "lexer.h"
+#include "object.h"
 #include "parser.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,12 +64,14 @@ int main() {
       goto advance;
     }
 
-    char *prg_str = program_to_string(prg);
-    fprintf(stdout, "%s\n", prg_str);
-    free(prg_str);
+    object_t *evald = eval_program(prg);
+    if (evald != NULL) {
+      fprintf(stdout, "%s\n", object_inspect(evald));
+    }
 
   advance:
     free(input);
+    free(evald);
     parser_free(p);
   }
 
