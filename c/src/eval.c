@@ -1,22 +1,80 @@
 #include "eval.h"
 #include "ast.h"
 #include "object.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+object_t *new_boolean_object(bool value) {
+  object_t *o = malloc(sizeof(object_t));
+  if (o == NULL) {
+    return NULL;
+  }
+  o->type = OBJECT_BOOLEAN;
+  o->value.boolean = malloc(sizeof(boolean_object_t));
+  if (o->value.boolean == NULL) {
+    free(o);
+    return NULL;
+  }
+  o->value.boolean->value = value;
+  return o;
+}
+
+object_t *new_integer_object(int64_t value) {
+  object_t *o = malloc(sizeof(object_t));
+  if (o == NULL) {
+    return NULL;
+  }
+  o->type = OBJECT_INTEGER;
+  o->value.integer = malloc(sizeof(integer_object_t));
+  if (o->value.integer == NULL) {
+    free(o);
+    return NULL;
+  }
+  o->value.integer->value = value;
+  return o;
+}
+
+object_t *eval_bang_operator_expression(const object_t *right) {
+  switch (right->type) {
+  case OBJECT_BOOLEAN:
+    return new_boolean_object(!right->value.boolean->value);
+  case OBJECT_NULL:
+    return new_boolean_object(true);
+  default:
+    return new_boolean_object(false);
+  }
+}
+
+object_t *eval_minus_prefix_operator_expression(const object_t *right) {
+  if (right->type != OBJECT_INTEGER) {
+    return NULL;
+  }
+  return new_integer_object(-right->value.integer->value);
+}
+
+object_t *eval_prefix_expression(const char *operator, const object_t * right) {
+  if (strncmp(operator, "!", 1) == 0) {
+    return eval_bang_operator_expression(right);
+  } else if (strncmp(operator, "-", 1) == 0) {
+    return eval_minus_prefix_operator_expression(right);
+  }
+  return NULL;
+}
 
 object_t *eval_expression(expression_t *e) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL: {
-    object_t *o = malloc(sizeof(object_t));
-    if (o == NULL) {
-      return NULL;
-    }
-    o->type = OBJECT_INTEGER;
-    o->value.integer = malloc(sizeof(integer_object_t));
-    if (o->value.integer == NULL) {
-      free(o);
-      return NULL;
-    }
-    o->value.integer->value = e->value.integer->value;
-    return o;
+    return new_integer_object(e->value.integer->value);
+  }
+  case EXPRESSION_BOOLEAN_LITERAL: {
+    return new_boolean_object(e->value.boolean->value);
+  }
+  case EXPRESSION_PREFIX: {
+    object_t *right = eval_expression(e->value.prefix->right);
+    object_t *out = eval_prefix_expression(e->value.prefix->op, right);
+    free(right);
+    return out;
   }
   default:
     return NULL;

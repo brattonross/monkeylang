@@ -29,6 +29,8 @@ int main(void) {
 
   // eval
   RUN_TEST(test_eval_integer_expression);
+  RUN_TEST(test_eval_boolean_expression);
+  RUN_TEST(test_bang_operator);
 
   return UNITY_END();
 }
