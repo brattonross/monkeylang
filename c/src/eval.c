@@ -62,6 +62,31 @@ object_t *eval_prefix_expression(const char *operator, const object_t * right) {
   return NULL;
 }
 
+object_t *eval_integer_infix_expression(const char *operator,
+                                        const object_t * left,
+                                        const object_t *right) {
+  int64_t left_value = left->value.integer->value;
+  int64_t right_value = right->value.integer->value;
+  if (strncmp(operator, "+", 1) == 0) {
+    return new_integer_object(left_value + right_value);
+  } else if (strncmp(operator, "-", 1) == 0) {
+    return new_integer_object(left_value - right_value);
+  } else if (strncmp(operator, "*", 1) == 0) {
+    return new_integer_object(left_value * right_value);
+  } else if (strncmp(operator, "/", 1) == 0) {
+    return new_integer_object(left_value / right_value);
+  }
+  return NULL;
+}
+
+object_t *eval_infix_expression(const char *operator, const object_t * left,
+                                const object_t *right) {
+  if (left->type == OBJECT_INTEGER && right->type == OBJECT_INTEGER) {
+    return eval_integer_infix_expression(operator, left, right);
+  }
+  return NULL;
+}
+
 object_t *eval_expression(expression_t *e) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL: {
@@ -73,7 +98,15 @@ object_t *eval_expression(expression_t *e) {
   case EXPRESSION_PREFIX: {
     object_t *right = eval_expression(e->value.prefix->right);
     object_t *out = eval_prefix_expression(e->value.prefix->op, right);
-    free(right);
+    object_free(right);
+    return out;
+  }
+  case EXPRESSION_INFIX: {
+    object_t *left = eval_expression(e->value.infix->left);
+    object_t *right = eval_expression(e->value.infix->right);
+    object_t *out = eval_infix_expression(e->value.infix->op, left, right);
+    object_free(left);
+    object_free(right);
     return out;
   }
   default:

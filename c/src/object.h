@@ -27,5 +27,6 @@ typedef struct {
 } object_t;
 
 char *object_inspect(object_t *o);
+void object_free(object_t *o);
 
 #endif

@@ -17,3 +17,17 @@ char *object_inspect(object_t *o) {
     return strdup("null");
   }
 }
+
+void object_free(object_t *o) {
+  switch (o->type) {
+  case OBJECT_INTEGER:
+    free(o->value.integer);
+    break;
+  case OBJECT_BOOLEAN:
+    free(o->value.boolean);
+    break;
+  default:
+    // noop
+  }
+  free(o);
+}
