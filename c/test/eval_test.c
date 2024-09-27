@@ -63,6 +63,23 @@ void test_eval_boolean_expression(void) {
   static const test_case_t test_cases[] = {
       {"true", true},
       {"false", false},
+      {"1 < 2", true},
+      {"1 > 2", false},
+      {"1 < 1", false},
+      {"1 > 1", false},
+      {"1 == 1", true},
+      {"1 != 1", false},
+      {"1 == 2", false},
+      {"1 != 2", true},
+      {"true == true", true},
+      {"false == false", true},
+      {"true == false", false},
+      {"true != false", true},
+      {"false != true", true},
+      {"(1 < 2) == true", true},
+      {"(1 < 2) == false", false},
+      {"(1 > 2) == true", false},
+      {"(1 > 2) == false", true},
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 

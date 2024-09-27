@@ -26,8 +26,8 @@ void object_free(object_t *o) {
   case OBJECT_BOOLEAN:
     free(o->value.boolean);
     break;
-  default:
-    // noop
+  case OBJECT_NULL:
+    break;
   }
   free(o);
 }

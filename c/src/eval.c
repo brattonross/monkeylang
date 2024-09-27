@@ -75,6 +75,14 @@ object_t *eval_integer_infix_expression(const char *operator,
     return new_integer_object(left_value * right_value);
   } else if (strncmp(operator, "/", 1) == 0) {
     return new_integer_object(left_value / right_value);
+  } else if (strncmp(operator, "<", 1) == 0) {
+    return new_boolean_object(left_value < right_value);
+  } else if (strncmp(operator, ">", 1) == 0) {
+    return new_boolean_object(left_value > right_value);
+  } else if (strncmp(operator, "==", 2) == 0) {
+    return new_boolean_object(left_value == right_value);
+  } else if (strncmp(operator, "!=", 2) == 0) {
+    return new_boolean_object(left_value != right_value);
   }
   return NULL;
 }
@@ -83,6 +91,22 @@ object_t *eval_infix_expression(const char *operator, const object_t * left,
                                 const object_t *right) {
   if (left->type == OBJECT_INTEGER && right->type == OBJECT_INTEGER) {
     return eval_integer_infix_expression(operator, left, right);
+  }
+
+  if (strncmp(operator, "==", 2) == 0) {
+    return left->type == right->type && left->type == OBJECT_BOOLEAN
+               ? new_boolean_object(left->value.boolean->value ==
+                                    right->value.boolean->value)
+               : new_boolean_object(true); // both objects are null
+  } else if (strncmp(operator, "!=", 2) == 0) {
+    if (left->type != right->type) {
+      return new_boolean_object(true);
+    }
+    if (left->type == OBJECT_NULL) { // both objects are null
+      return new_boolean_object(false);
+    }
+    return new_boolean_object(left->value.boolean->value !=
+                              right->value.boolean->value);
   }
   return NULL;
 }
