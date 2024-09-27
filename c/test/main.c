@@ -31,6 +31,7 @@ int main(void) {
   RUN_TEST(test_eval_integer_expression);
   RUN_TEST(test_eval_boolean_expression);
   RUN_TEST(test_bang_operator);
+  RUN_TEST(test_if_else_expression);
 
   return UNITY_END();
 }

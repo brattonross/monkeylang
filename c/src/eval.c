@@ -111,6 +111,34 @@ object_t *eval_infix_expression(const char *operator, const object_t * left,
   return NULL;
 }
 
+bool is_truthy(object_t *condition) {
+  if (condition->type == OBJECT_NULL) {
+    return false;
+  }
+  if (condition->type == OBJECT_BOOLEAN) {
+    return condition->value.boolean->value;
+  }
+  return true;
+}
+
+object_t *eval_block_statement(block_statement_t *block);
+object_t *eval_if_expression(if_expression_t *e) {
+  object_t *condition = eval_expression(e->condition);
+  if (is_truthy(condition)) {
+    return eval_block_statement(e->consequence);
+  } else if (e->alternative != NULL) {
+    return eval_block_statement(e->alternative);
+  }
+  object_t *null_object = malloc(sizeof(object_t));
+  if (null_object == NULL) {
+    return NULL;
+  }
+  null_object->type = OBJECT_NULL;
+  null_object->value.boolean = NULL;
+  null_object->value.integer = NULL;
+  return null_object;
+}
+
 object_t *eval_expression(expression_t *e) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL: {
@@ -133,15 +161,25 @@ object_t *eval_expression(expression_t *e) {
     object_free(right);
     return out;
   }
+  case EXPRESSION_IF: {
+    return eval_if_expression(e->value.if_);
+  }
   default:
     return NULL;
   }
+}
+
+object_t *eval_block_statement(block_statement_t *block) {
+  return eval_statements(block->statements_len, block->statements);
 }
 
 object_t *eval_statement(statement_t *s) {
   switch (s->type) {
   case STATEMENT_EXPRESSION:
     return eval_expression(s->value.exp->expression);
+  case STATEMENT_BLOCK:
+    return eval_statements(s->value.block->statements_len,
+                           s->value.block->statements);
   default:
     return NULL;
   }

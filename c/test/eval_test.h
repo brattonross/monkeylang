@@ -4,5 +4,6 @@
 void test_eval_integer_expression(void);
 void test_eval_boolean_expression(void);
 void test_bang_operator(void);
+void test_if_else_expression(void);
 
 #endif

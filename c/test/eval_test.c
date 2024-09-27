@@ -105,3 +105,33 @@ void test_bang_operator(void) {
     test_boolean_object(o, test_cases[i].expected);
   }
 }
+
+void test_null_object(object_t *o) {
+  TEST_ASSERT_EQUAL_INT(OBJECT_NULL, o->type);
+}
+
+void test_if_else_expression(void) {
+  typedef struct {
+    char *input;
+    int64_t *expected;
+  } test_case_t;
+  test_case_t test_cases[] = {
+      {"if (true) { 10 }", &(int64_t){10}},
+      {"if (false) { 10 }", NULL},
+      {"if (1) { 10 }", &(int64_t){10}},
+      {"if (1 < 2) { 10 }", &(int64_t){10}},
+      {"if (1 > 2) { 10 }", NULL},
+      {"if (1 > 2) { 10 } else { 20 }", &(int64_t){20}},
+      {"if (1 < 2) { 10 } else { 20 }", &(int64_t){10}},
+  };
+  size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    object_t *o = test_eval(test_cases[i].input);
+    if (test_cases[i].expected == NULL) {
+      test_null_object(o);
+    } else {
+      test_integer_object(o, *test_cases[i].expected);
+    }
+  }
+}
