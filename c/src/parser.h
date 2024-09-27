@@ -28,6 +28,7 @@ typedef enum {
 parser_t *parser_init(lexer_t *l);
 program_t *parser_parse_program(parser_t *p);
 parser_error_t parser_peek_error(parser_t *p, token_type_t t);
+void parser_free(parser_t *p);
 
 typedef enum {
   PARSER_PRECEDENCE_LOWEST,

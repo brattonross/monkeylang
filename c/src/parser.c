@@ -46,6 +46,13 @@ parser_t *parser_init(lexer_t *l) {
   return p;
 }
 
+void parser_free(parser_t *p) {
+  lexer_free(p->lexer);
+  array_list_free(p->errors);
+  token_free(p->current_token);
+  token_free(p->peek_token);
+}
+
 prefix_parse_fn parser_prefix_fn(token_type_t t) {
   switch (t) {
   case TOKEN_IDENTIFIER:

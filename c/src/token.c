@@ -1,5 +1,11 @@
 #include "token.h"
+#include <stdlib.h>
 #include <string.h>
+
+void token_free(token_t *t) {
+  free(t->literal);
+  free(t);
+}
 
 char *token_type_humanize(token_type_t t) {
   switch (t) {

@@ -270,7 +270,7 @@ char *expression_token_literal(const expression_t *e) {
 
 static const char *let_statement_fmt = "let %s = %s;";
 char *let_statement_to_string(let_statement_t *s) {
-  char *value = expression_token_literal(s->value);
+  char *value = expression_to_string(s->value);
   size_t buf_size =
       snprintf(NULL, 0, let_statement_fmt, s->ident->value, value);
   char *buf = malloc(buf_size + 1);
@@ -285,7 +285,7 @@ char *let_statement_to_string(let_statement_t *s) {
 
 static const char *return_statement_fmt = "return %s;";
 char *return_statement_to_string(return_statement_t *s) {
-  char *value = expression_token_literal(s->value);
+  char *value = expression_to_string(s->value);
   size_t buf_size = snprintf(NULL, 0, return_statement_fmt, value);
   char *buf = malloc(buf_size + 1);
   if (buf == NULL) {

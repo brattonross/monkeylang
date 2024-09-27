@@ -2,6 +2,7 @@
 #define __AST_H__
 
 #include "token.h"
+#include <stdbool.h>
 #include <stdlib.h>
 
 typedef struct expression_t expression_t;

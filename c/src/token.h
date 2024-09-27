@@ -44,5 +44,6 @@ typedef struct {
 } token_t;
 
 char *token_type_humanize(token_type_t t);
+void token_free(token_t *t);
 
 #endif // __TOKEN_H__
