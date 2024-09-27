@@ -113,6 +113,9 @@ char *expression_to_string(expression_t *e) {
   case EXPRESSION_FUNCTION_LITERAL: {
     function_literal_t *fn = e->value.fn;
     size_t total_len = 1;
+
+    total_len += 3; // "fn("
+
     for (size_t i = 0; i < fn->parameters_len; ++i) {
       char *tmp = identifier_to_string(fn->parameters[i]);
       if (tmp != NULL) {
@@ -157,6 +160,55 @@ char *expression_to_string(expression_t *e) {
     memcpy(out, body, body_len);
     out += body_len;
 
+    *out = '\0';
+    return res;
+  }
+  case EXPRESSION_CALL: {
+    call_expression_t *call = e->value.call;
+    size_t total_len = 1;
+
+    size_t fn_ident_len = strlen(e->value.call->fn->value.ident->value);
+    total_len += fn_ident_len;
+
+    total_len += 1; // "("
+    for (size_t i = 0; i < call->argc; ++i) {
+      char *tmp = expression_to_string(call->argv[i]);
+      if (tmp != NULL) {
+        if (total_len > 1) {
+          total_len += 2; // ", "
+        }
+        total_len += strlen(tmp);
+        free(tmp);
+      }
+    }
+    total_len += 1; // ")"
+
+    char *res = malloc(total_len);
+    char *out = res;
+    *out = '\0';
+
+    memcpy(out, e->value.call->fn->value.ident->value, fn_ident_len);
+    out += fn_ident_len;
+
+    memcpy(out, "(", 1);
+    out += 1;
+    size_t params_count = 0;
+    for (size_t i = 0; i < call->argc; ++i) {
+      char *tmp = expression_to_string(call->argv[i]);
+      if (tmp != NULL) {
+        if (params_count > 0) {
+          memcpy(out, ", ", 2);
+          out += 2;
+        }
+        size_t len = strlen(tmp);
+        memcpy(out, tmp, len);
+        out += len;
+        free(tmp);
+        params_count++;
+      }
+    }
+    memcpy(out, ")", 1);
+    out += 1;
     *out = '\0';
     return res;
   }
@@ -211,6 +263,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.if_->token->literal);
   case EXPRESSION_FUNCTION_LITERAL:
     return strdup(e->value.fn->token->literal);
+  case EXPRESSION_CALL:
+    return strdup(e->value.call->token->literal);
   }
 }
 

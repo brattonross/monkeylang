@@ -52,6 +52,13 @@ typedef struct {
   block_statement_t *body;
 } function_literal_t;
 
+typedef struct {
+  token_t *token;
+  expression_t *fn;
+  size_t argc;
+  expression_t **argv;
+} call_expression_t;
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
@@ -60,6 +67,7 @@ typedef enum {
   EXPRESSION_BOOLEAN_LITERAL,
   EXPRESSION_IF,
   EXPRESSION_FUNCTION_LITERAL,
+  EXPRESSION_CALL,
 } expression_type_t;
 
 struct expression_t {
@@ -72,6 +80,7 @@ struct expression_t {
     boolean_literal_t *boolean;
     if_expression_t *if_;
     function_literal_t *fn;
+    call_expression_t *call;
   } value;
 };
 

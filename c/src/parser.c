@@ -20,6 +20,7 @@ expression_t *parser_parse_boolean_literal(parser_t *p);
 expression_t *parser_parse_grouped_expression(parser_t *p);
 expression_t *parser_parse_if_expression(parser_t *p);
 expression_t *parser_parse_function_literal(parser_t *p);
+expression_t *parser_parse_call_expression(parser_t *p, expression_t *e);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -79,6 +80,8 @@ infix_parse_fn parser_infix_fn(token_type_t t) {
   case TOKEN_LESS_THAN:
   case TOKEN_GREATER_THAN:
     return parser_parse_infix_expression;
+  case TOKEN_LEFT_PAREN:
+    return parser_parse_call_expression;
   default:
     return NULL;
   }
@@ -98,6 +101,8 @@ parser_precedence_t token_type_to_precedence(token_type_t t) {
   case TOKEN_SLASH:
   case TOKEN_ASTERISK:
     return PARSER_PRECEDENCE_PRODUCT;
+  case TOKEN_LEFT_PAREN:
+    return PARSER_PRECEDENCE_CALL;
   default:
     return PARSER_PRECEDENCE_LOWEST;
   }
@@ -506,6 +511,7 @@ expression_t *parser_parse_if_expression(parser_t *p) {
   }
 
   e->value.if_->consequence = parser_parse_block_statement(p);
+  e->value.if_->alternative = NULL;
 
   if (parser_peek_token_is(p, TOKEN_ELSE)) {
     parser_next_token(p);
@@ -639,6 +645,73 @@ expression_t *parser_parse_function_literal(parser_t *p) {
 
   e->value.fn->body = parser_parse_block_statement(p);
 
+  return e;
+}
+
+void parser_parse_call_arguments(parser_t *p, call_expression_t *call) {
+  call->argc = 0;
+  call->argv = NULL;
+
+  if (parser_peek_token_is(p, TOKEN_RIGHT_PAREN)) {
+    parser_next_token(p);
+    return;
+  }
+
+  parser_next_token(p);
+  call->argc++;
+  call->argv = calloc(1, sizeof(expression_t));
+  call->argv[0] = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+
+  while (parser_peek_token_is(p, TOKEN_COMMA)) {
+    parser_next_token(p);
+    parser_next_token(p);
+    call->argc++;
+    call->argv = realloc(call->argv, call->argc * sizeof(expression_t));
+    call->argv[call->argc - 1] =
+        parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+  }
+
+  if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
+    for (size_t i = 0; i < call->argc; ++i) {
+      free(call->argv[i]);
+    }
+    free(call->argv);
+    call->argv = NULL;
+    call->argc = 0;
+  }
+}
+
+expression_t *parser_parse_call_expression(parser_t *p, expression_t *fn) {
+  expression_t *e = malloc(sizeof(expression_t));
+  if (e == NULL) {
+    return NULL;
+  }
+
+  e->type = EXPRESSION_CALL;
+  e->value.call = malloc(sizeof(call_expression_t));
+  if (e->value.call == NULL) {
+    free(e);
+    return NULL;
+  }
+
+  e->value.call->token = malloc(sizeof(token_t));
+  if (e->value.call->token == NULL) {
+    free(e->value.call);
+    free(e);
+    return NULL;
+  }
+  memcpy(e->value.call->token, p->current_token, sizeof(token_t));
+
+  e->value.call->fn = malloc(sizeof(expression_t));
+  if (e->value.call->fn == NULL) {
+    free(e->value.call->token);
+    free(e->value.call);
+    free(e);
+    return NULL;
+  }
+  memcpy(e->value.call->fn, fn, sizeof(expression_t));
+
+  parser_parse_call_arguments(p, e->value.call);
   return e;
 }
 

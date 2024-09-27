@@ -290,6 +290,18 @@ void test_operator_precedence_parsing(void) {
           "!(true == true)",
           "(!(true == true))",
       },
+      {
+          "a + add(b * c) + d",
+          "((a + add((b * c))) + d)",
+      },
+      {
+          "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+          "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+      },
+      {
+          "add(a + b + c * d / f + g)",
+          "add((((a + b) + ((c * d) / f)) + g))",
+      },
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
@@ -482,4 +494,43 @@ void test_parser_function_parameter_parsing(void) {
     TEST_ASSERT_EQUAL_STRING("y", fn->parameters[1]->value);
     TEST_ASSERT_EQUAL_STRING("z", fn->parameters[2]->value);
   }
+}
+
+void test_parser_call_expression_parsing(void) {
+  lexer_t *l = lexer_init("add(1, 2 * 3, 4 + 5);");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_CALL, s->expression->type);
+
+  call_expression_t *call = s->expression->value.call;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, call->fn->type);
+  TEST_ASSERT_EQUAL_STRING("add", call->fn->value.ident->value);
+  TEST_ASSERT_EQUAL_INT(3, call->argc);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, call->argv[0]->type);
+  TEST_ASSERT_EQUAL_INT(1, call->argv[0]->value.integer->value);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, call->argv[1]->type);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL,
+                        call->argv[1]->value.infix->left->type);
+  TEST_ASSERT_EQUAL_INT(2,
+                        call->argv[1]->value.infix->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("*", call->argv[1]->value.infix->op);
+  TEST_ASSERT_EQUAL_INT(
+      3, call->argv[1]->value.infix->right->value.integer->value);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, call->argv[2]->type);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL,
+                        call->argv[2]->value.infix->left->type);
+  TEST_ASSERT_EQUAL_INT(4,
+                        call->argv[2]->value.infix->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("+", call->argv[2]->value.infix->op);
+  TEST_ASSERT_EQUAL_INT(
+      5, call->argv[2]->value.infix->right->value.integer->value);
 }

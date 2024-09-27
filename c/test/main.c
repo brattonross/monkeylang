@@ -21,6 +21,7 @@ int main(void) {
   RUN_TEST(test_parser_if_else_expression);
   RUN_TEST(test_parser_function_literal_parsing);
   RUN_TEST(test_parser_function_parameter_parsing);
+  RUN_TEST(test_parser_call_expression_parsing);
 
   return UNITY_END();
 }
