@@ -233,3 +233,14 @@ void test_let_statements(void) {
     test_integer_object(test_eval(test_cases[i].input), test_cases[i].expected);
   }
 }
+
+void test_function_object(void) {
+  object_t *evaluated = test_eval("fn(x) { x + 2; };");
+
+  TEST_ASSERT_EQUAL_INT(OBJECT_FUNCTION, evaluated->type);
+  TEST_ASSERT_EQUAL_INT(1, evaluated->value.fn->parameters_len);
+  TEST_ASSERT_EQUAL_STRING(
+      "x", identifier_to_string(evaluated->value.fn->parameters[0]));
+  TEST_ASSERT_EQUAL_STRING(
+      "(x + 2)", block_statement_to_string(evaluated->value.fn->body));
+}

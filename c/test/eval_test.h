@@ -8,5 +8,6 @@ void test_if_else_expression(void);
 void test_return_statements(void);
 void test_error_handling(void);
 void test_let_statements(void);
+void test_function_object(void);
 
 #endif

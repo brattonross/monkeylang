@@ -2,7 +2,6 @@
 #define __EVAL_H__
 
 #include "ast.h"
-#include "env.h"
 #include "object.h"
 
 object_t *eval_prefix_expression(const char *operator, const object_t * right);

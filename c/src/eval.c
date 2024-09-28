@@ -1,11 +1,11 @@
 #include "eval.h"
 #include "ast.h"
-#include "env.h"
 #include "object.h"
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 bool is_error(object_t *o) {
@@ -67,6 +67,27 @@ object_t *new_error_object(char *fmt, ...) {
   vsnprintf(buf, len + 1, fmt, args);
   va_end(args);
   obj->value.err->message = buf;
+  return obj;
+}
+
+object_t *new_function_object(size_t parameters_len, identifier_t **parameters,
+                              environment_t *env, block_statement_t *body) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+
+  obj->type = OBJECT_FUNCTION;
+  obj->value.fn = malloc(sizeof(function_object_t));
+  if (obj->value.fn == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+
+  obj->value.fn->parameters_len = parameters_len;
+  obj->value.fn->parameters = parameters;
+  obj->value.fn->env = env;
+  obj->value.fn->body = body;
   return obj;
 }
 
@@ -205,6 +226,10 @@ object_t *eval_expression(expression_t *e, environment_t *env) {
   }
   case EXPRESSION_BOOLEAN_LITERAL: {
     return new_boolean_object(e->value.boolean->value);
+  }
+  case EXPRESSION_FUNCTION_LITERAL: {
+    return new_function_object(e->value.fn->parameters_len,
+                               e->value.fn->parameters, env, e->value.fn->body);
   }
   case EXPRESSION_PREFIX: {
     object_t *right = eval_expression(e->value.prefix->right, env);

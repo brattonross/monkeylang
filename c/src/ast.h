@@ -13,6 +13,7 @@ typedef struct {
 } identifier_t;
 
 void identifier_free(identifier_t *ident);
+char *identifier_to_string(identifier_t *ident);
 
 const char *identifier_token_literal(identifier_t *i);
 
@@ -141,6 +142,7 @@ struct block_statement_t {
 };
 
 void block_statement_free(block_statement_t *block);
+char *block_statement_to_string(block_statement_t *s);
 
 struct statement_t {
   statement_type_t type;
