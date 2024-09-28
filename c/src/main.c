@@ -1,5 +1,6 @@
 #include "array_list.h"
 #include "ast.h"
+#include "env.h"
 #include "eval.h"
 #include "lexer.h"
 #include "object.h"
@@ -25,6 +26,7 @@ int main() {
   printf("Hello %s! This is the Monkey programming language!\n", username);
   printf("Feel free to type in commands\n");
 
+  environment_t *env = new_environment();
   while (1) {
     printf("%s", prompt);
 
@@ -64,14 +66,16 @@ int main() {
       goto advance;
     }
 
-    object_t *evald = eval_program(prg);
+    object_t *evald = eval_program(prg, env);
     if (evald != NULL) {
       fprintf(stdout, "%s\n", object_inspect(evald));
     }
 
   advance:
     free(input);
+    input = NULL;
     free(evald);
+    evald = NULL;
     parser_free(p);
   }
 

@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "token.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -14,6 +15,7 @@ char *block_statement_to_string(block_statement_t *s) {
     if (tmp != NULL) {
       total_len += strlen(tmp);
       free(tmp);
+      tmp = NULL;
     }
   }
 
@@ -28,6 +30,7 @@ char *block_statement_to_string(block_statement_t *s) {
       memcpy(out, tmp, len);
       out += len;
       free(tmp);
+      tmp = NULL;
     }
   }
 
@@ -52,11 +55,13 @@ char *expression_to_string(expression_t *e) {
     char *buf = malloc(buf_size + 1);
     if (buf == NULL) {
       free(right_str);
+      right_str = NULL;
       return NULL;
     }
     snprintf(buf, buf_size + 1, prefix_expression_fmt, e->value.prefix->op,
              right_str);
     free(right_str);
+    right_str = NULL;
     return buf;
   }
   case EXPRESSION_INFIX: {
@@ -67,13 +72,17 @@ char *expression_to_string(expression_t *e) {
     char *buf = malloc(buf_size + 1);
     if (buf == NULL) {
       free(left_str);
+      left_str = NULL;
       free(right_str);
+      right_str = NULL;
       return NULL;
     }
     snprintf(buf, buf_size + 1, infix_expression_fmt, left_str,
              e->value.infix->op, right_str);
     free(left_str);
+    left_str = NULL;
     free(right_str);
+    right_str = NULL;
     return buf;
   }
   case EXPRESSION_BOOLEAN_LITERAL: {
@@ -88,12 +97,16 @@ char *expression_to_string(expression_t *e) {
     char *buf = malloc(buf_size + 1);
     if (buf == NULL) {
       free(condition_str);
+      condition_str = NULL;
       free(consequence_str);
+      consequence_str = NULL;
       return NULL;
     }
     snprintf(buf, buf_size + 1, "if %s %s", condition_str, consequence_str);
     free(condition_str);
+    condition_str = NULL;
     free(consequence_str);
+    consequence_str = NULL;
 
     if (e->value.if_->alternative != NULL) {
       char *alternative_str =
@@ -102,10 +115,12 @@ char *expression_to_string(expression_t *e) {
       buf = realloc(buf, strlen(buf) + buf_size);
       if (buf == NULL) {
         free(alternative_str);
+        alternative_str = NULL;
         return NULL;
       }
       snprintf(buf, buf_size + 1, "else %s", alternative_str);
       free(alternative_str);
+      alternative_str = NULL;
     }
 
     return buf;
@@ -124,6 +139,7 @@ char *expression_to_string(expression_t *e) {
         }
         total_len += strlen(tmp);
         free(tmp);
+        tmp = NULL;
       }
     }
     total_len += 2; // ") "
@@ -150,6 +166,7 @@ char *expression_to_string(expression_t *e) {
         memcpy(out, tmp, len);
         out += len;
         free(tmp);
+        tmp = NULL;
         params_count++;
       }
     }
@@ -179,6 +196,7 @@ char *expression_to_string(expression_t *e) {
         }
         total_len += strlen(tmp);
         free(tmp);
+        tmp = NULL;
       }
     }
     total_len += 1; // ")"
@@ -204,6 +222,7 @@ char *expression_to_string(expression_t *e) {
         memcpy(out, tmp, len);
         out += len;
         free(tmp);
+        tmp = NULL;
         params_count++;
       }
     }
@@ -233,8 +252,14 @@ const char *identifier_token_literal(identifier_t *i) {
 }
 
 void program_free(program_t *p) {
+  for (size_t i = 0; i < p->statements_len; ++i) {
+    statement_free(p->statements[i]);
+    p->statements[i] = NULL;
+  }
   free(p->statements);
+  p->statements = NULL;
   free(p);
+  p = NULL;
 }
 
 char *program_token_literal(const program_t *p) {
@@ -276,10 +301,12 @@ char *let_statement_to_string(let_statement_t *s) {
   char *buf = malloc(buf_size + 1);
   if (buf == NULL) {
     free(value);
+    value = NULL;
     return NULL;
   }
   snprintf(buf, buf_size + 1, let_statement_fmt, s->ident->value, value);
   free(value);
+  value = NULL;
   return buf;
 }
 
@@ -290,10 +317,12 @@ char *return_statement_to_string(return_statement_t *s) {
   char *buf = malloc(buf_size + 1);
   if (buf == NULL) {
     free(value);
+    value = NULL;
     return NULL;
   }
   snprintf(buf, buf_size + 1, return_statement_fmt, value);
   free(value);
+  value = NULL;
   return buf;
 }
 
@@ -326,6 +355,7 @@ char *program_to_string(const program_t *p) {
     char *statement_str = statement_to_string(s);
     if (statement_str == NULL) {
       free(str);
+      str = NULL;
       return NULL;
     }
 
@@ -333,14 +363,169 @@ char *program_to_string(const program_t *p) {
     char *tmp = realloc(str, len);
     if (tmp == NULL) {
       free(str);
+      str = NULL;
       free(statement_str);
+      statement_str = NULL;
       return NULL;
     }
     str = tmp;
 
     strcat(str, statement_str);
     free(statement_str);
+    statement_str = NULL;
   }
 
   return str;
+}
+
+void identifier_free(identifier_t *ident) {
+  token_free(ident->token);
+  free(ident->value);
+  ident->value = NULL;
+}
+
+void statement_free(statement_t *s) {
+  switch (s->type) {
+  case STATEMENT_LET:
+    let_statement_free(s->value.let);
+    break;
+  case STATEMENT_BLOCK:
+    block_statement_free(s->value.block);
+    break;
+  case STATEMENT_RETURN:
+    return_statement_free(s->value.ret);
+    break;
+  case STATEMENT_EXPRESSION:
+    expression_statement_free(s->value.exp);
+    break;
+  }
+
+  free(s);
+  s = NULL;
+}
+
+void expression_statement_free(expression_statement_t *exp) {
+  token_free(exp->token);
+  expression_free(exp->expression);
+  free(exp);
+  exp = NULL;
+}
+
+void return_statement_free(return_statement_t *ret) {
+  token_free(ret->token);
+  expression_free(ret->value);
+  free(ret);
+  ret = NULL;
+}
+
+void let_statement_free(let_statement_t *let) {
+  token_free(let->token);
+  expression_free(let->value);
+  identifier_free(let->ident);
+  free(let);
+  let = NULL;
+}
+
+void block_statement_free(block_statement_t *block) {
+  token_free(block->token);
+  for (size_t i = 0; i < block->statements_len; ++i) {
+    statement_free(block->statements[i]);
+  }
+  free(block->statements);
+  block->statements = NULL;
+}
+
+void if_expression_free(if_expression_t *exp) {
+  token_free(exp->token);
+  expression_free(exp->condition);
+  block_statement_free(exp->alternative);
+  free(exp);
+  exp = NULL;
+}
+
+void call_expression_free(call_expression_t *exp) {
+  token_free(exp->token);
+  expression_free(exp->fn);
+  for (size_t i = 0; i < exp->argc; ++i) {
+    expression_free(exp->argv[i]);
+  }
+  free(exp->argv);
+  exp->argv = NULL;
+  free(exp);
+  exp = NULL;
+}
+
+void infix_expression_free(infix_expression_t *exp) {
+  token_free(exp->token);
+  free(exp->op);
+  exp->op = NULL;
+  expression_free(exp->left);
+  expression_free(exp->right);
+  free(exp);
+  exp = NULL;
+}
+
+void prefix_expression_free(prefix_expression_t *exp) {
+  token_free(exp->token);
+  expression_free(exp->right);
+  free(exp->op);
+  exp->op = NULL;
+  free(exp);
+  exp = NULL;
+}
+
+void boolean_literal_free(boolean_literal_t *exp) {
+  token_free(exp->token);
+  free(exp);
+  exp = NULL;
+}
+
+void integer_literal_free(integer_literal_t *exp) {
+  token_free(exp->token);
+  free(exp);
+  exp = NULL;
+}
+
+void function_literal_free(function_literal_t *exp) {
+  token_free(exp->token);
+  block_statement_free(exp->body);
+  for (size_t i = 0; i < exp->parameters_len; ++i) {
+    identifier_free(exp->parameters[i]);
+  }
+  free(exp->parameters);
+  exp->parameters = NULL;
+  free(exp);
+  exp = NULL;
+}
+
+void expression_free(expression_t *exp) {
+  switch (exp->type) {
+  case EXPRESSION_IDENTIFIER:
+    identifier_free(exp->value.ident);
+    break;
+  case EXPRESSION_IF:
+    if_expression_free(exp->value.if_);
+    break;
+  case EXPRESSION_CALL:
+    call_expression_free(exp->value.call);
+    break;
+  case EXPRESSION_INFIX:
+    infix_expression_free(exp->value.infix);
+    break;
+  case EXPRESSION_PREFIX:
+    prefix_expression_free(exp->value.prefix);
+    break;
+  case EXPRESSION_BOOLEAN_LITERAL:
+    boolean_literal_free(exp->value.boolean);
+    break;
+  case EXPRESSION_INTEGER_LITERAL:
+    integer_literal_free(exp->value.integer);
+    break;
+  case EXPRESSION_FUNCTION_LITERAL:
+    function_literal_free(exp->value.fn);
+    break;
+  }
+
+  free(exp);
+  exp = NULL;
 }

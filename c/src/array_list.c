@@ -10,7 +10,7 @@ array_list_t *array_list_create(const size_t cap) {
 
   list->arr = calloc(cap, sizeof(char *));
   if (list->arr == NULL) {
-    free(list);
+    array_list_free(list);
     return NULL;
   }
 
@@ -25,9 +25,12 @@ void array_list_free(array_list_t *list) {
   }
   for (size_t i = 0; i < list->len; ++i) {
     free(list->arr[i]);
+    list->arr[i] = NULL;
   }
   free(list->arr);
+  list->arr = NULL;
   free(list);
+  list = NULL;
 }
 
 array_list_error_t array_list_resize(array_list_t *list, const size_t cap) {
@@ -78,6 +81,7 @@ array_list_error_t array_list_remove(array_list_t *list, const size_t i) {
   }
 
   free(list->arr[i]);
+  list->arr[i] = NULL;
 
   for (size_t j = i; j < list->len - 1; ++j) {
     list->arr[j] = list->arr[j + 1];

@@ -173,24 +173,6 @@ bool parser_expect_peek(parser_t *p, token_type_t t) {
   return false;
 }
 
-void free_statement(statement_t *s) {
-  switch (s->type) {
-  case STATEMENT_LET:
-    free(s->value.let);
-    break;
-  case STATEMENT_RETURN:
-    free(s->value.ret);
-    break;
-  case STATEMENT_EXPRESSION:
-    free(s->value.exp);
-    break;
-  case STATEMENT_BLOCK:
-    free(s->value.block);
-    break;
-  }
-  free(s);
-}
-
 statement_t *parse_let_statement(parser_t *p) {
   statement_t *s = malloc(sizeof(statement_t));
   if (s == NULL) {
@@ -200,37 +182,37 @@ statement_t *parse_let_statement(parser_t *p) {
   s->type = STATEMENT_LET;
   s->value.let = malloc(sizeof(let_statement_t));
   if (s->value.let == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
 
   s->value.let->token = malloc(sizeof(token_t));
   if (s->value.let->token == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
   memcpy(s->value.let->token, p->current_token, sizeof(token_t));
 
   if (!parser_expect_peek(p, TOKEN_IDENTIFIER)) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
 
   s->value.let->ident = malloc(sizeof(identifier_t));
   if (s->value.let->ident == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
   s->value.let->ident->token = malloc(sizeof(token_t));
   if (s->value.let->ident->token == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
   memcpy(s->value.let->ident->token, p->current_token, sizeof(token_t));
   s->value.let->ident->value = strdup(p->current_token->literal);
 
   if (!parser_expect_peek(p, TOKEN_ASSIGN)) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
 
@@ -253,13 +235,13 @@ statement_t *parse_return_statement(parser_t *p) {
   s->type = STATEMENT_RETURN;
   s->value.ret = malloc(sizeof(return_statement_t));
   if (s->value.ret == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
 
   s->value.ret->token = malloc(sizeof(token_t));
   if (s->value.ret->token == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
   memcpy(s->value.ret->token, p->current_token, sizeof(token_t));
@@ -307,13 +289,13 @@ statement_t *parse_expression_statement(parser_t *p) {
   s->type = STATEMENT_EXPRESSION;
   s->value.exp = malloc(sizeof(expression_statement_t));
   if (s->value.exp == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
 
   s->value.exp->token = malloc(sizeof(token_t));
   if (s->value.exp->token == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
   memcpy(s->value.exp->token, p->current_token, sizeof(token_t));
@@ -322,7 +304,7 @@ statement_t *parse_expression_statement(parser_t *p) {
   s->value.exp->expression =
       parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
   if (s->value.exp->expression == NULL) {
-    free_statement(s);
+    statement_free(s);
     return NULL;
   }
 
@@ -356,14 +338,13 @@ expression_t *parser_parse_identifier(parser_t *p) {
   e->type = EXPRESSION_IDENTIFIER;
   e->value.ident = malloc(sizeof(identifier_t));
   if (e->value.ident == NULL) {
-    free(e);
+    expression_free(e);
     return NULL;
   }
 
   e->value.ident->token = malloc(sizeof(token_t));
   if (e->value.ident->token == NULL) {
-    free(e);
-    free(e->value.ident->token);
+    expression_free(e);
     return NULL;
   }
 
@@ -383,14 +364,13 @@ expression_t *parser_parse_integer_literal(parser_t *p) {
   e->type = EXPRESSION_INTEGER_LITERAL;
   e->value.integer = malloc(sizeof(integer_literal_t));
   if (e->value.integer == NULL) {
-    free(e);
+    expression_free(e);
     return NULL;
   }
 
   e->value.integer->token = malloc(sizeof(token_t));
   if (e->value.integer->token == NULL) {
-    free(e->value.integer);
-    free(e);
+    expression_free(e);
     return NULL;
   }
 
@@ -410,14 +390,13 @@ expression_t *parser_parse_boolean_literal(parser_t *p) {
   e->type = EXPRESSION_BOOLEAN_LITERAL;
   e->value.boolean = malloc(sizeof(boolean_literal_t));
   if (e->value.boolean == NULL) {
-    free(e);
+    expression_free(e);
     return NULL;
   }
 
   e->value.boolean->token = malloc(sizeof(token_t));
   if (e->value.boolean->token == NULL) {
-    free(e->value.boolean);
-    free(e);
+    expression_free(e);
     return NULL;
   }
   memcpy(e->value.boolean->token, p->current_token, sizeof(token_t));
@@ -429,27 +408,27 @@ expression_t *parser_parse_grouped_expression(parser_t *p) {
   parser_next_token(p);
   expression_t *exp = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
   if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
-    free(exp);
+    expression_free(exp);
     return NULL;
   }
   return exp;
 }
 
 block_statement_t *parser_parse_block_statement(parser_t *p) {
-  block_statement_t *b = malloc(sizeof(block_statement_t));
-  if (b == NULL) {
+  block_statement_t *block = malloc(sizeof(block_statement_t));
+  if (block == NULL) {
     return NULL;
   }
 
-  b->token = malloc(sizeof(token_t));
-  if (b->token == NULL) {
-    free(b);
+  block->token = malloc(sizeof(token_t));
+  if (block->token == NULL) {
+    block_statement_free(block);
     return NULL;
   }
-  memcpy(b->token, p->current_token, sizeof(token_t));
+  memcpy(block->token, p->current_token, sizeof(token_t));
 
-  b->statements_len = 0;
-  b->statements = NULL;
+  block->statements_len = 0;
+  block->statements = NULL;
 
   parser_next_token(p);
 
@@ -457,88 +436,75 @@ block_statement_t *parser_parse_block_statement(parser_t *p) {
          !parser_current_token_is(p, TOKEN_EOF)) {
     statement_t *s = parser_parse_statement(p);
     if (s != NULL) {
-      b->statements_len++;
-      if (b->statements == NULL) {
-        b->statements = calloc(1, sizeof(statement_t));
+      block->statements_len++;
+      if (block->statements == NULL) {
+        block->statements = calloc(1, sizeof(statement_t));
       } else {
-        b->statements =
-            realloc(b->statements, b->statements_len * sizeof(statement_t));
+        block->statements = realloc(block->statements, block->statements_len *
+                                                           sizeof(statement_t));
       }
-      b->statements[b->statements_len - 1] = s;
+      block->statements[block->statements_len - 1] = s;
     }
     parser_next_token(p);
   }
 
-  return b;
+  return block;
 }
 
 expression_t *parser_parse_if_expression(parser_t *p) {
-  expression_t *e = malloc(sizeof(expression_t));
-  if (e == NULL) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
     return NULL;
   }
 
-  e->type = EXPRESSION_IF;
-  e->value.if_ = malloc(sizeof(if_expression_t));
-  if (e->value.if_ == NULL) {
-    free(e);
+  exp->type = EXPRESSION_IF;
+  exp->value.if_ = malloc(sizeof(if_expression_t));
+  if (exp->value.if_ == NULL) {
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.if_->token = malloc(sizeof(token_t));
-  if (e->value.if_->token == NULL) {
-    free(e->value.if_);
-    free(e);
+  exp->value.if_->token = malloc(sizeof(token_t));
+  if (exp->value.if_->token == NULL) {
+    expression_free(exp);
     return NULL;
   }
-  memcpy(e->value.if_->token, p->current_token, sizeof(token_t));
+  memcpy(exp->value.if_->token, p->current_token, sizeof(token_t));
 
   if (!parser_expect_peek(p, TOKEN_LEFT_PAREN)) {
-    free(e->value.if_->token);
-    free(e->value.if_);
-    free(e);
+    expression_free(exp);
     return NULL;
   }
 
   parser_next_token(p);
-  e->value.if_->condition =
+  exp->value.if_->condition =
       parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
 
   if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
-    free(e->value.if_->condition);
-    free(e->value.if_->token);
-    free(e->value.if_);
-    free(e);
+    expression_free(exp);
     return NULL;
   }
 
   if (!parser_expect_peek(p, TOKEN_LEFT_BRACE)) {
-    free(e->value.if_->condition);
-    free(e->value.if_->token);
-    free(e->value.if_);
-    free(e);
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.if_->consequence = parser_parse_block_statement(p);
-  e->value.if_->alternative = NULL;
+  exp->value.if_->consequence = parser_parse_block_statement(p);
+  exp->value.if_->alternative = NULL;
 
   if (parser_peek_token_is(p, TOKEN_ELSE)) {
     parser_next_token(p);
 
     if (!parser_expect_peek(p, TOKEN_LEFT_BRACE)) {
-      free(e->value.if_->consequence);
-      free(e->value.if_->condition);
-      free(e->value.if_->token);
-      free(e->value.if_);
-      free(e);
+      expression_free(exp);
       return NULL;
     }
 
-    e->value.if_->alternative = parser_parse_block_statement(p);
+    exp->value.if_->alternative = parser_parse_block_statement(p);
   }
 
-  return e;
+  return exp;
 }
 
 void parser_parse_function_parameters(parser_t *p, function_literal_t *fn) {
@@ -556,7 +522,7 @@ void parser_parse_function_parameters(parser_t *p, function_literal_t *fn) {
 
   ident->token = malloc(sizeof(token_t));
   if (ident->token == NULL) {
-    free(ident);
+    identifier_free(ident);
     return;
   }
   memcpy(ident->token, p->current_token, sizeof(token_t));
@@ -583,7 +549,7 @@ void parser_parse_function_parameters(parser_t *p, function_literal_t *fn) {
 
     ident->token = malloc(sizeof(token_t));
     if (ident->token == NULL) {
-      free(ident);
+      identifier_free(ident);
       return;
     }
     memcpy(ident->token, p->current_token, sizeof(token_t));
@@ -602,7 +568,7 @@ void parser_parse_function_parameters(parser_t *p, function_literal_t *fn) {
 
   if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
     for (size_t i = 0; i < fn->parameters_len; ++i) {
-      free(fn->parameters[i]);
+      identifier_free(fn->parameters[i]);
     }
     free(fn->parameters);
     fn->parameters_len = 0;
@@ -611,51 +577,41 @@ void parser_parse_function_parameters(parser_t *p, function_literal_t *fn) {
 }
 
 expression_t *parser_parse_function_literal(parser_t *p) {
-  expression_t *e = malloc(sizeof(expression_t));
-  if (e == NULL) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
     return NULL;
   }
 
-  e->type = EXPRESSION_FUNCTION_LITERAL;
-  e->value.fn = malloc(sizeof(function_literal_t));
-  if (e->value.fn == NULL) {
-    free(e);
+  exp->type = EXPRESSION_FUNCTION_LITERAL;
+  exp->value.fn = malloc(sizeof(function_literal_t));
+  if (exp->value.fn == NULL) {
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.fn->token = malloc(sizeof(token_t));
-  if (e->value.fn->token == NULL) {
-    free(e->value.fn);
-    free(e);
+  exp->value.fn->token = malloc(sizeof(token_t));
+  if (exp->value.fn->token == NULL) {
+    expression_free(exp);
     return NULL;
   }
-  memcpy(e->value.fn->token, p->current_token, sizeof(token_t));
+  memcpy(exp->value.fn->token, p->current_token, sizeof(token_t));
 
   if (!parser_expect_peek(p, TOKEN_LEFT_PAREN)) {
-    free(e->value.fn->token);
-    free(e->value.fn);
-    free(e);
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.fn->parameters = NULL;
-  e->value.fn->parameters_len = 0;
-  parser_parse_function_parameters(p, e->value.fn);
+  exp->value.fn->parameters = NULL;
+  exp->value.fn->parameters_len = 0;
+  parser_parse_function_parameters(p, exp->value.fn);
 
   if (!parser_expect_peek(p, TOKEN_LEFT_BRACE)) {
-    free(e->value.fn->token);
-    for (size_t i = 0; i < e->value.fn->parameters_len; ++i) {
-      free(e->value.fn->parameters[i]);
-    }
-    free(e->value.fn->parameters);
-    free(e->value.fn);
-    free(e);
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.fn->body = parser_parse_block_statement(p);
-
-  return e;
+  exp->value.fn->body = parser_parse_block_statement(p);
+  return exp;
 }
 
 void parser_parse_call_arguments(parser_t *p, call_expression_t *call) {
@@ -683,7 +639,7 @@ void parser_parse_call_arguments(parser_t *p, call_expression_t *call) {
 
   if (!parser_expect_peek(p, TOKEN_RIGHT_PAREN)) {
     for (size_t i = 0; i < call->argc; ++i) {
-      free(call->argv[i]);
+      expression_free(call->argv[i]);
     }
     free(call->argv);
     call->argv = NULL;
@@ -692,68 +648,65 @@ void parser_parse_call_arguments(parser_t *p, call_expression_t *call) {
 }
 
 expression_t *parser_parse_call_expression(parser_t *p, expression_t *fn) {
-  expression_t *e = malloc(sizeof(expression_t));
-  if (e == NULL) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
     return NULL;
   }
 
-  e->type = EXPRESSION_CALL;
-  e->value.call = malloc(sizeof(call_expression_t));
-  if (e->value.call == NULL) {
-    free(e);
+  exp->type = EXPRESSION_CALL;
+  exp->value.call = malloc(sizeof(call_expression_t));
+  if (exp->value.call == NULL) {
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.call->token = malloc(sizeof(token_t));
-  if (e->value.call->token == NULL) {
-    free(e->value.call);
-    free(e);
+  exp->value.call->token = malloc(sizeof(token_t));
+  if (exp->value.call->token == NULL) {
+    expression_free(exp);
     return NULL;
   }
-  memcpy(e->value.call->token, p->current_token, sizeof(token_t));
+  memcpy(exp->value.call->token, p->current_token, sizeof(token_t));
 
-  e->value.call->fn = malloc(sizeof(expression_t));
-  if (e->value.call->fn == NULL) {
-    free(e->value.call->token);
-    free(e->value.call);
-    free(e);
+  exp->value.call->fn = malloc(sizeof(expression_t));
+  if (exp->value.call->fn == NULL) {
+    expression_free(exp);
     return NULL;
   }
-  memcpy(e->value.call->fn, fn, sizeof(expression_t));
+  memcpy(exp->value.call->fn, fn, sizeof(expression_t));
 
-  parser_parse_call_arguments(p, e->value.call);
-  return e;
+  parser_parse_call_arguments(p, exp->value.call);
+  return exp;
 }
 
 expression_t *parser_parse_prefix_expression(parser_t *p) {
-  expression_t *e = malloc(sizeof(expression_t));
-  if (e == NULL) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
     return NULL;
   }
 
-  e->type = EXPRESSION_PREFIX;
-  e->value.prefix = malloc(sizeof(prefix_expression_t));
-  if (e->value.prefix == NULL) {
-    free(e);
+  exp->type = EXPRESSION_PREFIX;
+  exp->value.prefix = malloc(sizeof(prefix_expression_t));
+  if (exp->value.prefix == NULL) {
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.prefix->token = malloc(sizeof(token_t));
-  if (e->value.prefix->token == NULL) {
-    free(e);
-    free(e->value.prefix->token);
+  exp->value.prefix->token = malloc(sizeof(token_t));
+  if (exp->value.prefix->token == NULL) {
+    expression_free(exp);
     return NULL;
   }
 
-  e->value.prefix->token->type = p->current_token->type;
-  e->value.prefix->token->literal = strdup(p->current_token->literal);
-  e->value.prefix->op = strdup(p->current_token->literal);
+  exp->value.prefix->token->type = p->current_token->type;
+  exp->value.prefix->token->literal = strdup(p->current_token->literal);
+  exp->value.prefix->op = strdup(p->current_token->literal);
 
   parser_next_token(p);
 
-  e->value.prefix->right = parser_parse_expression(p, PARSER_PRECEDENCE_PREFIX);
+  exp->value.prefix->right =
+      parser_parse_expression(p, PARSER_PRECEDENCE_PREFIX);
 
-  return e;
+  return exp;
 }
 
 expression_t *parser_parse_infix_expression(parser_t *p, expression_t *left) {
@@ -765,14 +718,13 @@ expression_t *parser_parse_infix_expression(parser_t *p, expression_t *left) {
   exp->type = EXPRESSION_INFIX;
   exp->value.infix = malloc(sizeof(infix_expression_t));
   if (exp->value.infix == NULL) {
-    free(exp);
+    expression_free(exp);
     return NULL;
   }
 
   exp->value.infix->token = malloc(sizeof(token_t));
   if (exp->value.infix->token == NULL) {
-    free(exp->value.infix);
-    free(exp);
+    expression_free(exp);
     return NULL;
   }
 
@@ -781,10 +733,7 @@ expression_t *parser_parse_infix_expression(parser_t *p, expression_t *left) {
 
   exp->value.infix->left = malloc(sizeof(expression_t));
   if (exp->value.infix->left == NULL) {
-    free(exp->value.infix->token);
-    free(exp->value.infix->op);
-    free(exp->value.infix);
-    free(exp);
+    expression_free(exp);
     return NULL;
   }
   memcpy(exp->value.infix->left, left, sizeof(expression_t));
@@ -793,11 +742,7 @@ expression_t *parser_parse_infix_expression(parser_t *p, expression_t *left) {
   parser_next_token(p);
   exp->value.infix->right = parser_parse_expression(p, precedence);
   if (exp->value.infix->right == NULL) {
-    free(exp->value.infix->token);
-    free(exp->value.infix->op);
-    free(exp->value.infix->left);
-    free(exp->value.infix);
-    free(exp);
+    expression_free(exp);
     return NULL;
   }
 

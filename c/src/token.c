@@ -4,7 +4,9 @@
 
 void token_free(token_t *t) {
   free(t->literal);
+  t->literal = NULL;
   free(t);
+  t = NULL;
 }
 
 char *token_type_humanize(token_type_t t) {

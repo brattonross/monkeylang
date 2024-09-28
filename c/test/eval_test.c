@@ -12,7 +12,8 @@ object_t *test_eval(const char *input) {
   lexer_t *l = lexer_init(input);
   parser_t *p = parser_init(l);
   program_t *prg = parser_parse_program(p);
-  return eval_program(prg);
+  environment_t *env = new_environment();
+  return eval_program(prg, env);
 }
 
 void test_integer_object(object_t *o, int64_t expected) {
@@ -201,6 +202,10 @@ void test_error_handling(void) {
           "}\n",
           "unknown operator: BOOLEAN + BOOLEAN",
       },
+      {
+          "foobar",
+          "identifier not found: foobar",
+      },
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
@@ -208,5 +213,23 @@ void test_error_handling(void) {
     object_t *o = test_eval(test_cases[i].input);
     TEST_ASSERT_EQUAL_INT(OBJECT_ERROR, o->type);
     TEST_ASSERT_EQUAL_STRING(test_cases[i].expected, o->value.err->message);
+  }
+}
+
+void test_let_statements(void) {
+  typedef struct {
+    char *input;
+    int64_t expected;
+  } test_case_t;
+  static const test_case_t test_cases[] = {
+      {"let a = 5; a;", 5},
+      {"let a = 5 * 5; a;", 25},
+      {"let a = 5; let b = a; b;", 5},
+      {"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+  };
+  static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    test_integer_object(test_eval(test_cases[i].input), test_cases[i].expected);
   }
 }

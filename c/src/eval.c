@@ -1,5 +1,6 @@
 #include "eval.h"
 #include "ast.h"
+#include "env.h"
 #include "object.h"
 #include <stdarg.h>
 #include <stdbool.h>
@@ -15,46 +16,47 @@ bool is_error(object_t *o) {
 }
 
 object_t *new_boolean_object(bool value) {
-  object_t *o = malloc(sizeof(object_t));
-  if (o == NULL) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
     return NULL;
   }
-  o->type = OBJECT_BOOLEAN;
-  o->value.boolean = malloc(sizeof(boolean_object_t));
-  if (o->value.boolean == NULL) {
-    free(o);
+  obj->type = OBJECT_BOOLEAN;
+  obj->value.boolean = malloc(sizeof(boolean_object_t));
+  if (obj->value.boolean == NULL) {
+    object_free(obj);
     return NULL;
   }
-  o->value.boolean->value = value;
-  return o;
+  obj->value.boolean->value = value;
+  return obj;
 }
 
 object_t *new_integer_object(int64_t value) {
-  object_t *o = malloc(sizeof(object_t));
-  if (o == NULL) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
     return NULL;
   }
-  o->type = OBJECT_INTEGER;
-  o->value.integer = malloc(sizeof(integer_object_t));
-  if (o->value.integer == NULL) {
-    free(o);
+  obj->type = OBJECT_INTEGER;
+  obj->value.integer = malloc(sizeof(integer_object_t));
+  if (obj->value.integer == NULL) {
+    object_free(obj);
     return NULL;
   }
-  o->value.integer->value = value;
-  return o;
+  obj->value.integer->value = value;
+  return obj;
 }
 
 object_t *new_error_object(char *fmt, ...) {
-  object_t *o = malloc(sizeof(object_t));
-  if (o == NULL) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
     return NULL;
   }
-  o->type = OBJECT_ERROR;
-  o->value.err = malloc(sizeof(error_object_t));
-  if (o->value.err == NULL) {
-    free(o);
+  obj->type = OBJECT_ERROR;
+  obj->value.err = malloc(sizeof(error_object_t));
+  if (obj->value.err == NULL) {
+    object_free(obj);
     return NULL;
   }
+
   va_list args;
   va_start(args, fmt);
   size_t len = vsnprintf(NULL, 0, fmt, args);
@@ -64,8 +66,8 @@ object_t *new_error_object(char *fmt, ...) {
   char *buf = malloc(len + 1);
   vsnprintf(buf, len + 1, fmt, args);
   va_end(args);
-  o->value.err->message = buf;
-  return o;
+  obj->value.err->message = buf;
+  return obj;
 }
 
 object_t *eval_bang_operator_expression(const object_t *right) {
@@ -166,17 +168,17 @@ bool is_truthy(object_t *condition) {
   return true;
 }
 
-object_t *eval_block_statement(block_statement_t *block);
-object_t *eval_if_expression(if_expression_t *e) {
-  object_t *condition = eval_expression(e->condition);
+object_t *eval_block_statement(block_statement_t *block, environment_t *env);
+object_t *eval_if_expression(if_expression_t *e, environment_t *env) {
+  object_t *condition = eval_expression(e->condition, env);
   if (is_error(condition)) {
     return condition;
   }
   if (is_truthy(condition)) {
-    return eval_block_statement(e->consequence);
+    return eval_block_statement(e->consequence, env);
   }
   if (e->alternative != NULL) {
-    return eval_block_statement(e->alternative);
+    return eval_block_statement(e->alternative, env);
   }
   object_t *null_object = malloc(sizeof(object_t));
   if (null_object == NULL) {
@@ -188,7 +190,15 @@ object_t *eval_if_expression(if_expression_t *e) {
   return null_object;
 }
 
-object_t *eval_expression(expression_t *e) {
+object_t *eval_identifier(identifier_t *ident, environment_t *env) {
+  object_t *val = environment_get(env, ident->value);
+  if (val == NULL) {
+    return new_error_object("identifier not found: %s", ident->value);
+  }
+  return val;
+}
+
+object_t *eval_expression(expression_t *e, environment_t *env) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL: {
     return new_integer_object(e->value.integer->value);
@@ -197,7 +207,7 @@ object_t *eval_expression(expression_t *e) {
     return new_boolean_object(e->value.boolean->value);
   }
   case EXPRESSION_PREFIX: {
-    object_t *right = eval_expression(e->value.prefix->right);
+    object_t *right = eval_expression(e->value.prefix->right, env);
     if (is_error(right)) {
       return right;
     }
@@ -206,32 +216,35 @@ object_t *eval_expression(expression_t *e) {
     return out;
   }
   case EXPRESSION_INFIX: {
-    object_t *left = eval_expression(e->value.infix->left);
+    object_t *left = eval_expression(e->value.infix->left, env);
     if (is_error(left)) {
       return left;
     }
-    object_t *right = eval_expression(e->value.infix->right);
+    object_t *right = eval_expression(e->value.infix->right, env);
     if (is_error(right)) {
       object_free(left);
       return right;
     }
     object_t *out = eval_infix_expression(e->value.infix->op, left, right);
-    object_free(left);
-    object_free(right);
+    // TODO: This causes a double free?
+    // object_free(left);
+    // object_free(right);
     return out;
   }
   case EXPRESSION_IF: {
-    return eval_if_expression(e->value.if_);
+    return eval_if_expression(e->value.if_, env);
   }
+  case EXPRESSION_IDENTIFIER:
+    return eval_identifier(e->value.ident, env);
   default:
     return NULL;
   }
 }
 
-object_t *eval_block_statement(block_statement_t *block) {
+object_t *eval_block_statement(block_statement_t *block, environment_t *env) {
   object_t *result = NULL;
   for (size_t i = 0; i < block->statements_len; ++i) {
-    result = eval_statement(block->statements[i]);
+    result = eval_statement(block->statements[i], env);
     if (result != NULL &&
         (result->type == OBJECT_RETURN || result->type == OBJECT_ERROR)) {
       return result;
@@ -240,40 +253,53 @@ object_t *eval_block_statement(block_statement_t *block) {
   return result;
 }
 
-object_t *eval_statement(statement_t *s) {
+object_t *eval_statement(statement_t *s, environment_t *env) {
   switch (s->type) {
   case STATEMENT_EXPRESSION:
-    return eval_expression(s->value.exp->expression);
+    return eval_expression(s->value.exp->expression, env);
   case STATEMENT_BLOCK:
-    return eval_block_statement(s->value.block);
-  case STATEMENT_RETURN:
-    object_t *val = eval_expression(s->value.ret->value);
+    return eval_block_statement(s->value.block, env);
+  case STATEMENT_RETURN: {
+    object_t *val = eval_expression(s->value.ret->value, env);
     if (is_error(val)) {
       return val;
     }
     object_t *ret = malloc(sizeof(object_t));
     if (ret == NULL) {
-      free(val);
+      object_free(val);
       return NULL;
     }
     ret->type = OBJECT_RETURN;
     ret->value.return_value = malloc(sizeof(return_value_t));
     if (ret->value.return_value == NULL) {
-      free(val);
-      free(ret);
+      object_free(val);
+      object_free(ret);
       return NULL;
     }
     ret->value.return_value->value = val;
     return ret;
+  } break;
+  case STATEMENT_LET: {
+    object_t *val = eval_expression(s->value.let->value, env);
+    if (is_error(val)) {
+      return val;
+    }
+    environment_set(env, s->value.let->ident->value, val);
+    return NULL;
+  } break;
   default:
     return NULL;
   }
 }
 
-object_t *eval_program(program_t *p) {
+object_t *eval_program(program_t *p, environment_t *env) {
   object_t *result = NULL;
   for (size_t i = 0; i < p->statements_len; ++i) {
-    result = eval_statement(p->statements[i]);
+    result = eval_statement(p->statements[i], env);
+    if (result == NULL) {
+      continue;
+    }
+
     if (result->type == OBJECT_RETURN) {
       return result->value.return_value->value;
     } else if (result->type == OBJECT_ERROR) {

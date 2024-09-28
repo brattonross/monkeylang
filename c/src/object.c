@@ -26,24 +26,50 @@ char *object_inspect(object_t *o) {
   }
 }
 
-void object_free(object_t *o) {
-  switch (o->type) {
+void integer_object_free(integer_object_t *obj) {
+  free(obj);
+  obj = NULL;
+}
+
+void boolean_object_free(boolean_object_t *obj) {
+  free(obj);
+  obj = NULL;
+}
+
+void return_value_free(return_value_t *obj) {
+  object_free(obj->value);
+  free(obj);
+  obj = NULL;
+}
+
+void error_object_free(error_object_t *obj) {
+  free(obj->message);
+  obj->message = NULL;
+  free(obj);
+  obj = NULL;
+}
+
+void object_free(object_t *obj) {
+  switch (obj->type) {
   case OBJECT_INTEGER:
-    free(o->value.integer);
+    integer_object_free(obj->value.integer);
     break;
   case OBJECT_BOOLEAN:
-    free(o->value.boolean);
-    break;
-  case OBJECT_NULL:
+    boolean_object_free(obj->value.boolean);
     break;
   case OBJECT_RETURN:
-    object_free(o->value.return_value->value);
+    return_value_free(obj->value.return_value);
     break;
   case OBJECT_ERROR:
-    free(o->value.err->message);
+    error_object_free(obj->value.err);
+    break;
+  case OBJECT_NULL:
+    // nothing to do
     break;
   }
-  free(o);
+
+  free(obj);
+  obj = NULL;
 }
 
 char *object_type_to_string(object_type_t t) {

@@ -9,8 +9,10 @@ typedef struct expression_t expression_t;
 
 typedef struct {
   token_t *token;
-  const char *value;
+  char *value;
 } identifier_t;
+
+void identifier_free(identifier_t *ident);
 
 const char *identifier_token_literal(identifier_t *i);
 
@@ -19,11 +21,15 @@ typedef struct {
   int64_t value;
 } integer_literal_t;
 
+void integer_literal_free(integer_literal_t *exp);
+
 typedef struct {
   token_t *token;
   char *op;
   expression_t *right;
 } prefix_expression_t;
+
+void prefix_expression_free(prefix_expression_t *exp);
 
 typedef struct {
   token_t *token;
@@ -32,10 +38,14 @@ typedef struct {
   expression_t *right;
 } infix_expression_t;
 
+void infix_expression_free(infix_expression_t *exp);
+
 typedef struct {
   token_t *token;
   bool value;
 } boolean_literal_t;
+
+void boolean_literal_free(boolean_literal_t *exp);
 
 typedef struct block_statement_t block_statement_t;
 
@@ -46,6 +56,8 @@ typedef struct {
   block_statement_t *alternative;
 } if_expression_t;
 
+void if_expression_free(if_expression_t *e);
+
 typedef struct {
   token_t *token;
   identifier_t **parameters;
@@ -53,12 +65,16 @@ typedef struct {
   block_statement_t *body;
 } function_literal_t;
 
+void function_literal_free(function_literal_t *exp);
+
 typedef struct {
   token_t *token;
   expression_t *fn;
   size_t argc;
   expression_t **argv;
 } call_expression_t;
+
+void call_expression_free(call_expression_t *exp);
 
 typedef enum {
   EXPRESSION_IDENTIFIER,
@@ -85,6 +101,8 @@ struct expression_t {
   } value;
 };
 
+void expression_free(expression_t *exp);
+
 typedef enum {
   STATEMENT_LET,
   STATEMENT_RETURN,
@@ -100,21 +118,29 @@ typedef struct {
   expression_t *value;
 } let_statement_t;
 
+void let_statement_free(let_statement_t *let);
+
 typedef struct {
   token_t *token;
   expression_t *value;
 } return_statement_t;
+
+void return_statement_free(return_statement_t *ret);
 
 typedef struct {
   token_t *token;
   expression_t *expression;
 } expression_statement_t;
 
+void expression_statement_free(expression_statement_t *exp);
+
 struct block_statement_t {
   token_t *token;
   statement_t **statements;
   size_t statements_len;
 };
+
+void block_statement_free(block_statement_t *block);
 
 struct statement_t {
   statement_type_t type;
@@ -126,6 +152,7 @@ struct statement_t {
   } value;
 };
 
+void statement_free(statement_t *s);
 const char *statement_token_literal(const statement_t *s);
 
 typedef struct {

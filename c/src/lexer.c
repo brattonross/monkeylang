@@ -16,7 +16,10 @@ lexer_t *lexer_init(const char *input) {
   return l;
 }
 
-void lexer_free(lexer_t *l) { free(l); }
+void lexer_free(lexer_t *l) {
+  free(l);
+  l = NULL;
+}
 
 char lexer_current_char(lexer_t *l) {
   size_t len = strlen(l->input);
@@ -191,7 +194,7 @@ token_t *lexer_next_token(lexer_t *l) {
       t->type = TOKEN_ILLEGAL;
       t->literal = malloc(2 * sizeof(char));
       if (t->literal == NULL) {
-        free(t);
+        token_free(t);
         return NULL;
       }
       t->literal[0] = lexer_current_char(l);
@@ -202,7 +205,7 @@ token_t *lexer_next_token(lexer_t *l) {
   lexer_advance(l);
 
   if (t->literal == NULL) {
-    free(t);
+    token_free(t);
     return NULL;
   }
 
