@@ -7,6 +7,7 @@ typedef enum {
 
   TOKEN_IDENTIFIER,
   TOKEN_INT,
+  TOKEN_STRING,
 
   TOKEN_ASSIGN,
   TOKEN_PLUS,

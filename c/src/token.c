@@ -20,6 +20,8 @@ char *token_type_humanize(token_type_t t) {
     return strdup("IDENTIFIER");
   case TOKEN_INT:
     return strdup("INT");
+  case TOKEN_STRING:
+    return strdup("STRING");
 
   case TOKEN_ASSIGN:
     return strdup("ASSIGN");

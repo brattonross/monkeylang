@@ -94,6 +94,20 @@ char lexer_peek_char(lexer_t *l) {
   return l->input[peek_pos];
 }
 
+char *lexer_read_string(lexer_t *l) {
+  size_t pos = l->pos + 1;
+  while (true) {
+    lexer_advance(l);
+    char cur = lexer_current_char(l);
+    if (cur == '"' || cur == 0) {
+      break;
+    }
+  }
+  size_t len = l->pos - pos;
+  char *buf = malloc(len + 1);
+  return strncpy(buf, l->input + pos, len);
+}
+
 token_t *lexer_next_token(lexer_t *l) {
   if (l == NULL) {
     return NULL;
@@ -177,6 +191,9 @@ token_t *lexer_next_token(lexer_t *l) {
     t->type = TOKEN_RIGHT_BRACE;
     t->literal = strdup("}");
     break;
+  case '"':
+    t->type = TOKEN_STRING;
+    t->literal = lexer_read_string(l);
   case EOF:
     t->type = TOKEN_EOF;
     t->literal = strdup("");
