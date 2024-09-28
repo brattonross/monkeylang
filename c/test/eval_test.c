@@ -264,3 +264,13 @@ void test_function_application(void) {
     test_integer_object(test_eval(test_cases[i].input), test_cases[i].expected);
   }
 }
+
+void test_closures(void) {
+  static const char *input = "let newAdder = fn(x) {\n"
+                             "  fn(y) { x + y };\n"
+                             "};\n"
+                             "\n"
+                             "let addTwo = newAdder(2);\n"
+                             "addTwo(2);\n";
+  test_integer_object(test_eval(input), 4);
+}

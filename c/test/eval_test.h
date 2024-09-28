@@ -10,5 +10,6 @@ void test_error_handling(void);
 void test_let_statements(void);
 void test_function_object(void);
 void test_function_application(void);
+void test_closures(void);
 
 #endif

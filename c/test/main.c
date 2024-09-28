@@ -37,6 +37,7 @@ int main(void) {
   RUN_TEST(test_let_statements);
   RUN_TEST(test_function_object);
   RUN_TEST(test_function_application);
+  RUN_TEST(test_closures);
 
   return UNITY_END();
 }
