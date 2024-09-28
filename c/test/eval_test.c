@@ -244,3 +244,23 @@ void test_function_object(void) {
   TEST_ASSERT_EQUAL_STRING(
       "(x + 2)", block_statement_to_string(evaluated->value.fn->body));
 }
+
+void test_function_application(void) {
+  typedef struct {
+    char *input;
+    int64_t expected;
+  } test_case_t;
+  static const test_case_t test_cases[] = {
+      {"let identity = fn(x) { x; }; identity(5);", 5},
+      {"let identity = fn(x) { return x; }; identity(5);", 5},
+      {"let double = fn(x) { x * 2; }; double(5);", 10},
+      {"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
+      {"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+      {"fn(x) { x; }(5)", 5},
+  };
+  static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    test_integer_object(test_eval(test_cases[i].input), test_cases[i].expected);
+  }
+}

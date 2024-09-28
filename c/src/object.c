@@ -158,6 +158,13 @@ environment_t *new_environment() {
   }
   env->items_len = 0;
   env->items = NULL;
+  env->outer = NULL;
+  return env;
+}
+
+environment_t *new_enclosed_environment(environment_t *outer) {
+  environment_t *env = new_environment();
+  env->outer = outer;
   return env;
 }
 
@@ -167,6 +174,9 @@ object_t *environment_get(const environment_t *env, const char *key) {
     if (strncmp(key, env->items[i]->key, strlen(env->items[i]->key)) == 0) {
       return env->items[i]->value;
     }
+  }
+  if (env->outer != NULL) {
+    return environment_get(env->outer, key);
   }
   return NULL;
 }

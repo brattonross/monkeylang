@@ -219,6 +219,52 @@ object_t *eval_identifier(identifier_t *ident, environment_t *env) {
   return val;
 }
 
+object_t **eval_expressions(size_t argc, expression_t **argv,
+                            environment_t *env) {
+  object_t **args = calloc(argc, sizeof(object_t));
+  if (args == NULL) {
+    return NULL;
+  }
+  for (size_t i = 0; i < argc; ++i) {
+    object_t *evaluated = eval_expression(argv[i], env);
+    if (is_error(evaluated)) {
+      args = realloc(args, 1 * sizeof(object_t));
+      args[0] = evaluated;
+    }
+    args[i] = evaluated;
+  }
+  return args;
+}
+
+environment_t *extend_function_env(function_object_t *fn, size_t argc,
+                                   object_t **argv) {
+  environment_t *env = new_enclosed_environment(fn->env);
+  for (size_t i = 0; i < argc; ++i) {
+    environment_set(env, fn->parameters[i]->value, argv[i]);
+  }
+  return env;
+}
+
+object_t *unwrap_return_value(object_t *obj) {
+  if (obj == NULL) {
+    return NULL;
+  }
+  if (obj->type == OBJECT_RETURN) {
+    return obj->value.return_value->value;
+  }
+  return obj;
+}
+
+object_t *apply_function(object_t *fn, size_t argc, object_t **argv) {
+  if (fn->type != OBJECT_FUNCTION) {
+    return new_error_object("not a function: %s",
+                            object_type_to_string(fn->type));
+  }
+  environment_t *extended_env = extend_function_env(fn->value.fn, argc, argv);
+  object_t *evaluated = eval_block_statement(fn->value.fn->body, extended_env);
+  return unwrap_return_value(evaluated);
+}
+
 object_t *eval_expression(expression_t *e, environment_t *env) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL: {
@@ -261,6 +307,23 @@ object_t *eval_expression(expression_t *e, environment_t *env) {
   }
   case EXPRESSION_IDENTIFIER:
     return eval_identifier(e->value.ident, env);
+  case EXPRESSION_CALL: {
+    object_t *fn = eval_expression(e->value.call->fn, env);
+    if (is_error(fn)) {
+      return fn;
+    }
+    // NOTE: This assumes that we always return either 1 error arg, or a
+    // matching number of evaluated args.
+    object_t **argv =
+        eval_expressions(e->value.call->argc, e->value.call->argv, env);
+    if (argv == NULL) {
+      return NULL;
+    }
+    if (e->value.call->argc > 0 && is_error(argv[0])) {
+      return argv[0];
+    }
+    return apply_function(fn, e->value.call->argc, argv);
+  }
   default:
     return NULL;
   }

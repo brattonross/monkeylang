@@ -73,9 +73,11 @@ typedef struct {
 struct environment_t {
   size_t items_len;
   item_t **items;
+  environment_t *outer;
 };
 
 environment_t *new_environment();
+environment_t *new_enclosed_environment(environment_t *outer);
 object_t *environment_get(const environment_t *env, const char *key);
 object_t *environment_set(environment_t *env, const char *key, object_t *value);
 
