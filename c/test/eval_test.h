@@ -6,5 +6,6 @@ void test_eval_boolean_expression(void);
 void test_bang_operator(void);
 void test_if_else_expression(void);
 void test_return_statements(void);
+void test_error_handling(void);
 
 #endif

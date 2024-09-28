@@ -160,3 +160,53 @@ void test_return_statements(void) {
     test_integer_object(o, test_cases[i].expected);
   }
 }
+
+void test_error_handling(void) {
+  typedef struct {
+    char *input;
+    char *expected;
+  } test_case_t;
+  static const test_case_t test_cases[] = {
+      {
+          "5 + true;",
+          "type mismatch: INTEGER + BOOLEAN",
+      },
+      {
+          "5 + true; 5;",
+          "type mismatch: INTEGER + BOOLEAN",
+      },
+      {
+          "-true",
+          "unknown operator: -BOOLEAN",
+      },
+      {
+          "true + false;",
+          "unknown operator: BOOLEAN + BOOLEAN",
+      },
+      {
+          "5; true + false; 5",
+          "unknown operator: BOOLEAN + BOOLEAN",
+      },
+      {
+          "if (10 > 1) { true + false; }",
+          "unknown operator: BOOLEAN + BOOLEAN",
+      },
+      {
+          "if (10 > 1) {\n"
+          "  if (10 > 1) {\n"
+          "    return true + false;\n"
+          "  }\n"
+          "\n"
+          "  return 1;\n"
+          "}\n",
+          "unknown operator: BOOLEAN + BOOLEAN",
+      },
+  };
+  static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    object_t *o = test_eval(test_cases[i].input);
+    TEST_ASSERT_EQUAL_INT(OBJECT_ERROR, o->type);
+    TEST_ASSERT_EQUAL_STRING(test_cases[i].expected, o->value.err->message);
+  }
+}

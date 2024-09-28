@@ -17,6 +17,12 @@ char *object_inspect(object_t *o) {
     return strdup("null");
   case OBJECT_RETURN:
     return object_inspect(o->value.return_value->value);
+  case OBJECT_ERROR:
+    size_t len = strlen(o->value.err->message) + 7;
+    char *message = malloc(len + 1);
+    snprintf(message, len, "ERROR: %s", o->value.err->message);
+    message[len] = '\0';
+    return message;
   }
 }
 
@@ -33,6 +39,24 @@ void object_free(object_t *o) {
   case OBJECT_RETURN:
     object_free(o->value.return_value->value);
     break;
+  case OBJECT_ERROR:
+    free(o->value.err->message);
+    break;
   }
   free(o);
+}
+
+char *object_type_to_string(object_type_t t) {
+  switch (t) {
+  case OBJECT_INTEGER:
+    return strdup("INTEGER");
+  case OBJECT_BOOLEAN:
+    return strdup("BOOLEAN");
+  case OBJECT_NULL:
+    return strdup("NULL");
+  case OBJECT_RETURN:
+    return strdup("RETURN");
+  case OBJECT_ERROR:
+    return strdup("ERROR");
+  }
 }
