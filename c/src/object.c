@@ -15,6 +15,8 @@ char *object_inspect(object_t *o) {
     return strdup(o->value.boolean->value ? "true" : "false");
   case OBJECT_NULL:
     return strdup("null");
+  case OBJECT_RETURN:
+    return object_inspect(o->value.return_value->value);
   }
 }
 
@@ -27,6 +29,9 @@ void object_free(object_t *o) {
     free(o->value.boolean);
     break;
   case OBJECT_NULL:
+    break;
+  case OBJECT_RETURN:
+    object_free(o->value.return_value->value);
     break;
   }
   free(o);

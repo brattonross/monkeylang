@@ -8,7 +8,10 @@ typedef enum {
   OBJECT_INTEGER,
   OBJECT_BOOLEAN,
   OBJECT_NULL,
+  OBJECT_RETURN,
 } object_type_t;
+
+typedef struct object_t object_t;
 
 typedef struct {
   int64_t value;
@@ -19,12 +22,17 @@ typedef struct {
 } boolean_object_t;
 
 typedef struct {
+  object_t *value;
+} return_value_t;
+
+struct object_t {
   object_type_t type;
   union {
     integer_object_t *integer;
     boolean_object_t *boolean;
+    return_value_t *return_value;
   } value;
-} object_t;
+};
 
 char *object_inspect(object_t *o);
 void object_free(object_t *o);

@@ -170,7 +170,14 @@ object_t *eval_expression(expression_t *e) {
 }
 
 object_t *eval_block_statement(block_statement_t *block) {
-  return eval_statements(block->statements_len, block->statements);
+  object_t *result = NULL;
+  for (size_t i = 0; i < block->statements_len; ++i) {
+    result = eval_statement(block->statements[i]);
+    if (result != NULL && result->type == OBJECT_RETURN) {
+      return result;
+    }
+  }
+  return result;
 }
 
 object_t *eval_statement(statement_t *s) {
@@ -178,21 +185,35 @@ object_t *eval_statement(statement_t *s) {
   case STATEMENT_EXPRESSION:
     return eval_expression(s->value.exp->expression);
   case STATEMENT_BLOCK:
-    return eval_statements(s->value.block->statements_len,
-                           s->value.block->statements);
+    return eval_block_statement(s->value.block);
+  case STATEMENT_RETURN:
+    object_t *val = eval_expression(s->value.ret->value);
+    object_t *ret = malloc(sizeof(object_t));
+    if (ret == NULL) {
+      free(val);
+      return NULL;
+    }
+    ret->type = OBJECT_RETURN;
+    ret->value.return_value = malloc(sizeof(return_value_t));
+    if (ret->value.return_value == NULL) {
+      free(val);
+      free(ret);
+      return NULL;
+    }
+    ret->value.return_value->value = val;
+    return ret;
   default:
     return NULL;
   }
 }
 
-object_t *eval_statements(size_t len, statement_t **s) {
-  object_t *o = NULL;
-  for (size_t i = 0; i < len; ++i) {
-    o = eval_statement(s[i]);
-  }
-  return o;
-}
-
 object_t *eval_program(program_t *p) {
-  return eval_statements(p->statements_len, p->statements);
+  object_t *result = NULL;
+  for (size_t i = 0; i < p->statements_len; ++i) {
+    result = eval_statement(p->statements[i]);
+    if (result->type == OBJECT_RETURN) {
+      return result->value.return_value->value;
+    }
+  }
+  return result;
 }

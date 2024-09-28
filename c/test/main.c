@@ -32,6 +32,7 @@ int main(void) {
   RUN_TEST(test_eval_boolean_expression);
   RUN_TEST(test_bang_operator);
   RUN_TEST(test_if_else_expression);
+  RUN_TEST(test_return_statements);
 
   return UNITY_END();
 }

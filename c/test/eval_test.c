@@ -135,3 +135,28 @@ void test_if_else_expression(void) {
     }
   }
 }
+
+void test_return_statements(void) {
+  typedef struct {
+    char *input;
+    int64_t expected;
+  } test_case_t;
+  static const test_case_t test_cases[] = {{"return 10;", 10},
+                                           {"return 10; 9;", 10},
+                                           {"return 2 * 5; 9;", 10},
+                                           {"9; return 2 * 5; 9;", 10},
+                                           {"if (10 > 1) {\n"
+                                            "  if (10 > 1) {\n"
+                                            "    return 10;\n"
+                                            "  }\n"
+                                            "\n"
+                                            "  return 1;\n"
+                                            "}\n",
+                                            10}};
+  static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    object_t *o = test_eval(test_cases[i].input);
+    test_integer_object(o, test_cases[i].expected);
+  }
+}
