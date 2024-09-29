@@ -40,6 +40,7 @@ int main(void) {
   RUN_TEST(test_function_application);
   RUN_TEST(test_closures);
   RUN_TEST(test_string_literal);
+  RUN_TEST(test_string_concatenation);
 
   return UNITY_END();
 }

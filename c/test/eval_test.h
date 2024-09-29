@@ -12,5 +12,6 @@ void test_function_object(void);
 void test_function_application(void);
 void test_closures(void);
 void test_string_literal(void);
+void test_string_concatenation(void);
 
 #endif

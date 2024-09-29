@@ -164,10 +164,34 @@ object_t *eval_integer_infix_expression(const char *operator,
                           object_type_to_string(right->type));
 }
 
+object_t *eval_string_infix_expression(const char *operator,
+                                       const object_t * left,
+                                       const object_t *right) {
+  if (strncmp(operator, "+", 1) != 0) {
+    return new_error_object("unknown operator: %s %s %s",
+                            object_type_to_string(left->type), operator,
+                            object_type_to_string(right->type));
+  }
+
+  char *left_value = left->value.string->value;
+  char *right_value = right->value.string->value;
+  int len = strlen(left_value) + strlen(right_value) + 1;
+  char *buf = malloc(len + 1);
+  if (buf == NULL) {
+    return NULL;
+  }
+  snprintf(buf, len, "%s%s", left_value, right_value);
+  return new_string_object(buf);
+}
+
 object_t *eval_infix_expression(const char *operator, const object_t * left,
                                 const object_t *right) {
   if (left->type == OBJECT_INTEGER && right->type == OBJECT_INTEGER) {
     return eval_integer_infix_expression(operator, left, right);
+  }
+
+  if (left->type == OBJECT_STRING && right->type == OBJECT_STRING) {
+    return eval_string_infix_expression(operator, left, right);
   }
 
   if (strncmp(operator, "==", 2) == 0) {
@@ -175,7 +199,9 @@ object_t *eval_infix_expression(const char *operator, const object_t * left,
                ? new_boolean_object(left->value.boolean->value ==
                                     right->value.boolean->value)
                : new_boolean_object(true); // both objects are null
-  } else if (strncmp(operator, "!=", 2) == 0) {
+  }
+
+  if (strncmp(operator, "!=", 2) == 0) {
     if (left->type != right->type) {
       return new_boolean_object(true);
     }

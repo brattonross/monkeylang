@@ -206,6 +206,10 @@ void test_error_handling(void) {
           "foobar",
           "identifier not found: foobar",
       },
+      {
+          "\"Hello\" - \"World\"",
+          "unknown operator: STRING - STRING",
+      },
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
@@ -277,6 +281,13 @@ void test_closures(void) {
 
 void test_string_literal(void) {
   object_t *evaluated = test_eval("\"Hello World!\"");
+
+  TEST_ASSERT_EQUAL_INT(OBJECT_STRING, evaluated->type);
+  TEST_ASSERT_EQUAL_STRING("Hello World!", evaluated->value.string->value);
+}
+
+void test_string_concatenation(void) {
+  object_t *evaluated = test_eval("\"Hello\" + \" \" + \"World!\"");
 
   TEST_ASSERT_EQUAL_INT(OBJECT_STRING, evaluated->type);
   TEST_ASSERT_EQUAL_STRING("Hello World!", evaluated->value.string->value);
