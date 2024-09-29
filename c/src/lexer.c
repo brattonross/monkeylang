@@ -54,13 +54,9 @@ char *lexer_read_number(lexer_t *l) {
 }
 
 static const token_t identifier_table[] = {
-    {.type = TOKEN_LET, .literal = "let"},
-    {.type = TOKEN_FUNCTION, .literal = "fn"},
-    {.type = TOKEN_TRUE, .literal = "true"},
-    {.type = TOKEN_FALSE, .literal = "false"},
-    {.type = TOKEN_IF, .literal = "if"},
-    {.type = TOKEN_ELSE, .literal = "else"},
-    {.type = TOKEN_RETURN, .literal = "return"},
+    {TOKEN_LET, "let"},       {TOKEN_FUNCTION, "fn"}, {TOKEN_TRUE, "true"},
+    {TOKEN_FALSE, "false"},   {TOKEN_IF, "if"},       {TOKEN_ELSE, "else"},
+    {TOKEN_RETURN, "return"},
 };
 static const size_t total_identifiers =
     sizeof identifier_table / sizeof *identifier_table;
@@ -194,6 +190,7 @@ token_t *lexer_next_token(lexer_t *l) {
   case '"':
     t->type = TOKEN_STRING;
     t->literal = lexer_read_string(l);
+    break;
   case EOF:
     t->type = TOKEN_EOF;
     t->literal = strdup("");

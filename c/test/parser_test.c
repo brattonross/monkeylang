@@ -575,3 +575,19 @@ void test_parser_call_expression_parsing(void) {
   TEST_ASSERT_EQUAL_INT(
       5, call->argv[2]->value.infix->right->value.integer->value);
 }
+
+void test_string_literal_expression(void) {
+  lexer_t *l = lexer_init("\"hello world\";");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *exp = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_STRING, exp->expression->type);
+
+  string_literal_t *str = exp->expression->value.string;
+  TEST_ASSERT_EQUAL_STRING("hello world", str->value);
+}

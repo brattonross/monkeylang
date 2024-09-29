@@ -77,6 +77,13 @@ typedef struct {
 
 void call_expression_free(call_expression_t *exp);
 
+typedef struct {
+  token_t *token;
+  char *value;
+} string_literal_t;
+
+void string_literal_free(string_literal_t *exp);
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
@@ -86,6 +93,7 @@ typedef enum {
   EXPRESSION_IF,
   EXPRESSION_FUNCTION_LITERAL,
   EXPRESSION_CALL,
+  EXPRESSION_STRING,
 } expression_type_t;
 
 struct expression_t {
@@ -99,6 +107,7 @@ struct expression_t {
     if_expression_t *if_;
     function_literal_t *fn;
     call_expression_t *call;
+    string_literal_t *string;
   } value;
 };
 

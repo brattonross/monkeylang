@@ -21,6 +21,7 @@ expression_t *parser_parse_grouped_expression(parser_t *p);
 expression_t *parser_parse_if_expression(parser_t *p);
 expression_t *parser_parse_function_literal(parser_t *p);
 expression_t *parser_parse_call_expression(parser_t *p, expression_t *e);
+expression_t *parser_parse_string_literal(parser_t *p);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -71,6 +72,8 @@ prefix_parse_fn parser_prefix_fn(token_type_t t) {
     return parser_parse_if_expression;
   case TOKEN_FUNCTION:
     return parser_parse_function_literal;
+  case TOKEN_STRING:
+    return parser_parse_string_literal;
   default:
     return NULL;
   }
@@ -675,6 +678,29 @@ expression_t *parser_parse_call_expression(parser_t *p, expression_t *fn) {
   memcpy(exp->value.call->fn, fn, sizeof(expression_t));
 
   parser_parse_call_arguments(p, exp->value.call);
+  return exp;
+}
+
+expression_t *parser_parse_string_literal(parser_t *p) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
+    return NULL;
+  }
+
+  exp->type = EXPRESSION_STRING;
+  exp->value.string = malloc(sizeof(string_literal_t));
+  if (exp->value.string == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+
+  exp->value.string->token = malloc(sizeof(token_t));
+  if (exp->value.string->token == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+  memcpy(exp->value.string->token, p->current_token, sizeof(token_t));
+  exp->value.string->value = strdup(p->current_token->literal);
   return exp;
 }
 

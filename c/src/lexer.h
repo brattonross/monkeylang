@@ -7,6 +7,8 @@
 typedef struct {
   const char *input;
   size_t pos;
+  size_t read_pos;
+  char ch;
 } lexer_t;
 
 lexer_t *lexer_init(const char *input);

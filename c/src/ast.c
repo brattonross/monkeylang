@@ -231,6 +231,8 @@ char *expression_to_string(expression_t *e) {
     *out = '\0';
     return res;
   }
+  case EXPRESSION_STRING:
+    return strdup(e->value.string->token->literal);
   }
 }
 
@@ -290,6 +292,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.fn->token->literal);
   case EXPRESSION_CALL:
     return strdup(e->value.call->token->literal);
+  case EXPRESSION_STRING:
+    return strdup(e->value.string->token->literal);
   }
 }
 
@@ -498,6 +502,14 @@ void function_literal_free(function_literal_t *exp) {
   exp = NULL;
 }
 
+void string_literal_free(string_literal_t *exp) {
+  token_free(exp->token);
+  free(exp->value);
+  exp->value = NULL;
+  free(exp);
+  exp = NULL;
+}
+
 void expression_free(expression_t *exp) {
   switch (exp->type) {
   case EXPRESSION_IDENTIFIER:
@@ -523,6 +535,9 @@ void expression_free(expression_t *exp) {
     break;
   case EXPRESSION_FUNCTION_LITERAL:
     function_literal_free(exp->value.fn);
+    break;
+  case EXPRESSION_STRING:
+    string_literal_free(exp->value.string);
     break;
   }
 

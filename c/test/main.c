@@ -26,6 +26,7 @@ int main(void) {
   RUN_TEST(test_parser_function_literal_parsing);
   RUN_TEST(test_parser_function_parameter_parsing);
   RUN_TEST(test_parser_call_expression_parsing);
+  RUN_TEST(test_string_literal_expression);
 
   // eval
   RUN_TEST(test_eval_integer_expression);
