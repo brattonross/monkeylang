@@ -292,3 +292,44 @@ void test_string_concatenation(void) {
   TEST_ASSERT_EQUAL_INT(OBJECT_STRING, evaluated->type);
   TEST_ASSERT_EQUAL_STRING("Hello World!", evaluated->value.string->value);
 }
+
+void test_builtin_functions(void) {
+  {
+    typedef struct {
+      char *input;
+      int64_t expected;
+    } test_case_t;
+    static const test_case_t test_cases[] = {
+        {"len(\"\")", 0},
+        {"len(\"four\")", 4},
+        {"len(\"hello world\")", 11},
+    };
+    static const size_t test_cases_len =
+        sizeof(test_cases) / sizeof(*test_cases);
+
+    for (size_t i = 0; i < test_cases_len; ++i) {
+      object_t *evaluated = test_eval(test_cases[i].input);
+      test_integer_object(evaluated, test_cases[i].expected);
+    }
+  }
+
+  {
+    typedef struct {
+      char *input;
+      char *expected;
+    } test_case_t;
+    static const test_case_t test_cases[] = {
+        {"len(1)", "argument to `len` not supported, got INTEGER"},
+        {"len(\"one\", \"two\")", "wrong number of arguments. got=2, want=1"},
+    };
+    static const size_t test_cases_len =
+        sizeof(test_cases) / sizeof(*test_cases);
+
+    for (size_t i = 0; i < test_cases_len; ++i) {
+      object_t *evaluated = test_eval(test_cases[i].input);
+      TEST_ASSERT_EQUAL_INT(OBJECT_ERROR, evaluated->type);
+      TEST_ASSERT_EQUAL_STRING(test_cases[i].expected,
+                               evaluated->value.err->message);
+    }
+  }
+}

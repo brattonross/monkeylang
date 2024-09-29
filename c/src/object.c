@@ -1,9 +1,136 @@
 #include "object.h"
 #include "ast.h"
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+object_t *new_error_object(char *fmt, ...) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+  obj->type = OBJECT_ERROR;
+  obj->value.err = malloc(sizeof(error_object_t));
+  if (obj->value.err == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+
+  va_list args;
+  va_start(args, fmt);
+  size_t len = vsnprintf(NULL, 0, fmt, args);
+  va_end(args);
+
+  va_start(args, fmt);
+  char *buf = malloc(len + 1);
+  vsnprintf(buf, len + 1, fmt, args);
+  va_end(args);
+  obj->value.err->message = buf;
+  return obj;
+}
+
+object_t *new_boolean_object(bool value) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+  obj->type = OBJECT_BOOLEAN;
+  obj->value.boolean = malloc(sizeof(boolean_object_t));
+  if (obj->value.boolean == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+  obj->value.boolean->value = value;
+  return obj;
+}
+
+object_t *new_integer_object(int64_t value) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+  obj->type = OBJECT_INTEGER;
+  obj->value.integer = malloc(sizeof(integer_object_t));
+  if (obj->value.integer == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+  obj->value.integer->value = value;
+  return obj;
+}
+
+object_t *new_function_object(size_t parameters_len, identifier_t **parameters,
+                              environment_t *env, block_statement_t *body) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+
+  obj->type = OBJECT_FUNCTION;
+  obj->value.fn = malloc(sizeof(function_object_t));
+  if (obj->value.fn == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+
+  obj->value.fn->parameters_len = parameters_len;
+  obj->value.fn->parameters = parameters;
+  obj->value.fn->env = env;
+  obj->value.fn->body = body;
+  return obj;
+}
+
+object_t *new_string_object(const char *value) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+
+  obj->type = OBJECT_STRING;
+  obj->value.string = malloc(sizeof(string_object_t));
+  if (obj->value.string == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+
+  obj->value.string->value = strdup(value);
+  return obj;
+}
+
+object_t *builtin_len(size_t argc, object_t **argv) {
+  if (argc != 1) {
+    return new_error_object("wrong number of arguments. got=%d, want=1", argc);
+  }
+
+  if (argv[0]->type != OBJECT_STRING) {
+    return new_error_object("argument to `len` not supported, got %s",
+                            object_type_to_string(argv[0]->type));
+  }
+
+  return new_integer_object(strlen(argv[0]->value.string->value));
+}
+
+typedef struct {
+  char *name;
+  object_t *builtin;
+} builtin_definition_t;
+static const builtin_definition_t builtins[] = {
+    {"len", &(object_t){.type = OBJECT_BUILTIN,
+                        .value.builtin = &(builtin_object_t){builtin_len}}},
+};
+static const size_t builtins_len = sizeof(builtins) / sizeof(*builtins);
+
+object_t *lookup_builtin(const char *name) {
+  // TODO: This is linear
+  for (size_t i = 0; i < builtins_len; ++i) {
+    if (strncmp(builtins[i].name, name, strlen(name)) == 0) {
+      return builtins[i].builtin;
+    }
+  }
+  return NULL;
+}
 
 char *object_inspect(object_t *obj) {
   switch (obj->type) {
@@ -19,10 +146,9 @@ char *object_inspect(object_t *obj) {
   case OBJECT_RETURN:
     return object_inspect(obj->value.return_value->value);
   case OBJECT_ERROR:
-    size_t len = strlen(obj->value.err->message) + 7;
+    size_t len = strlen(obj->value.err->message) + 8;
     char *message = malloc(len + 1);
     snprintf(message, len, "ERROR: %s", obj->value.err->message);
-    message[len] = '\0';
     return message;
   case OBJECT_FUNCTION: {
     char *param_strs[obj->value.fn->parameters_len];
@@ -75,6 +201,8 @@ char *object_inspect(object_t *obj) {
   }
   case OBJECT_STRING:
     return strdup(obj->value.string->value);
+  case OBJECT_BUILTIN:
+    return strdup("builtin function");
   }
 }
 
@@ -128,6 +256,9 @@ void object_free(object_t *obj) {
   case OBJECT_STRING:
     string_object_free(obj->value.string);
     break;
+  case OBJECT_BUILTIN:
+    // TODO: ?
+    break;
   case OBJECT_NULL:
     // nothing to do
     break;
@@ -163,6 +294,8 @@ char *object_type_to_string(object_type_t t) {
     return strdup("FUNCTION");
   case OBJECT_STRING:
     return strdup("STRING");
+  case OBJECT_BUILTIN:
+    return strdup("BUILTIN");
   }
 }
 

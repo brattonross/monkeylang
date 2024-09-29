@@ -13,6 +13,7 @@ typedef enum {
   OBJECT_ERROR,
   OBJECT_FUNCTION,
   OBJECT_STRING,
+  OBJECT_BUILTIN,
 } object_type_t;
 
 typedef struct object_t object_t;
@@ -22,12 +23,14 @@ typedef struct {
   int64_t value;
 } integer_object_t;
 
+object_t *new_integer_object(int64_t value);
 void integer_object_free(integer_object_t *obj);
 
 typedef struct {
   bool value;
 } boolean_object_t;
 
+object_t *new_boolean_object(bool value);
 void boolean_object_free(boolean_object_t *obj);
 
 typedef struct {
@@ -40,6 +43,7 @@ typedef struct {
   char *message;
 } error_object_t;
 
+object_t *new_error_object(char *fmt, ...);
 void error_object_free(error_object_t *obj);
 
 typedef struct {
@@ -49,13 +53,23 @@ typedef struct {
   environment_t *env;
 } function_object_t;
 
+object_t *new_function_object(size_t argc, identifier_t **argv,
+                              environment_t *env, block_statement_t *body);
 void function_object_free(function_object_t *obj);
 
 typedef struct {
   char *value;
 } string_object_t;
 
+object_t *new_string_object(const char *value);
 void string_object_free(string_object_t *obj);
+
+typedef object_t *(*builtin_fn)(size_t argc, object_t **argv);
+typedef struct {
+  builtin_fn fn;
+} builtin_object_t;
+
+object_t *lookup_builtin(const char *name);
 
 struct object_t {
   object_type_t type;
@@ -66,6 +80,7 @@ struct object_t {
     error_object_t *err;
     function_object_t *fn;
     string_object_t *string;
+    builtin_object_t *builtin;
   } value;
 };
 

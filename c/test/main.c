@@ -41,6 +41,7 @@ int main(void) {
   RUN_TEST(test_closures);
   RUN_TEST(test_string_literal);
   RUN_TEST(test_string_concatenation);
+  RUN_TEST(test_builtin_functions);
 
   return UNITY_END();
 }

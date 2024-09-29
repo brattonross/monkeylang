@@ -15,99 +15,6 @@ bool is_error(object_t *o) {
   return false;
 }
 
-object_t *new_boolean_object(bool value) {
-  object_t *obj = malloc(sizeof(object_t));
-  if (obj == NULL) {
-    return NULL;
-  }
-  obj->type = OBJECT_BOOLEAN;
-  obj->value.boolean = malloc(sizeof(boolean_object_t));
-  if (obj->value.boolean == NULL) {
-    object_free(obj);
-    return NULL;
-  }
-  obj->value.boolean->value = value;
-  return obj;
-}
-
-object_t *new_integer_object(int64_t value) {
-  object_t *obj = malloc(sizeof(object_t));
-  if (obj == NULL) {
-    return NULL;
-  }
-  obj->type = OBJECT_INTEGER;
-  obj->value.integer = malloc(sizeof(integer_object_t));
-  if (obj->value.integer == NULL) {
-    object_free(obj);
-    return NULL;
-  }
-  obj->value.integer->value = value;
-  return obj;
-}
-
-object_t *new_error_object(char *fmt, ...) {
-  object_t *obj = malloc(sizeof(object_t));
-  if (obj == NULL) {
-    return NULL;
-  }
-  obj->type = OBJECT_ERROR;
-  obj->value.err = malloc(sizeof(error_object_t));
-  if (obj->value.err == NULL) {
-    object_free(obj);
-    return NULL;
-  }
-
-  va_list args;
-  va_start(args, fmt);
-  size_t len = vsnprintf(NULL, 0, fmt, args);
-  va_end(args);
-
-  va_start(args, fmt);
-  char *buf = malloc(len + 1);
-  vsnprintf(buf, len + 1, fmt, args);
-  va_end(args);
-  obj->value.err->message = buf;
-  return obj;
-}
-
-object_t *new_function_object(size_t parameters_len, identifier_t **parameters,
-                              environment_t *env, block_statement_t *body) {
-  object_t *obj = malloc(sizeof(object_t));
-  if (obj == NULL) {
-    return NULL;
-  }
-
-  obj->type = OBJECT_FUNCTION;
-  obj->value.fn = malloc(sizeof(function_object_t));
-  if (obj->value.fn == NULL) {
-    object_free(obj);
-    return NULL;
-  }
-
-  obj->value.fn->parameters_len = parameters_len;
-  obj->value.fn->parameters = parameters;
-  obj->value.fn->env = env;
-  obj->value.fn->body = body;
-  return obj;
-}
-
-object_t *new_string_object(const char *value) {
-  object_t *obj = malloc(sizeof(object_t));
-  if (obj == NULL) {
-    return NULL;
-  }
-
-  obj->type = OBJECT_STRING;
-  obj->value.string = malloc(sizeof(string_object_t));
-  if (obj->value.string == NULL) {
-    object_free(obj);
-    return NULL;
-  }
-
-  obj->value.string->value = strdup(value);
-  return obj;
-}
-
 object_t *eval_bang_operator_expression(const object_t *right) {
   switch (right->type) {
   case OBJECT_BOOLEAN:
@@ -256,10 +163,14 @@ object_t *eval_if_expression(if_expression_t *e, environment_t *env) {
 
 object_t *eval_identifier(identifier_t *ident, environment_t *env) {
   object_t *val = environment_get(env, ident->value);
-  if (val == NULL) {
-    return new_error_object("identifier not found: %s", ident->value);
+  if (val != NULL) {
+    return val;
   }
-  return val;
+  object_t *builtin = lookup_builtin(ident->value);
+  if (builtin != NULL) {
+    return builtin;
+  }
+  return new_error_object("identifier not found: %s", ident->value);
 }
 
 object_t **eval_expressions(size_t argc, expression_t **argv,
@@ -299,13 +210,19 @@ object_t *unwrap_return_value(object_t *obj) {
 }
 
 object_t *apply_function(object_t *fn, size_t argc, object_t **argv) {
-  if (fn->type != OBJECT_FUNCTION) {
-    return new_error_object("not a function: %s",
-                            object_type_to_string(fn->type));
+  if (fn->type == OBJECT_FUNCTION) {
+    environment_t *extended_env = extend_function_env(fn->value.fn, argc, argv);
+    object_t *evaluated =
+        eval_block_statement(fn->value.fn->body, extended_env);
+    return unwrap_return_value(evaluated);
   }
-  environment_t *extended_env = extend_function_env(fn->value.fn, argc, argv);
-  object_t *evaluated = eval_block_statement(fn->value.fn->body, extended_env);
-  return unwrap_return_value(evaluated);
+
+  if (fn->type == OBJECT_BUILTIN) {
+    return fn->value.builtin->fn(argc, argv);
+  }
+
+  return new_error_object("not a function: %s",
+                          object_type_to_string(fn->type));
 }
 
 object_t *eval_expression(expression_t *e, environment_t *env) {
