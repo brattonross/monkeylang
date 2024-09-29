@@ -14,10 +14,13 @@ typedef enum {
   OBJECT_FUNCTION,
   OBJECT_STRING,
   OBJECT_BUILTIN,
+  OBJECT_ARRAY,
 } object_type_t;
 
 typedef struct object_t object_t;
 typedef struct environment_t environment_t;
+
+object_t *new_null_object(void);
 
 typedef struct {
   int64_t value;
@@ -71,6 +74,13 @@ typedef struct {
 
 object_t *lookup_builtin(const char *name);
 
+typedef struct {
+  size_t len;
+  object_t **elements;
+} array_object_t;
+
+object_t *new_array_object(size_t len, object_t **elements);
+
 struct object_t {
   object_type_t type;
   union {
@@ -81,6 +91,7 @@ struct object_t {
     function_object_t *fn;
     string_object_t *string;
     builtin_object_t *builtin;
+    array_object_t *array;
   } value;
 };
 

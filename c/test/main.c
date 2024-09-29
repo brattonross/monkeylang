@@ -43,6 +43,8 @@ int main(void) {
   RUN_TEST(test_string_literal);
   RUN_TEST(test_string_concatenation);
   RUN_TEST(test_builtin_functions);
+  RUN_TEST(test_array_literals);
+  RUN_TEST(test_array_index_expressions);
 
   return UNITY_END();
 }

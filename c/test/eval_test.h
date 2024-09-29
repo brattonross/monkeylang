@@ -14,5 +14,7 @@ void test_closures(void);
 void test_string_literal(void);
 void test_string_concatenation(void);
 void test_builtin_functions(void);
+void test_array_literals(void);
+void test_array_index_expressions(void);
 
 #endif

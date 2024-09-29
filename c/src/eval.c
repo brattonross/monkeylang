@@ -151,14 +151,7 @@ object_t *eval_if_expression(if_expression_t *e, environment_t *env) {
   if (e->alternative != NULL) {
     return eval_block_statement(e->alternative, env);
   }
-  object_t *null_object = malloc(sizeof(object_t));
-  if (null_object == NULL) {
-    return NULL;
-  }
-  null_object->type = OBJECT_NULL;
-  null_object->value.boolean = NULL;
-  null_object->value.integer = NULL;
-  return null_object;
+  return new_null_object();
 }
 
 object_t *eval_identifier(identifier_t *ident, environment_t *env) {
@@ -225,6 +218,24 @@ object_t *apply_function(object_t *fn, size_t argc, object_t **argv) {
                           object_type_to_string(fn->type));
 }
 
+object_t *eval_array_index_expression(object_t *left, object_t *index) {
+  array_object_t *arr = left->value.array;
+  integer_object_t *idx = index->value.integer;
+  // TODO: cast here could cause mischief?
+  if (idx->value < 0 || idx->value > (int64_t)(arr->len - 1)) {
+    return new_null_object();
+  }
+  return arr->elements[idx->value];
+}
+
+object_t *eval_index_expression(object_t *left, object_t *index) {
+  if (left->type == OBJECT_ARRAY && index->type == OBJECT_INTEGER) {
+    return eval_array_index_expression(left, index);
+  }
+  return new_error_object("index operator not supported: %s",
+                          object_type_to_string(left->type));
+}
+
 object_t *eval_expression(expression_t *e, environment_t *env) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL:
@@ -282,6 +293,26 @@ object_t *eval_expression(expression_t *e, environment_t *env) {
       return argv[0];
     }
     return apply_function(fn, e->value.call->argc, argv);
+  }
+  case EXPRESSION_ARRAY_LITERAL: {
+    object_t **elements =
+        eval_expressions(e->value.arr->len, e->value.arr->elements, env);
+    if (is_error(elements[0])) {
+      return elements[0];
+    }
+    return new_array_object(e->value.arr->len, elements);
+  }
+  case EXPRESSION_INDEX: {
+    object_t *left = eval_expression(e->value.index->left, env);
+    if (is_error(left)) {
+      return left;
+    }
+    object_t *index = eval_expression(e->value.index->index, env);
+    if (is_error(index)) {
+      free(left);
+      return index;
+    }
+    return eval_index_expression(left, index);
   }
   default:
     return NULL;

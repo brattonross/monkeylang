@@ -6,6 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+object_t *new_null_object(void) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+  obj->type = OBJECT_NULL;
+  return obj;
+}
+
 object_t *new_error_object(char *fmt, ...) {
   object_t *obj = malloc(sizeof(object_t));
   if (obj == NULL) {
@@ -96,6 +105,30 @@ object_t *new_string_object(const char *value) {
   }
 
   obj->value.string->value = strdup(value);
+  return obj;
+}
+
+object_t *new_array_object(size_t len, object_t **elements) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+
+  obj->type = OBJECT_ARRAY;
+  obj->value.array = malloc(sizeof(array_object_t));
+  if (obj->value.array == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+
+  obj->value.array->len = len;
+  obj->value.array->elements = calloc(len, sizeof(object_t));
+  if (obj->value.array->elements == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+  memcpy(obj->value.array->elements, elements, len * sizeof(object_t));
+
   return obj;
 }
 
@@ -203,6 +236,41 @@ char *object_inspect(object_t *obj) {
     return strdup(obj->value.string->value);
   case OBJECT_BUILTIN:
     return strdup("builtin function");
+  case OBJECT_ARRAY: {
+    array_object_t *arr = obj->value.array;
+    size_t total_len = 3; // []
+    char *elements[arr->len];
+    for (size_t i = 0; i < arr->len; ++i) {
+      if (i > 0) {
+        total_len += 2; // ", "
+      }
+      char *s = object_inspect(arr->elements[i]);
+      elements[i] = s;
+      total_len += strlen(s);
+    }
+
+    char *buf = malloc(total_len);
+    char *out = buf;
+    *out = '\0';
+
+    memcpy(out, "[", 1);
+    out++;
+
+    for (size_t i = 0; i < arr->len; ++i) {
+      if (i > 0) {
+        memcpy(out, ", ", 2);
+        out += 2;
+      }
+      memcpy(out, elements[i], strlen(elements[i]));
+      out += strlen(elements[i]);
+    }
+
+    memcpy(out, "]", 1);
+    out++;
+
+    *out = '\0';
+    return buf;
+  }
   }
 }
 
@@ -236,6 +304,14 @@ void string_object_free(string_object_t *obj) {
   obj = NULL;
 }
 
+void array_object_free(array_object_t *obj) {
+  for (size_t i = 0; i < obj->len; ++i) {
+    object_free(obj->elements[i]);
+  }
+  free(obj);
+  obj = NULL;
+}
+
 void object_free(object_t *obj) {
   switch (obj->type) {
   case OBJECT_INTEGER:
@@ -258,6 +334,9 @@ void object_free(object_t *obj) {
     break;
   case OBJECT_BUILTIN:
     // TODO: ?
+    break;
+  case OBJECT_ARRAY:
+    array_object_free(obj->value.array);
     break;
   case OBJECT_NULL:
     // nothing to do
@@ -296,6 +375,8 @@ char *object_type_to_string(object_type_t t) {
     return strdup("STRING");
   case OBJECT_BUILTIN:
     return strdup("BUILTIN");
+  case OBJECT_ARRAY:
+    return strdup("ARRAY");
   }
 }
 

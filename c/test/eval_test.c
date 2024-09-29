@@ -333,3 +333,74 @@ void test_builtin_functions(void) {
     }
   }
 }
+
+void test_array_literals(void) {
+  object_t *evaluated = test_eval("[1, 2 * 2, 3 + 3]");
+
+  TEST_ASSERT_EQUAL_INT(OBJECT_ARRAY, evaluated->type);
+  array_object_t *arr = evaluated->value.array;
+
+  TEST_ASSERT_EQUAL_INT(3, arr->len);
+  test_integer_object(arr->elements[0], 1);
+  test_integer_object(arr->elements[1], 4);
+  test_integer_object(arr->elements[2], 6);
+}
+
+void test_array_index_expressions(void) {
+  typedef struct {
+    char *input;
+    int64_t *expected;
+  } test_case_t;
+  test_case_t test_cases[] = {
+      {
+          "[1, 2, 3][0]",
+          &(int64_t){1},
+      },
+      {
+          "[1, 2, 3][1]",
+          &(int64_t){2},
+      },
+      {
+          "[1, 2, 3][2]",
+          &(int64_t){3},
+      },
+      {
+          "let i = 0; [1][i];",
+          &(int64_t){1},
+      },
+      {
+          "[1, 2, 3][1 + 1];",
+          &(int64_t){3},
+      },
+      {
+          "let myArray = [1, 2, 3]; myArray[2];",
+          &(int64_t){3},
+      },
+      {
+          "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+          &(int64_t){6},
+      },
+      {
+          "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+          &(int64_t){2},
+      },
+      {
+          "[1, 2, 3][3]",
+          NULL,
+      },
+      {
+          "[1, 2, 3][-1]",
+          NULL,
+      },
+  };
+  size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    object_t *evaluated = test_eval(test_cases[i].input);
+    if (test_cases[i].expected == NULL) {
+      test_null_object(evaluated);
+    } else {
+      test_integer_object(evaluated, *test_cases[i].expected);
+    }
+  }
+}
