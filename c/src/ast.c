@@ -41,7 +41,6 @@ char *block_statement_to_string(block_statement_t *s) {
 char *identifier_to_string(identifier_t *ident) { return strdup(ident->value); }
 
 static const char *prefix_expression_fmt = "(%s%s)";
-static const char *infix_expression_fmt = "(%s %s %s)";
 char *expression_to_string(expression_t *e) {
   switch (e->type) {
   case EXPRESSION_IDENTIFIER:
@@ -65,24 +64,42 @@ char *expression_to_string(expression_t *e) {
     return buf;
   }
   case EXPRESSION_INFIX: {
+    size_t base_len = 5; // (  )
     char *left_str = expression_to_string(e->value.infix->left);
+    size_t left_str_len = strlen(left_str);
+    char *op = e->value.infix->op;
+    size_t op_len = strlen(op);
     char *right_str = expression_to_string(e->value.infix->right);
-    size_t buf_size = snprintf(NULL, 0, infix_expression_fmt, left_str,
-                               e->value.infix->op, right_str);
-    char *buf = malloc(buf_size + 1);
-    if (buf == NULL) {
-      free(left_str);
-      left_str = NULL;
-      free(right_str);
-      right_str = NULL;
-      return NULL;
-    }
-    snprintf(buf, buf_size + 1, infix_expression_fmt, left_str,
-             e->value.infix->op, right_str);
-    free(left_str);
-    left_str = NULL;
-    free(right_str);
-    right_str = NULL;
+    size_t right_str_len = strlen(right_str);
+
+    size_t total_len = base_len + left_str_len + op_len + right_str_len;
+    char *buf = malloc(total_len);
+    char *out = buf;
+    *out = '\0';
+
+    memcpy(out, "(", 1);
+    out++;
+
+    memcpy(out, left_str, left_str_len);
+    out += left_str_len;
+
+    memcpy(out, " ", 1);
+    out++;
+
+    memcpy(out, op, op_len);
+    out += op_len;
+
+    memcpy(out, " ", 1);
+    out++;
+
+    memcpy(out, right_str, right_str_len);
+    out += right_str_len;
+
+    memcpy(out, ")", 1);
+    out++;
+
+    *out = '\0';
+
     return buf;
   }
   case EXPRESSION_BOOLEAN_LITERAL: {
@@ -268,6 +285,24 @@ char *expression_to_string(expression_t *e) {
     *out = '\0';
     return res;
   }
+  case EXPRESSION_INDEX: {
+    index_expression_t *index = e->value.index;
+    size_t base_len = 4; // ([])
+    char *left_str = expression_to_string(index->left);
+    size_t left_str_len = strlen(left_str);
+    char *index_str = expression_to_string(index->index);
+    size_t index_str_len = strlen(index_str);
+
+    size_t total_len = base_len + left_str_len + index_str_len + 1;
+    char *buf = malloc(total_len + 1);
+    if (buf == NULL) {
+      free(left_str);
+      free(index_str);
+      return NULL;
+    }
+    snprintf(buf, total_len, "(%s[%s])", left_str, index_str);
+    return buf;
+  }
   }
 }
 
@@ -331,6 +366,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.string->token->literal);
   case EXPRESSION_ARRAY_LITERAL:
     return strdup(e->value.arr->token->literal);
+  case EXPRESSION_INDEX:
+    return strdup(e->value.index->token->literal);
   }
 }
 
@@ -556,6 +593,14 @@ void array_literal_free(array_literal_t *exp) {
   exp = NULL;
 }
 
+void index_expression_free(index_expression_t *exp) {
+  token_free(exp->token);
+  expression_free(exp->left);
+  expression_free(exp->index);
+  free(exp);
+  exp = NULL;
+}
+
 void expression_free(expression_t *exp) {
   switch (exp->type) {
   case EXPRESSION_IDENTIFIER:
@@ -587,6 +632,9 @@ void expression_free(expression_t *exp) {
     break;
   case EXPRESSION_ARRAY_LITERAL:
     array_literal_free(exp->value.arr);
+    break;
+  case EXPRESSION_INDEX:
+    index_expression_free(exp->value.index);
     break;
   }
 

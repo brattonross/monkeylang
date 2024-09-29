@@ -23,6 +23,7 @@ expression_t *parser_parse_function_literal(parser_t *p);
 expression_t *parser_parse_call_expression(parser_t *p, expression_t *e);
 expression_t *parser_parse_string_literal(parser_t *p);
 expression_t *parser_parse_array_literal(parser_t *p);
+expression_t *parser_parse_index_expression(parser_t *p, expression_t *e);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -95,6 +96,8 @@ infix_parse_fn parser_infix_fn(token_type_t t) {
     return parser_parse_infix_expression;
   case TOKEN_LEFT_PAREN:
     return parser_parse_call_expression;
+  case TOKEN_LEFT_BRACKET:
+    return parser_parse_index_expression;
   default:
     return NULL;
   }
@@ -116,6 +119,8 @@ parser_precedence_t token_type_to_precedence(token_type_t t) {
     return PARSER_PRECEDENCE_PRODUCT;
   case TOKEN_LEFT_PAREN:
     return PARSER_PRECEDENCE_CALL;
+  case TOKEN_LEFT_BRACKET:
+    return PARSER_PRECEDENCE_INDEX;
   default:
     return PARSER_PRECEDENCE_LOWEST;
   }
@@ -271,18 +276,15 @@ expression_t *parser_parse_expression(parser_t *p,
     return NULL;
   }
   expression_t *left = prefix(p);
-
   while (!parser_peek_token_is(p, TOKEN_SEMICOLON) &&
          precedence < parser_peek_precedence(p)) {
     infix_parse_fn infix = parser_infix_fn(p->peek_token->type);
     if (infix == NULL) {
       return left;
     }
-
     parser_next_token(p);
     left = infix(p, left);
   }
-
   return left;
 }
 
@@ -770,6 +772,45 @@ expression_t *parser_parse_array_literal(parser_t *p) {
 
   parser_parse_expression_list(p, &exp->value.arr->len,
                                &exp->value.arr->elements, TOKEN_RIGHT_BRACKET);
+  return exp;
+}
+
+expression_t *parser_parse_index_expression(parser_t *p, expression_t *left) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
+    return NULL;
+  }
+
+  exp->type = EXPRESSION_INDEX;
+  exp->value.index = malloc(sizeof(index_expression_t));
+  if (exp->value.index == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+
+  exp->value.index->token = malloc(sizeof(token_t));
+  if (exp->value.index->token == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+  memcpy(exp->value.index->token, p->current_token, sizeof(token_t));
+
+  exp->value.index->left = malloc(sizeof(expression_t));
+  if (exp->value.index->left == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+  memcpy(exp->value.index->left, left, sizeof(expression_t));
+
+  parser_next_token(p);
+  exp->value.index->index =
+      parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+
+  if (!parser_expect_peek(p, TOKEN_RIGHT_BRACKET)) {
+    expression_free(exp);
+    return NULL;
+  }
+
   return exp;
 }
 

@@ -343,6 +343,14 @@ void test_operator_precedence_parsing(void) {
           "add(a + b + c * d / f + g)",
           "add((((a + b) + ((c * d) / f)) + g))",
       },
+      {
+          "a * [1, 2, 3, 4][b * c] * d",
+          "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+      },
+      {
+          "add(a * b[2], b[1], 2 * [1, 2][1])",
+          "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+      },
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
@@ -624,4 +632,30 @@ void test_parsing_array_literals(void) {
   TEST_ASSERT_EQUAL_STRING("+", el2->op);
   TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, el2->right->type);
   TEST_ASSERT_EQUAL_INT(3, el2->right->value.integer->value);
+}
+
+void test_parsing_index_expressions(void) {
+  lexer_t *l = lexer_init("myArray[1 + 1]");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *s = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INDEX, s->expression->type);
+
+  index_expression_t *index = s->expression->value.index;
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_IDENTIFIER, index->left->type);
+  TEST_ASSERT_EQUAL_STRING("myArray", index->left->value.ident->value);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, index->index->type);
+  infix_expression_t *infix = index->index->value.infix;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, infix->left->type);
+  TEST_ASSERT_EQUAL_INT(1, infix->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("+", infix->op);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, infix->right->type);
+  TEST_ASSERT_EQUAL_INT(1, infix->right->value.integer->value);
 }

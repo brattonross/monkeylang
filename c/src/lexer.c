@@ -194,9 +194,11 @@ token_t *lexer_next_token(lexer_t *l) {
   case '[':
     t->type = TOKEN_LEFT_BRACKET;
     t->literal = strdup("[");
+    break;
   case ']':
     t->type = TOKEN_RIGHT_BRACKET;
     t->literal = strdup("]");
+    break;
   case EOF:
     t->type = TOKEN_EOF;
     t->literal = strdup("");
