@@ -137,12 +137,85 @@ object_t *builtin_len(size_t argc, object_t **argv) {
     return new_error_object("wrong number of arguments. got=%d, want=1", argc);
   }
 
-  if (argv[0]->type != OBJECT_STRING) {
-    return new_error_object("argument to `len` not supported, got %s",
-                            object_type_to_string(argv[0]->type));
+  if (argv[0]->type == OBJECT_STRING) {
+    return new_integer_object(strlen(argv[0]->value.string->value));
+  }
+  if (argv[0]->type == OBJECT_ARRAY) {
+    return new_integer_object(argv[0]->value.array->len);
   }
 
-  return new_integer_object(strlen(argv[0]->value.string->value));
+  return new_error_object("argument to `len` not supported, got %s",
+                          object_type_to_string(argv[0]->type));
+}
+
+object_t *builtin_first(size_t argc, object_t **argv) {
+  if (argc != 1) {
+    return new_error_object("wrong number of arguments. got=%d, want=1", argc);
+  }
+  if (argv[0]->type != OBJECT_ARRAY) {
+    return new_error_object("argument to `first` must be ARRAY, got %s",
+                            object_type_to_string(argv[0]->type));
+  }
+  if (argv[0]->value.array->len > 0) {
+    return argv[0]->value.array->elements[0];
+  }
+  return new_null_object();
+}
+
+object_t *builtin_last(size_t argc, object_t **argv) {
+  if (argc != 1) {
+    return new_error_object("wrong number of arguments. got=%d, want=1", argc);
+  }
+  if (argv[0]->type != OBJECT_ARRAY) {
+    return new_error_object("argument to `last` must be ARRAY, got %s",
+                            object_type_to_string(argv[0]->type));
+  }
+  if (argv[0]->value.array->len > 0) {
+    return argv[0]->value.array->elements[argv[0]->value.array->len - 1];
+  }
+  return new_null_object();
+}
+
+object_t *builtin_rest(size_t argc, object_t **argv) {
+  if (argc != 1) {
+    return new_error_object("wrong number of arguments. got=%d, want=1", argc);
+  }
+  if (argv[0]->type != OBJECT_ARRAY) {
+    return new_error_object("argument to `rest` must be ARRAY, got %s",
+                            object_type_to_string(argv[0]->type));
+  }
+  if (argv[0]->value.array->len > 1) {
+    return new_array_object(argv[0]->value.array->len - 1,
+                            &argv[0]->value.array->elements[1]);
+  }
+  return new_null_object();
+}
+
+object_t *builtin_push(size_t argc, object_t **argv) {
+  if (argc != 2) {
+    return new_error_object("wrong number of arguments. got=%d, want=2", argc);
+  }
+  if (argv[0]->type != OBJECT_ARRAY) {
+    return new_error_object("argument to `push` must be ARRAY, got %s",
+                            object_type_to_string(argv[0]->type));
+  }
+  size_t len = argv[0]->value.array->len + 1;
+  object_t **arr = calloc(len, sizeof(object_t));
+  if (arr == NULL) {
+    return new_null_object();
+  }
+  memcpy(arr, argv[0]->value.array->elements, (len - 1) * sizeof(object_t));
+  arr[len - 1] = malloc(sizeof(object_t));
+  if (arr[len - 1] == NULL) {
+    free(arr);
+    arr = NULL;
+    return new_null_object();
+  }
+  memcpy(arr[len - 1], argv[1], sizeof(object_t));
+  object_t *out = new_array_object(len, arr);
+  free(arr);
+  arr = NULL;
+  return out;
 }
 
 typedef struct {
@@ -150,8 +223,16 @@ typedef struct {
   object_t *builtin;
 } builtin_definition_t;
 static const builtin_definition_t builtins[] = {
-    {"len", &(object_t){.type = OBJECT_BUILTIN,
+    {"len", &(object_t){OBJECT_BUILTIN,
                         .value.builtin = &(builtin_object_t){builtin_len}}},
+    {"first", &(object_t){OBJECT_BUILTIN,
+                          .value.builtin = &(builtin_object_t){builtin_first}}},
+    {"last", &(object_t){OBJECT_BUILTIN,
+                         .value.builtin = &(builtin_object_t){builtin_last}}},
+    {"rest", &(object_t){OBJECT_BUILTIN,
+                         .value.builtin = &(builtin_object_t){builtin_rest}}},
+    {"push", &(object_t){OBJECT_BUILTIN,
+                         .value.builtin = &(builtin_object_t){builtin_push}}},
 };
 static const size_t builtins_len = sizeof(builtins) / sizeof(*builtins);
 
