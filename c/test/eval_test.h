@@ -11,5 +11,6 @@ void test_let_statements(void);
 void test_function_object(void);
 void test_function_application(void);
 void test_closures(void);
+void test_string_literal(void);
 
 #endif

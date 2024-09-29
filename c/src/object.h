@@ -12,6 +12,7 @@ typedef enum {
   OBJECT_RETURN,
   OBJECT_ERROR,
   OBJECT_FUNCTION,
+  OBJECT_STRING,
 } object_type_t;
 
 typedef struct object_t object_t;
@@ -50,6 +51,12 @@ typedef struct {
 
 void function_object_free(function_object_t *obj);
 
+typedef struct {
+  char *value;
+} string_object_t;
+
+void string_object_free(string_object_t *obj);
+
 struct object_t {
   object_type_t type;
   union {
@@ -58,6 +65,7 @@ struct object_t {
     return_value_t *return_value;
     error_object_t *err;
     function_object_t *fn;
+    string_object_t *string;
   } value;
 };
 

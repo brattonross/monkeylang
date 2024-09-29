@@ -24,7 +24,7 @@ char *object_inspect(object_t *obj) {
     snprintf(message, len, "ERROR: %s", obj->value.err->message);
     message[len] = '\0';
     return message;
-  case OBJECT_FUNCTION:
+  case OBJECT_FUNCTION: {
     char *param_strs[obj->value.fn->parameters_len];
     size_t total_len = 10; // min space for `fn() {\n\n}` + null terminator.
     for (size_t i = 0; i < obj->value.fn->parameters_len; ++i) {
@@ -73,6 +73,9 @@ char *object_inspect(object_t *obj) {
     *out = '\0';
     return res;
   }
+  case OBJECT_STRING:
+    return strdup(obj->value.string->value);
+  }
 }
 
 void integer_object_free(integer_object_t *obj) {
@@ -98,6 +101,13 @@ void error_object_free(error_object_t *obj) {
   obj = NULL;
 }
 
+void string_object_free(string_object_t *obj) {
+  free(obj->value);
+  obj->value = NULL;
+  free(obj);
+  obj = NULL;
+}
+
 void object_free(object_t *obj) {
   switch (obj->type) {
   case OBJECT_INTEGER:
@@ -114,6 +124,9 @@ void object_free(object_t *obj) {
     break;
   case OBJECT_FUNCTION:
     function_object_free(obj->value.fn);
+    break;
+  case OBJECT_STRING:
+    string_object_free(obj->value.string);
     break;
   case OBJECT_NULL:
     // nothing to do
@@ -148,6 +161,8 @@ char *object_type_to_string(object_type_t t) {
     return strdup("ERROR");
   case OBJECT_FUNCTION:
     return strdup("FUNCTION");
+  case OBJECT_STRING:
+    return strdup("STRING");
   }
 }
 

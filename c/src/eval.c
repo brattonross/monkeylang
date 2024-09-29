@@ -91,6 +91,23 @@ object_t *new_function_object(size_t parameters_len, identifier_t **parameters,
   return obj;
 }
 
+object_t *new_string_object(const char *value) {
+  object_t *obj = malloc(sizeof(object_t));
+  if (obj == NULL) {
+    return NULL;
+  }
+
+  obj->type = OBJECT_STRING;
+  obj->value.string = malloc(sizeof(string_object_t));
+  if (obj->value.string == NULL) {
+    object_free(obj);
+    return NULL;
+  }
+
+  obj->value.string->value = strdup(value);
+  return obj;
+}
+
 object_t *eval_bang_operator_expression(const object_t *right) {
   switch (right->type) {
   case OBJECT_BOOLEAN:
@@ -267,16 +284,15 @@ object_t *apply_function(object_t *fn, size_t argc, object_t **argv) {
 
 object_t *eval_expression(expression_t *e, environment_t *env) {
   switch (e->type) {
-  case EXPRESSION_INTEGER_LITERAL: {
+  case EXPRESSION_INTEGER_LITERAL:
     return new_integer_object(e->value.integer->value);
-  }
-  case EXPRESSION_BOOLEAN_LITERAL: {
+  case EXPRESSION_BOOLEAN_LITERAL:
     return new_boolean_object(e->value.boolean->value);
-  }
-  case EXPRESSION_FUNCTION_LITERAL: {
+  case EXPRESSION_FUNCTION_LITERAL:
     return new_function_object(e->value.fn->parameters_len,
                                e->value.fn->parameters, env, e->value.fn->body);
-  }
+  case EXPRESSION_STRING:
+    return new_string_object(e->value.string->value);
   case EXPRESSION_PREFIX: {
     object_t *right = eval_expression(e->value.prefix->right, env);
     if (is_error(right)) {

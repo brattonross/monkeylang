@@ -39,6 +39,7 @@ int main(void) {
   RUN_TEST(test_function_object);
   RUN_TEST(test_function_application);
   RUN_TEST(test_closures);
+  RUN_TEST(test_string_literal);
 
   return UNITY_END();
 }

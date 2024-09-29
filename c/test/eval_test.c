@@ -274,3 +274,10 @@ void test_closures(void) {
                              "addTwo(2);\n";
   test_integer_object(test_eval(input), 4);
 }
+
+void test_string_literal(void) {
+  object_t *evaluated = test_eval("\"Hello World!\"");
+
+  TEST_ASSERT_EQUAL_INT(OBJECT_STRING, evaluated->type);
+  TEST_ASSERT_EQUAL_STRING("Hello World!", evaluated->value.string->value);
+}
