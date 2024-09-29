@@ -233,6 +233,41 @@ char *expression_to_string(expression_t *e) {
   }
   case EXPRESSION_STRING:
     return strdup(e->value.string->token->literal);
+  case EXPRESSION_ARRAY_LITERAL: {
+    array_literal_t *arr = e->value.arr;
+    size_t total_len = 3; // []
+    char *elements[arr->len];
+    for (size_t i = 0; i < arr->len; ++i) {
+      if (total_len > 3) {
+        total_len += 2; // ", "
+      }
+      elements[i] = expression_to_string(arr->elements[i]);
+      total_len = strlen(elements[i]);
+    }
+
+    char *res = malloc(total_len);
+    char *out = res;
+    *out = '\0';
+
+    memcpy(out, "[", 1);
+    out++;
+
+    for (size_t i = 0; i < arr->len; ++i) {
+      if (i > 0) {
+        memcpy(out, ", ", 2);
+        out += 2;
+      }
+      size_t len = strlen(elements[i]);
+      memcpy(out, elements[i], len);
+      out += len;
+    }
+
+    memcpy(out, "]", 1);
+    out++;
+
+    *out = '\0';
+    return res;
+  }
   }
 }
 
@@ -294,6 +329,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.call->token->literal);
   case EXPRESSION_STRING:
     return strdup(e->value.string->token->literal);
+  case EXPRESSION_ARRAY_LITERAL:
+    return strdup(e->value.arr->token->literal);
   }
 }
 
@@ -510,6 +547,15 @@ void string_literal_free(string_literal_t *exp) {
   exp = NULL;
 }
 
+void array_literal_free(array_literal_t *exp) {
+  token_free(exp->token);
+  for (size_t i = 0; i < exp->len; ++i) {
+    expression_free(exp->elements[i]);
+  }
+  free(exp);
+  exp = NULL;
+}
+
 void expression_free(expression_t *exp) {
   switch (exp->type) {
   case EXPRESSION_IDENTIFIER:
@@ -538,6 +584,9 @@ void expression_free(expression_t *exp) {
     break;
   case EXPRESSION_STRING:
     string_literal_free(exp->value.string);
+    break;
+  case EXPRESSION_ARRAY_LITERAL:
+    array_literal_free(exp->value.arr);
     break;
   }
 

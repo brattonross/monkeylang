@@ -59,6 +59,10 @@ char *token_type_humanize(token_type_t t) {
     return strdup("LEFT_BRACE");
   case TOKEN_RIGHT_BRACE:
     return strdup("RIGHT_BRACE");
+  case TOKEN_LEFT_BRACKET:
+    return strdup("LEFT_BRACKET");
+  case TOKEN_RIGHT_BRACKET:
+    return strdup("RIGHT_BRACKET");
 
   case TOKEN_FUNCTION:
     return strdup("FUNCTION");

@@ -591,3 +591,37 @@ void test_string_literal_expression(void) {
   string_literal_t *str = exp->expression->value.string;
   TEST_ASSERT_EQUAL_STRING("hello world", str->value);
 }
+
+void test_parsing_array_literals(void) {
+  lexer_t *l = lexer_init("[1, 2 * 2, 3 + 3]");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *exp = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_ARRAY_LITERAL, exp->expression->type);
+
+  array_literal_t *arr = exp->expression->value.arr;
+  TEST_ASSERT_EQUAL_INT(3, arr->len);
+
+  test_integer_literal(arr->elements[0], 1);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, arr->elements[1]->type);
+  infix_expression_t *el1 = arr->elements[1]->value.infix;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, el1->left->type);
+  TEST_ASSERT_EQUAL_INT(2, el1->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("*", el1->op);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, el1->right->type);
+  TEST_ASSERT_EQUAL_INT(2, el1->right->value.integer->value);
+
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, arr->elements[2]->type);
+  infix_expression_t *el2 = arr->elements[2]->value.infix;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, el2->left->type);
+  TEST_ASSERT_EQUAL_INT(3, el2->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("+", el2->op);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, el2->right->type);
+  TEST_ASSERT_EQUAL_INT(3, el2->right->value.integer->value);
+}

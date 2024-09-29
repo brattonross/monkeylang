@@ -45,7 +45,10 @@ void test_lexer_next_token(void) {
       {TOKEN_SEMICOLON, ";"},    {TOKEN_INT, "10"},
       {TOKEN_NOT_EQUAL, "!="},   {TOKEN_INT, "9"},
       {TOKEN_SEMICOLON, ";"},    {TOKEN_STRING, "foobar"},
-      {TOKEN_STRING, "foo bar"}, {TOKEN_EOF, ""},
+      {TOKEN_STRING, "foo bar"}, {TOKEN_LEFT_BRACKET, "["},
+      {TOKEN_INT, "1"},          {TOKEN_COMMA, ","},
+      {TOKEN_INT, "2"},          {TOKEN_RIGHT_BRACKET, "]"},
+      {TOKEN_SEMICOLON, ";"},    {TOKEN_EOF, ""},
   };
   lexer_t *l = lexer_init("let five = 5;\n"
                           "let ten = 10;\n"
@@ -68,7 +71,7 @@ void test_lexer_next_token(void) {
                           "10 != 9;\n"
                           "\"foobar\"\n"
                           "\"foo bar\"\n"
-                          "");
+                          "[1, 2];\n");
   TEST_ASSERT_NOT_NULL(l);
 
   int i = 0;

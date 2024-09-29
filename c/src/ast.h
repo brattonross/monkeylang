@@ -84,6 +84,12 @@ typedef struct {
 
 void string_literal_free(string_literal_t *exp);
 
+typedef struct {
+  token_t *token;
+  size_t len;
+  expression_t **elements;
+} array_literal_t;
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
@@ -94,6 +100,7 @@ typedef enum {
   EXPRESSION_FUNCTION_LITERAL,
   EXPRESSION_CALL,
   EXPRESSION_STRING,
+  EXPRESSION_ARRAY_LITERAL,
 } expression_type_t;
 
 struct expression_t {
@@ -108,6 +115,7 @@ struct expression_t {
     function_literal_t *fn;
     call_expression_t *call;
     string_literal_t *string;
+    array_literal_t *arr;
   } value;
 };
 
