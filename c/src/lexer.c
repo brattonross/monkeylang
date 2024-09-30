@@ -133,6 +133,10 @@ token_t *lexer_next_token(lexer_t *l) {
     t->type = TOKEN_SEMICOLON;
     t->literal = strdup(";");
     break;
+  case ':':
+    t->type = TOKEN_COLON;
+    t->literal = strdup(":");
+    break;
   case '(':
     t->type = TOKEN_LEFT_PAREN;
     t->literal = strdup("(");

@@ -659,3 +659,91 @@ void test_parsing_index_expressions(void) {
   TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL, infix->right->type);
   TEST_ASSERT_EQUAL_INT(1, infix->right->value.integer->value);
 }
+
+void test_parsing_hash_literals_string_keys(void) {
+  lexer_t *l = lexer_init("{\"one\": 1, \"two\": 2, \"three\": 3}");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *exp = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_HASH, exp->expression->type);
+
+  hash_literal_t *hash = exp->expression->value.hash;
+  TEST_ASSERT_EQUAL_INT(3, hash->len);
+
+  TEST_ASSERT_EQUAL_STRING("one", hash->pairs[0]->key->value.string->value);
+  TEST_ASSERT_EQUAL_INT(1, hash->pairs[0]->value->value.integer->value);
+
+  TEST_ASSERT_EQUAL_STRING("two", hash->pairs[1]->key->value.string->value);
+  TEST_ASSERT_EQUAL_INT(2, hash->pairs[1]->value->value.integer->value);
+
+  TEST_ASSERT_EQUAL_STRING("three", hash->pairs[2]->key->value.string->value);
+  TEST_ASSERT_EQUAL_INT(3, hash->pairs[2]->value->value.integer->value);
+}
+
+void test_parsing_empty_hash_literal(void) {
+  lexer_t *l = lexer_init("{}");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *exp = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_HASH, exp->expression->type);
+
+  hash_literal_t *hash = exp->expression->value.hash;
+  TEST_ASSERT_EQUAL_INT(0, hash->len);
+}
+
+void test_parsing_hash_literals_with_expressions(void) {
+  lexer_t *l =
+      lexer_init("{\"one\": 0 + 1, \"two\": 10 - 8, \"three\": 15 / 5}");
+  parser_t *p = parser_init(l);
+  program_t *prg = parser_parse_program(p);
+  check_parser_errors(p);
+
+  TEST_ASSERT_EQUAL_INT(1, prg->statements_len);
+  TEST_ASSERT_EQUAL_INT(STATEMENT_EXPRESSION, prg->statements[0]->type);
+
+  expression_statement_t *exp = prg->statements[0]->value.exp;
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_HASH, exp->expression->type);
+
+  hash_literal_t *hash = exp->expression->value.hash;
+  TEST_ASSERT_EQUAL_INT(3, hash->len);
+
+  TEST_ASSERT_EQUAL_STRING("one", hash->pairs[0]->key->value.string->value);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, hash->pairs[0]->value->type);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL,
+                        hash->pairs[0]->value->value.infix->left->type);
+  TEST_ASSERT_EQUAL_INT(
+      0, hash->pairs[0]->value->value.infix->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("+", hash->pairs[0]->value->value.infix->op);
+  TEST_ASSERT_EQUAL_INT(
+      1, hash->pairs[0]->value->value.infix->right->value.integer->value);
+
+  TEST_ASSERT_EQUAL_STRING("two", hash->pairs[1]->key->value.string->value);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, hash->pairs[1]->value->type);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL,
+                        hash->pairs[1]->value->value.infix->left->type);
+  TEST_ASSERT_EQUAL_INT(
+      10, hash->pairs[1]->value->value.infix->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("-", hash->pairs[1]->value->value.infix->op);
+  TEST_ASSERT_EQUAL_INT(
+      8, hash->pairs[1]->value->value.infix->right->value.integer->value);
+
+  TEST_ASSERT_EQUAL_STRING("three", hash->pairs[2]->key->value.string->value);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INFIX, hash->pairs[2]->value->type);
+  TEST_ASSERT_EQUAL_INT(EXPRESSION_INTEGER_LITERAL,
+                        hash->pairs[2]->value->value.infix->left->type);
+  TEST_ASSERT_EQUAL_INT(
+      15, hash->pairs[2]->value->value.infix->left->value.integer->value);
+  TEST_ASSERT_EQUAL_STRING("/", hash->pairs[2]->value->value.infix->op);
+  TEST_ASSERT_EQUAL_INT(
+      5, hash->pairs[2]->value->value.infix->right->value.integer->value);
+}

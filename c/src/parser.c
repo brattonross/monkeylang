@@ -24,6 +24,7 @@ expression_t *parser_parse_call_expression(parser_t *p, expression_t *e);
 expression_t *parser_parse_string_literal(parser_t *p);
 expression_t *parser_parse_array_literal(parser_t *p);
 expression_t *parser_parse_index_expression(parser_t *p, expression_t *e);
+expression_t *parser_parse_hash_literal(parser_t *p);
 
 void parser_next_token(parser_t *p) {
   p->current_token = p->peek_token;
@@ -78,6 +79,8 @@ prefix_parse_fn parser_prefix_fn(token_type_t t) {
     return parser_parse_string_literal;
   case TOKEN_LEFT_BRACKET:
     return parser_parse_array_literal;
+  case TOKEN_LEFT_BRACE:
+    return parser_parse_hash_literal;
   default:
     return NULL;
   }
@@ -807,6 +810,86 @@ expression_t *parser_parse_index_expression(parser_t *p, expression_t *left) {
       parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
 
   if (!parser_expect_peek(p, TOKEN_RIGHT_BRACKET)) {
+    expression_free(exp);
+    return NULL;
+  }
+
+  return exp;
+}
+
+expression_t *parser_parse_hash_literal(parser_t *p) {
+  expression_t *exp = malloc(sizeof(expression_t));
+  if (exp == NULL) {
+    return NULL;
+  }
+
+  exp->type = EXPRESSION_HASH;
+  exp->value.hash = malloc(sizeof(hash_literal_t));
+  if (exp->value.hash == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+
+  exp->value.hash->token = malloc(sizeof(token_t));
+  if (exp->value.hash->token == NULL) {
+    expression_free(exp);
+    return NULL;
+  }
+  memcpy(exp->value.hash->token, p->current_token, sizeof(token_t));
+
+  exp->value.hash->len = 0;
+  exp->value.hash->pairs = NULL;
+
+  while (!parser_peek_token_is(p, TOKEN_RIGHT_BRACE)) {
+    parser_next_token(p);
+    expression_t *key = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+
+    if (!parser_expect_peek(p, TOKEN_COLON)) {
+      expression_free(exp);
+      expression_free(key);
+      return NULL;
+    }
+
+    parser_next_token(p);
+    expression_t *value = parser_parse_expression(p, PARSER_PRECEDENCE_LOWEST);
+
+    exp->value.hash->len++;
+    if (exp->value.hash->pairs == NULL) {
+      exp->value.hash->pairs = calloc(1, sizeof(hash_item_t));
+      if (exp->value.hash->pairs == NULL) {
+        expression_free(exp);
+        expression_free(key);
+        expression_free(value);
+        return NULL;
+      }
+    } else {
+      exp->value.hash->pairs = realloc(
+          exp->value.hash->pairs, exp->value.hash->len * sizeof(hash_item_t));
+      if (exp->value.hash->pairs == NULL) {
+        expression_free(exp);
+        expression_free(key);
+        expression_free(value);
+        return NULL;
+      }
+    }
+
+    hash_item_t *item = malloc(sizeof(hash_item_t));
+    item->key = malloc(sizeof(expression_t));
+    memcpy(item->key, key, sizeof(expression_t));
+    item->value = malloc(sizeof(expression_t));
+    memcpy(item->value, value, sizeof(expression_t));
+    exp->value.hash->pairs[exp->value.hash->len - 1] = item;
+
+    if (!parser_peek_token_is(p, TOKEN_RIGHT_BRACE) &&
+        !parser_expect_peek(p, TOKEN_COMMA)) {
+      expression_free(exp);
+      expression_free(key);
+      expression_free(value);
+      return NULL;
+    }
+  }
+
+  if (!parser_expect_peek(p, TOKEN_RIGHT_BRACE)) {
     expression_free(exp);
     return NULL;
   }

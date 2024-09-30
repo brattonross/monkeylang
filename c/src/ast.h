@@ -96,6 +96,16 @@ typedef struct {
   expression_t *index;
 } index_expression_t;
 
+typedef struct {
+  expression_t *key;
+  expression_t *value;
+} hash_item_t;
+typedef struct {
+  token_t *token;
+  size_t len;
+  hash_item_t **pairs;
+} hash_literal_t;
+
 typedef enum {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER_LITERAL,
@@ -108,6 +118,7 @@ typedef enum {
   EXPRESSION_STRING,
   EXPRESSION_ARRAY_LITERAL,
   EXPRESSION_INDEX,
+  EXPRESSION_HASH,
 } expression_type_t;
 
 struct expression_t {
@@ -124,6 +135,7 @@ struct expression_t {
     string_literal_t *string;
     array_literal_t *arr;
     index_expression_t *index;
+    hash_literal_t *hash;
   } value;
 };
 

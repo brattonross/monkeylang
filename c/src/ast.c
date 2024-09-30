@@ -303,6 +303,51 @@ char *expression_to_string(expression_t *e) {
     snprintf(buf, total_len, "(%s[%s])", left_str, index_str);
     return buf;
   }
+  case EXPRESSION_HASH: {
+    hash_literal_t *hash = e->value.hash;
+    size_t total_len = 3; // {}
+    char *keys[hash->len];
+    char *values[hash->len];
+    for (size_t i = 0; i < hash->len; ++i) {
+      if (i > 0) {
+        total_len += 2; // ", "
+      }
+      keys[i] = expression_to_string(hash->pairs[i]->key);
+      total_len += strlen(keys[i]);
+      total_len += 1; // ":"
+      values[i] = expression_to_string(hash->pairs[i]->value);
+      total_len += strlen(keys[i]);
+    }
+
+    char *buf = malloc(total_len);
+    char *out = buf;
+    *out = '\0';
+
+    memcpy(out, "{", 1);
+    out++;
+
+    for (size_t i = 0; i < hash->len; ++i) {
+      if (i > 0) {
+        memcpy(out, ", ", 2);
+        out += 2;
+      }
+
+      memcpy(out, keys[i], strlen(keys[i]));
+      out += strlen(keys[i]);
+
+      memcpy(out, ":", 1);
+      out++;
+
+      memcpy(out, values[i], strlen(values[i]));
+      out += strlen(values[i]);
+    }
+
+    memcpy(out, "}", 1);
+    out++;
+
+    *out = '\0';
+    return buf;
+  }
   }
 }
 
@@ -368,6 +413,8 @@ char *expression_token_literal(const expression_t *e) {
     return strdup(e->value.arr->token->literal);
   case EXPRESSION_INDEX:
     return strdup(e->value.index->token->literal);
+  case EXPRESSION_HASH:
+    return strdup(e->value.hash->token->literal);
   }
 }
 
@@ -601,6 +648,18 @@ void index_expression_free(index_expression_t *exp) {
   exp = NULL;
 }
 
+void hash_literal_free(hash_literal_t *exp) {
+  token_free(exp->token);
+  for (size_t i = 0; i < exp->len; ++i) {
+    expression_free(exp->pairs[i]->key);
+    expression_free(exp->pairs[i]->value);
+    free(exp->pairs[i]);
+    exp->pairs[i] = NULL;
+  }
+  free(exp);
+  exp = NULL;
+}
+
 void expression_free(expression_t *exp) {
   switch (exp->type) {
   case EXPRESSION_IDENTIFIER:
@@ -635,6 +694,9 @@ void expression_free(expression_t *exp) {
     break;
   case EXPRESSION_INDEX:
     index_expression_free(exp->value.index);
+    break;
+  case EXPRESSION_HASH:
+    hash_literal_free(exp->value.hash);
     break;
   }
 

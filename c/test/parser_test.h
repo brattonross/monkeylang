@@ -13,3 +13,6 @@ void test_parser_function_parameter_parsing(void);
 void test_parser_call_expression_parsing(void);
 void test_string_literal_expression(void);
 void test_parsing_index_expressions(void);
+void test_parsing_hash_literals_string_keys(void);
+void test_parsing_empty_hash_literal(void);
+void test_parsing_hash_literals_with_expressions(void);

@@ -28,6 +28,9 @@ int main(void) {
   RUN_TEST(test_parser_call_expression_parsing);
   RUN_TEST(test_string_literal_expression);
   RUN_TEST(test_parsing_index_expressions);
+  RUN_TEST(test_parsing_hash_literals_string_keys);
+  RUN_TEST(test_parsing_empty_hash_literal);
+  RUN_TEST(test_parsing_hash_literals_with_expressions);
 
   // eval
   RUN_TEST(test_eval_integer_expression);
