@@ -140,6 +140,7 @@ struct expression_t {
 };
 
 void expression_free(expression_t *exp);
+char *expression_to_string(expression_t *e);
 
 typedef enum {
   STATEMENT_LET,

@@ -2,6 +2,7 @@
 #include "ast.h"
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -352,6 +353,51 @@ char *object_inspect(object_t *obj) {
     *out = '\0';
     return buf;
   }
+  case OBJECT_HASH: {
+    hash_object_t *hash = obj->value.hash;
+    size_t total_len = 3; // {}
+    char *keys[hash->len];
+    char *values[hash->len];
+    for (size_t i = 0; i < hash->len; ++i) {
+      if (i > 0) {
+        total_len += 2; // ", "
+      }
+      keys[i] = object_inspect(hash->pairs[i]->key);
+      total_len += strlen(keys[i]);
+      total_len += 2; // ": "
+      values[i] = object_inspect(hash->pairs[i]->value);
+      total_len += strlen(keys[i]);
+    }
+
+    char *buf = malloc(total_len);
+    char *out = buf;
+    *out = '\0';
+
+    memcpy(out, "{", 1);
+    out++;
+
+    for (size_t i = 0; i < hash->len; ++i) {
+      if (i > 0) {
+        memcpy(out, ", ", 2);
+        out += 2;
+      }
+
+      memcpy(out, keys[i], strlen(keys[i]));
+      out += strlen(keys[i]);
+
+      memcpy(out, ": ", 2);
+      out += 2;
+
+      memcpy(out, values[i], strlen(values[i]));
+      out += strlen(values[i]);
+    }
+
+    memcpy(out, "}", 1);
+    out++;
+
+    *out = '\0';
+    return buf;
+  }
   }
 }
 
@@ -393,6 +439,17 @@ void array_object_free(array_object_t *obj) {
   obj = NULL;
 }
 
+void hash_object_free(hash_object_t *obj) {
+  for (size_t i = 0; i < obj->len; ++i) {
+    object_free(obj->pairs[i]->key);
+    object_free(obj->pairs[i]->value);
+    free(obj->pairs[i]);
+    obj->pairs[i] = NULL;
+  }
+  free(obj);
+  obj = NULL;
+}
+
 void object_free(object_t *obj) {
   switch (obj->type) {
   case OBJECT_INTEGER:
@@ -418,6 +475,9 @@ void object_free(object_t *obj) {
     break;
   case OBJECT_ARRAY:
     array_object_free(obj->value.array);
+    break;
+  case OBJECT_HASH:
+    hash_object_free(obj->value.hash);
     break;
   case OBJECT_NULL:
     // nothing to do
@@ -458,6 +518,8 @@ char *object_type_to_string(object_type_t t) {
     return strdup("BUILTIN");
   case OBJECT_ARRAY:
     return strdup("ARRAY");
+  case OBJECT_HASH:
+    return strdup("HASH");
   }
 }
 
@@ -531,4 +593,36 @@ object_t *environment_set(environment_t *env, const char *key,
   }
   env->items[env->items_len - 1] = new_item(key, value);
   return value;
+}
+
+hash_key_t *new_hash_key(object_type_t type, uint64_t value) {
+  hash_key_t *key = malloc(sizeof(hash_key_t));
+  if (key == NULL) {
+    return NULL;
+  }
+  key->type = type;
+  key->value = value;
+  return key;
+}
+
+uint64_t hash_string(char *str) {
+  uint64_t hash = 5381;
+  int c;
+  while ((c = *str++)) {
+    hash = ((hash << 5) + hash) + c;
+  }
+  return hash;
+}
+
+hash_key_t *object_hash_key(object_t *obj) {
+  switch (obj->type) {
+  case OBJECT_BOOLEAN:
+    return new_hash_key(OBJECT_BOOLEAN, obj->value.boolean->value);
+  case OBJECT_INTEGER:
+    return new_hash_key(OBJECT_INTEGER, obj->value.integer->value);
+  case OBJECT_STRING:
+    return new_hash_key(OBJECT_STRING, hash_string(obj->value.string->value));
+  default:
+    return NULL;
+  }
 }

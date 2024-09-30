@@ -15,6 +15,7 @@ typedef enum {
   OBJECT_STRING,
   OBJECT_BUILTIN,
   OBJECT_ARRAY,
+  OBJECT_HASH,
 } object_type_t;
 
 typedef struct object_t object_t;
@@ -81,6 +82,15 @@ typedef struct {
 
 object_t *new_array_object(size_t len, object_t **elements);
 
+typedef struct {
+  object_t *key;
+  object_t *value;
+} hash_object_item_t;
+typedef struct {
+  size_t len;
+  hash_object_item_t **pairs;
+} hash_object_t;
+
 struct object_t {
   object_type_t type;
   union {
@@ -92,6 +102,7 @@ struct object_t {
     string_object_t *string;
     builtin_object_t *builtin;
     array_object_t *array;
+    hash_object_t *hash;
   } value;
 };
 
@@ -114,5 +125,12 @@ environment_t *new_environment();
 environment_t *new_enclosed_environment(environment_t *outer);
 object_t *environment_get(const environment_t *env, const char *key);
 object_t *environment_set(environment_t *env, const char *key, object_t *value);
+
+typedef struct {
+  object_type_t type;
+  uint64_t value;
+} hash_key_t;
+
+hash_key_t *object_hash_key(object_t *obj);
 
 #endif

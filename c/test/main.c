@@ -1,5 +1,6 @@
 #include "eval_test.h"
 #include "lexer_test.h"
+#include "object_test.h"
 #include "parser_test.h"
 #include "unity.h"
 
@@ -48,6 +49,9 @@ int main(void) {
   RUN_TEST(test_builtin_functions);
   RUN_TEST(test_array_literals);
   RUN_TEST(test_array_index_expressions);
+
+  // object
+  RUN_TEST(test_string_hash_key);
 
   return UNITY_END();
 }
