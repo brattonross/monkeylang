@@ -219,6 +219,13 @@ object_t *builtin_push(size_t argc, object_t **argv) {
   return out;
 }
 
+object_t *builtin_puts(size_t argc, object_t **argv) {
+  for (size_t i = 0; i < argc; ++i) {
+    printf("%s\n", object_inspect(argv[i]));
+  }
+  return new_null_object();
+}
+
 typedef struct {
   char *name;
   object_t *builtin;
@@ -234,6 +241,8 @@ static const builtin_definition_t builtins[] = {
                          .value.builtin = &(builtin_object_t){builtin_rest}}},
     {"push", &(object_t){OBJECT_BUILTIN,
                          .value.builtin = &(builtin_object_t){builtin_push}}},
+    {"puts", &(object_t){OBJECT_BUILTIN,
+                         .value.builtin = &(builtin_object_t){builtin_puts}}},
 };
 static const size_t builtins_len = sizeof(builtins) / sizeof(*builtins);
 
