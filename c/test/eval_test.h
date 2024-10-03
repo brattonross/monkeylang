@@ -17,5 +17,6 @@ void test_builtin_functions(void);
 void test_array_literals(void);
 void test_array_index_expressions(void);
 void test_hash_literals(void);
+void test_hash_index_expressions(void);
 
 #endif

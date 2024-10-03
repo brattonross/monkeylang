@@ -228,9 +228,29 @@ object_t *eval_array_index_expression(object_t *left, object_t *index) {
   return arr->elements[idx->value];
 }
 
+object_t *eval_hash_index_expression(object_t *left, object_t *index) {
+  hash_key_t *hash_key = object_hash_key(index);
+  if (hash_key == NULL) {
+    return new_error_object("unusable as hash key: %s",
+                            object_type_to_string(index->type));
+  }
+
+  hash_object_t *hash = left->value.hash;
+  // TODO: linear
+  for (size_t i = 0; i < hash->len; ++i) {
+    if (hash_key->value == hash->pairs[i]->hash_key->value) {
+      return hash->pairs[i]->value;
+    }
+  }
+  return new_null_object();
+}
+
 object_t *eval_index_expression(object_t *left, object_t *index) {
   if (left->type == OBJECT_ARRAY && index->type == OBJECT_INTEGER) {
     return eval_array_index_expression(left, index);
+  }
+  if (left->type == OBJECT_HASH) {
+    return eval_hash_index_expression(left, index);
   }
   return new_error_object("index operator not supported: %s",
                           object_type_to_string(left->type));
@@ -364,7 +384,7 @@ object_t *eval_expression(expression_t *e, environment_t *env) {
   case EXPRESSION_HASH:
     return eval_hash_literal(e->value.hash, env);
   default:
-    return NULL;
+    return new_null_object();
   }
 }
 

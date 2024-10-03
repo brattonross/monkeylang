@@ -210,6 +210,10 @@ void test_error_handling(void) {
           "\"Hello\" - \"World\"",
           "unknown operator: STRING - STRING",
       },
+      {
+          "{\"name\": \"Monkey\"}[fn(x) { x }];",
+          "unusable as hash key: FUNCTION",
+      },
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
@@ -446,5 +450,52 @@ void test_hash_literals(void) {
   for (size_t i = 0; i < sizeof(expected) / sizeof(*expected); ++i) {
     assert_has_hash(hash, expected[i].key->value);
     test_integer_object(hash->pairs[i]->value, expected[i].value);
+  }
+}
+
+void test_hash_index_expressions(void) {
+  typedef struct {
+    char *input;
+    int64_t *expected;
+  } test_case_t;
+  test_case_t test_cases[] = {
+      {
+          "{\"foo\": 5}[\"foo\"]",
+          &(int64_t){5},
+      },
+      {
+          "{\"foo\": 5}[\"bar\"]",
+          NULL,
+      },
+      {
+          "let key = \"foo\"; {\"foo\": 5}[key]",
+          &(int64_t){5},
+      },
+      {
+          "{}[\"foo\"]",
+          NULL,
+      },
+      {
+          "{5 : 5}[5]",
+          &(int64_t){5},
+      },
+      {
+          "{true : 5}[true]",
+          &(int64_t){5},
+      },
+      {
+          "{false : 5}[false]",
+          &(int64_t){5},
+      },
+  };
+  size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
+
+  for (size_t i = 0; i < test_cases_len; ++i) {
+    object_t *evaluated = test_eval(test_cases[i].input);
+    if (evaluated->type == OBJECT_NULL) {
+      test_null_object(evaluated);
+    } else {
+      test_integer_object(evaluated, *test_cases[i].expected);
+    }
   }
 }

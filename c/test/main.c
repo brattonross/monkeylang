@@ -50,6 +50,7 @@ int main(void) {
   RUN_TEST(test_array_literals);
   RUN_TEST(test_array_index_expressions);
   RUN_TEST(test_hash_literals);
+  RUN_TEST(test_hash_index_expressions);
 
   // object
   RUN_TEST(test_string_hash_key);
