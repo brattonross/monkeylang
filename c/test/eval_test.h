@@ -16,5 +16,6 @@ void test_string_concatenation(void);
 void test_builtin_functions(void);
 void test_array_literals(void);
 void test_array_index_expressions(void);
+void test_hash_literals(void);
 
 #endif

@@ -404,3 +404,47 @@ void test_array_index_expressions(void) {
     }
   }
 }
+
+bool assert_has_hash(hash_object_t *hash, uint64_t expected) {
+  for (size_t j = 0; j < hash->len; ++j) {
+    hash_object_item_t *item = hash->pairs[j];
+    if (expected == item->hash_key->value) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void test_hash_literals(void) {
+  object_t *evaluated = test_eval("let two = \"two\";\n"
+                                  "{\n"
+                                  "  \"one\": 10 - 9,\n"
+                                  "  two: 1 + 1,\n"
+                                  "  \"thr\" + \"ee\": 6 / 2,\n"
+                                  "  4: 4,\n"
+                                  "  true: 5,\n"
+                                  "  false: 6\n"
+                                  "}\n");
+
+  TEST_ASSERT_EQUAL_INT(OBJECT_HASH, evaluated->type);
+  hash_object_t *hash = evaluated->value.hash;
+
+  TEST_ASSERT_EQUAL_INT(6, hash->len);
+
+  typedef struct {
+    hash_key_t *key;
+    int64_t value;
+  } expected_t;
+  expected_t expected[] = {
+      {object_hash_key(new_string_object("one")), 1},
+      {object_hash_key(new_string_object("two")), 2},
+      {object_hash_key(new_string_object("three")), 3},
+      {object_hash_key(new_integer_object(4)), 4},
+      {object_hash_key(new_boolean_object(true)), 5},
+      {object_hash_key(new_boolean_object(false)), 6},
+  };
+  for (size_t i = 0; i < sizeof(expected) / sizeof(*expected); ++i) {
+    assert_has_hash(hash, expected[i].key->value);
+    test_integer_object(hash->pairs[i]->value, expected[i].value);
+  }
+}

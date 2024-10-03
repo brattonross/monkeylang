@@ -605,6 +605,25 @@ hash_key_t *new_hash_key(object_type_t type, uint64_t value) {
   return key;
 }
 
+object_t *new_hash_object(size_t len, hash_object_item_t **pairs) {
+  object_t *o = malloc(sizeof(object_t));
+  if (o == NULL) {
+    return NULL;
+  }
+
+  o->type = OBJECT_HASH;
+  o->value.hash = malloc(sizeof(hash_object_t));
+  if (o->value.hash == NULL) {
+    object_free(o);
+    return NULL;
+  }
+
+  o->value.hash->len = len;
+  o->value.hash->pairs = pairs;
+
+  return o;
+}
+
 uint64_t hash_string(char *str) {
   uint64_t hash = 5381;
   int c;
@@ -625,4 +644,24 @@ hash_key_t *object_hash_key(object_t *obj) {
   default:
     return NULL;
   }
+}
+
+void hash_key_free(hash_key_t *h) {
+  free(h);
+  h = NULL;
+}
+
+void hash_object_item_free(hash_object_item_t *h) {
+  object_free(h->key);
+  object_free(h->value);
+  free(h);
+  h = NULL;
+}
+
+void hash_object_items_free(size_t n, hash_object_item_t **h) {
+  for (size_t i = 0; i < n; ++i) {
+    hash_object_item_free(h[i]);
+  }
+  free(h);
+  h = NULL;
 }

@@ -50,6 +50,8 @@ char *token_type_humanize(token_type_t t) {
     return strdup("COMMA");
   case TOKEN_SEMICOLON:
     return strdup("SEMICOLON");
+  case TOKEN_COLON:
+    return strdup("COLON");
 
   case TOKEN_LEFT_PAREN:
     return strdup("LEFT_PAREN");

@@ -83,13 +83,28 @@ typedef struct {
 object_t *new_array_object(size_t len, object_t **elements);
 
 typedef struct {
+  object_type_t type;
+  uint64_t value;
+} hash_key_t;
+
+hash_key_t *object_hash_key(object_t *obj);
+void hash_key_free(hash_key_t *h);
+
+typedef struct {
+  hash_key_t *hash_key;
   object_t *key;
   object_t *value;
 } hash_object_item_t;
+
+void hash_object_item_free(hash_object_item_t *h);
+void hash_object_items_free(size_t n, hash_object_item_t **h);
+
 typedef struct {
   size_t len;
   hash_object_item_t **pairs;
 } hash_object_t;
+
+object_t *new_hash_object(size_t len, hash_object_item_t **pairs);
 
 struct object_t {
   object_type_t type;
@@ -125,12 +140,5 @@ environment_t *new_environment();
 environment_t *new_enclosed_environment(environment_t *outer);
 object_t *environment_get(const environment_t *env, const char *key);
 object_t *environment_set(environment_t *env, const char *key, object_t *value);
-
-typedef struct {
-  object_type_t type;
-  uint64_t value;
-} hash_key_t;
-
-hash_key_t *object_hash_key(object_t *obj);
 
 #endif

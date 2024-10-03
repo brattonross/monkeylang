@@ -236,6 +236,53 @@ object_t *eval_index_expression(object_t *left, object_t *index) {
                           object_type_to_string(left->type));
 }
 
+object_t *eval_hash_literal(hash_literal_t *hash, environment_t *env) {
+  hash_object_item_t **pairs = calloc(hash->len, sizeof(hash_object_item_t));
+  if (pairs == NULL) {
+    return NULL;
+  }
+
+  for (size_t i = 0; i < hash->len; ++i) {
+    object_t *key = eval_expression(hash->pairs[i]->key, env);
+    if (is_error(key)) {
+      hash_object_items_free(hash->len, pairs);
+      return key;
+    }
+
+    hash_key_t *hash_key = object_hash_key(key);
+    if (hash_key == NULL) {
+      hash_object_items_free(hash->len, pairs);
+      object_free(key);
+      return new_error_object("unusable as hash key: %s",
+                              object_type_to_string(key->type));
+    }
+
+    object_t *value = eval_expression(hash->pairs[i]->value, env);
+    if (is_error(value)) {
+      hash_object_items_free(hash->len, pairs);
+      object_free(key);
+      return value;
+    }
+
+    hash_object_item_t *item = malloc(sizeof(hash_object_item_t));
+    if (item == NULL) {
+      hash_object_items_free(hash->len, pairs);
+      object_free(key);
+      hash_key_free(hash_key);
+      object_free(value);
+      return NULL;
+    }
+
+    item->hash_key = hash_key;
+    item->key = key;
+    item->value = value;
+
+    pairs[i] = item;
+  }
+
+  return new_hash_object(hash->len, pairs);
+}
+
 object_t *eval_expression(expression_t *e, environment_t *env) {
   switch (e->type) {
   case EXPRESSION_INTEGER_LITERAL:
@@ -314,6 +361,8 @@ object_t *eval_expression(expression_t *e, environment_t *env) {
     }
     return eval_index_expression(left, index);
   }
+  case EXPRESSION_HASH:
+    return eval_hash_literal(e->value.hash, env);
   default:
     return NULL;
   }

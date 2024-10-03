@@ -49,6 +49,7 @@ int main(void) {
   RUN_TEST(test_builtin_functions);
   RUN_TEST(test_array_literals);
   RUN_TEST(test_array_index_expressions);
+  RUN_TEST(test_hash_literals);
 
   // object
   RUN_TEST(test_string_hash_key);
