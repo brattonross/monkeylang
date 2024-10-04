@@ -1,0 +1,15 @@
+project_dir := justfile_directory()
+build_dir := project_dir + "/bin"
+cflags := "-std=gnu23 -Wall -Wextra -pedantic"
+
+default:
+	@just --list
+
+build:
+	mkdir -p {{build_dir}}
+	zig cc {{cflags}} src/*.c -o bin/monkey
+
+test:
+	mkdir -p {{build_dir}}
+	zig cc {{cflags}} test/*.c src/array_list.c src/ast.c src/code.c src/eval.c src/lexer.c src/object.c src/parser.c src/token.c -o bin/test
+	./bin/test

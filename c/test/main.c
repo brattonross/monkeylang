@@ -1,3 +1,4 @@
+#include "code_test.h"
 #include "eval_test.h"
 #include "lexer_test.h"
 #include "object_test.h"
@@ -54,6 +55,9 @@ int main(void) {
 
   // object
   RUN_TEST(test_string_hash_key);
+
+  // code
+  RUN_TEST(test_make);
 
   return UNITY_END();
 }
