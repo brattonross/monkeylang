@@ -1,4 +1,5 @@
 #include "code_test.h"
+#include "compiler_test.h"
 #include "eval_test.h"
 #include "lexer_test.h"
 #include "object_test.h"
@@ -58,6 +59,11 @@ int main(void) {
 
   // code
   RUN_TEST(test_make);
+  RUN_TEST(test_instructions_string);
+  RUN_TEST(test_read_operands);
+
+  // compiler
+  RUN_TEST(test_integer_arithmetic);
 
   return UNITY_END();
 }
