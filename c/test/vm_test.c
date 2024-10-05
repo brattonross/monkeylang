@@ -24,7 +24,7 @@ void test_vm_integer_arithmetic(void) {
 
     compiler_t *c = new_compiler();
     compiler_error_t err = compiler_compile_program(c, prg);
-    TEST_ASSERT_EQUAL_INT(COMPILER_SUCCESS, err);
+    TEST_ASSERT_EQUAL_INT(COMPILERE_SUCCESS, err);
 
     vm_t *vm = new_vm(compiler_bytecode(c));
     vm_error_t vm_err = vm_run(vm);

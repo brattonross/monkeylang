@@ -3,6 +3,7 @@
 #include "../src/lexer.h"
 #include "../src/object.h"
 #include "../src/parser.h"
+#include "common.h"
 #include "unity.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -14,11 +15,6 @@ object_t *test_eval(const char *input) {
   program_t *prg = parser_parse_program(p);
   environment_t *env = new_environment();
   return eval_program(prg, env);
-}
-
-void test_integer_object(object_t *o, int64_t expected) {
-  TEST_ASSERT_EQUAL_INT(OBJECT_INTEGER, o->type);
-  TEST_ASSERT_EQUAL_INT(expected, o->value.integer->value);
 }
 
 void test_eval_integer_expression(void) {

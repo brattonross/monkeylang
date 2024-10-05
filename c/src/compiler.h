@@ -14,7 +14,8 @@ typedef struct {
 compiler_t *new_compiler(void);
 
 typedef enum {
-  COMPILER_SUCCESS,
+  COMPILERE_SUCCESS,
+  COMPILERE_UNKNOWN_OPERATOR = -1,
 } compiler_error_t;
 
 compiler_error_t compiler_compile_program(compiler_t *c, program_t *p);

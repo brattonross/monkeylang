@@ -3,6 +3,7 @@
 #include "../src/lexer.h"
 #include "../src/parser.h"
 #include "../src/string_builder.h"
+#include "common.h"
 #include "unity.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -39,40 +40,29 @@ program_t *program_parse(const char *input) {
 }
 
 void test_integer_arithmetic(void) {
+  instructions_t *expected_instructions =
+      instructions_flatten(3, (instructions_t *[]){
+                                  make(OP_CONSTANT, 1, (ssize_t[1]){0}),
+                                  make(OP_CONSTANT, 1, (ssize_t[1]){1}),
+                                  make(OP_ADD, 0, NULL),
+                              });
+
   program_t *p = program_parse("1 + 2");
   compiler_t *c = new_compiler();
 
   compiler_error_t err = compiler_compile_program(c, p);
-  TEST_ASSERT_EQUAL_INT(COMPILER_SUCCESS, err);
+  TEST_ASSERT_EQUAL_INT(COMPILERE_SUCCESS, err);
 
   bytecode_t *bc = compiler_bytecode(c);
-  TEST_ASSERT_EQUAL_INT(6, bc->instructions->len);
+  TEST_ASSERT_EQUAL_INT(expected_instructions->len, bc->instructions->len);
 
-  ssize_t ops1[1] = {0};
-  instructions_t *i1 = make(OP_CONSTANT, 1, ops1);
-  ssize_t ops2[1] = {1};
-  instructions_t *i2 = make(OP_CONSTANT, 1, ops2);
-
-  uint8_t expected_instructions[6];
-  size_t expected_instructions_len = 0;
-  for (size_t i = 0; i < i1->len; ++i) {
-    expected_instructions[i] = i1->arr[i];
-    expected_instructions_len++;
-  }
-  for (size_t i = i2->len; i < i2->len; ++i) {
-    expected_instructions[i + i1->len] = i2->arr[i];
-    expected_instructions_len++;
-  }
-
-  for (size_t i = 0; i < expected_instructions_len; ++i) {
-    TEST_ASSERT_EQUAL_UINT8(expected_instructions[i], bc->instructions->arr[i]);
+  for (size_t i = 0; i < expected_instructions->len; ++i) {
+    TEST_ASSERT_EQUAL_UINT8(expected_instructions->arr[i],
+                            bc->instructions->arr[i]);
   }
 
   TEST_ASSERT_EQUAL_INT(2, bc->constants_len);
 
-  TEST_ASSERT_EQUAL_INT(OBJECT_INTEGER, bc->constants[0]->type);
-  TEST_ASSERT_EQUAL_INT(1, bc->constants[0]->value.integer->value);
-
-  TEST_ASSERT_EQUAL_INT(OBJECT_INTEGER, bc->constants[1]->type);
-  TEST_ASSERT_EQUAL_INT(2, bc->constants[1]->value.integer->value);
+  test_integer_object(bc->constants[0], 1);
+  test_integer_object(bc->constants[1], 2);
 }

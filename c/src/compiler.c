@@ -107,12 +107,18 @@ compiler_error_t compiler_compile_expression(compiler_t *c, expression_t *e) {
   switch (e->type) {
   case EXPRESSION_INFIX: {
     compiler_error_t err = compiler_compile_expression(c, e->value.infix->left);
-    if (err != COMPILER_SUCCESS) {
+    if (err != COMPILERE_SUCCESS) {
       return err;
     }
     err = compiler_compile_expression(c, e->value.infix->right);
-    if (err != COMPILER_SUCCESS) {
+    if (err != COMPILERE_SUCCESS) {
       return err;
+    }
+
+    if (strncmp(e->value.infix->op, "+", 1) == 0) {
+      compiler_emit(c, OP_ADD, 0, NULL);
+    } else {
+      return COMPILERE_UNKNOWN_OPERATOR;
     }
   } break;
   case EXPRESSION_INTEGER_LITERAL: {
@@ -121,7 +127,7 @@ compiler_error_t compiler_compile_expression(compiler_t *c, expression_t *e) {
                   (ssize_t[1]){compiler_add_constant(c, integer)});
   } break;
   }
-  return COMPILER_SUCCESS;
+  return COMPILERE_SUCCESS;
 }
 
 compiler_error_t compiler_compile_statement(compiler_t *c, statement_t *s) {
@@ -129,22 +135,22 @@ compiler_error_t compiler_compile_statement(compiler_t *c, statement_t *s) {
   case STATEMENT_EXPRESSION: {
     compiler_error_t err =
         compiler_compile_expression(c, s->value.exp->expression);
-    if (err != COMPILER_SUCCESS) {
+    if (err != COMPILERE_SUCCESS) {
       return err;
     }
   } break;
   }
-  return COMPILER_SUCCESS;
+  return COMPILERE_SUCCESS;
 }
 
 compiler_error_t compiler_compile_program(compiler_t *c, program_t *p) {
   for (size_t i = 0; i < p->statements_len; ++i) {
     compiler_error_t err = compiler_compile_statement(c, p->statements[i]);
-    if (err != COMPILER_SUCCESS) {
+    if (err != COMPILERE_SUCCESS) {
       return err;
     }
   }
-  return COMPILER_SUCCESS;
+  return COMPILERE_SUCCESS;
 }
 
 bytecode_t *compiler_bytecode(compiler_t *c) {
