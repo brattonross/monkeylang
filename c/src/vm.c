@@ -69,11 +69,20 @@ vm_error_t vm_push(vm_t *vm, object_t *obj) {
   return VME_SUCCESS;
 }
 
+object_t *vm_pop(vm_t *vm) {
+  if (!vm) {
+    return NULL;
+  }
+  object_t *o = vm->stack[vm->sp - 1];
+  vm->sp--;
+  return o;
+}
+
 vm_error_t vm_run(vm_t *vm) {
   for (size_t ip = 0; ip < vm->instructions->len; ++ip) {
     uint8_t op = vm->instructions->arr[ip];
     switch (op) {
-    case OP_CONSTANT:
+    case OP_CONSTANT: {
       uint16_t const_index =
           read_uint16_big_endian(vm->instructions->arr + ip + 1);
       ip += 2;
@@ -82,6 +91,13 @@ vm_error_t vm_run(vm_t *vm) {
       if (err != VME_SUCCESS) {
         return err;
       }
+    } break;
+    case OP_ADD: {
+      object_t *right = vm_pop(vm);
+      object_t *left = vm_pop(vm);
+      vm_push(vm, new_integer_object(left->value.integer->value +
+                                     right->value.integer->value));
+    } break;
     }
   }
 

@@ -13,7 +13,9 @@ void test_vm_integer_arithmetic(void) {
     int64_t expected;
   } test_case_t;
   static const test_case_t test_cases[] = {
-      {"1", 1}, {"2", 2}, {"1 + 2", 2}, // FIXME:
+      {"1", 1},
+      {"2", 2},
+      {"1 + 2", 3},
   };
   static const size_t test_cases_len = sizeof(test_cases) / sizeof(*test_cases);
 
