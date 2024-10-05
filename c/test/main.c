@@ -5,6 +5,7 @@
 #include "object_test.h"
 #include "parser_test.h"
 #include "unity.h"
+#include "vm_test.h"
 
 void setUp(void) {}
 
@@ -64,6 +65,9 @@ int main(void) {
 
   // compiler
   RUN_TEST(test_integer_arithmetic);
+
+  // vm
+  RUN_TEST(test_vm_integer_arithmetic);
 
   return UNITY_END();
 }

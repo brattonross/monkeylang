@@ -31,3 +31,6 @@ typedef struct {
 } operands_t;
 
 operands_t *read_operands(definition_t *def, uint8_t *instructions);
+
+void write_uint16_big_endian(uint8_t *buf, uint16_t value);
+uint16_t read_uint16_big_endian(const uint8_t *buf);

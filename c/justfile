@@ -11,5 +11,5 @@ build:
 
 test:
 	mkdir -p {{build_dir}}
-	zig cc {{cflags}} test/*.c src/array_list.c src/ast.c src/code.c src/compiler.c src/eval.c src/lexer.c src/object.c src/parser.c src/string_builder.c src/token.c -o bin/test
+	zig cc {{cflags}} test/*.c src/array_list.c src/ast.c src/code.c src/compiler.c src/eval.c src/lexer.c src/object.c src/parser.c src/string_builder.c src/token.c src/vm.c -o bin/test
 	./bin/test
