@@ -159,25 +159,33 @@ bytecode_t *compiler_bytecode(compiler_t *c) {
     return NULL;
   }
 
-  b->instructions->arr = calloc(c->instructions->cap, sizeof(uint8_t));
-  if (!b->instructions->arr) {
-    free(b->instructions);
-    free(b);
-    return NULL;
-  }
-  memcpy(b->instructions->arr, c->instructions->arr,
-         c->instructions->len * sizeof(uint8_t));
+  b->instructions->arr = NULL;
   b->instructions->cap = c->instructions->cap;
   b->instructions->len = c->instructions->len;
-
-  b->constants = calloc(c->constants_len, sizeof(object_t));
-  if (!b->constants) {
-    free(b->instructions);
-    free(b);
-    return NULL;
+  if (b->instructions->cap > 0) {
+    b->instructions->arr = calloc(c->instructions->cap, sizeof(uint8_t));
+    if (!b->instructions->arr) {
+      free(b->instructions);
+      free(b);
+      return NULL;
+    }
   }
+  if (b->instructions->len > 0) {
+    memcpy(b->instructions->arr, c->instructions->arr,
+           c->instructions->len * sizeof(uint8_t));
+  }
+
+  b->constants = NULL;
   b->constants_len = c->constants_len;
-  memcpy(b->constants, c->constants, c->constants_len * sizeof(object_t));
+  if (b->constants_len > 0) {
+    b->constants = calloc(c->constants_len, sizeof(object_t));
+    if (!b->constants) {
+      free(b->instructions);
+      free(b);
+      return NULL;
+    }
+    memcpy(b->constants, c->constants, c->constants_len * sizeof(object_t));
+  }
 
   return b;
 }

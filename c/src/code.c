@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *op_constant_string = "OpConstant";
+static const char *op_constant_name = "OpConstant";
+static const char *op_add_name = "OpAdd";
 
 definition_t *definition_lookup(opcode_t op) {
   switch (op) {
@@ -15,15 +16,15 @@ definition_t *definition_lookup(opcode_t op) {
       return NULL;
     }
 
-    d->name = malloc(strlen(op_constant_string) + 1);
+    d->name = malloc(strlen(op_constant_name) + 1);
     if (!d->name) {
       free(d);
       return NULL;
     }
-    strncpy(d->name, op_constant_string, strlen(op_constant_string));
-    d->operand_widths_len = 1;
+    strncpy(d->name, op_constant_name, strlen(op_constant_name));
 
-    d->operand_widths = calloc(1, sizeof(uint8_t));
+    d->operand_widths_len = 1;
+    d->operand_widths = calloc(d->operand_widths_len, sizeof(uint8_t));
     if (!d->operand_widths) {
       free(d->name);
       free(d->operand_widths);
@@ -31,6 +32,24 @@ definition_t *definition_lookup(opcode_t op) {
       return NULL;
     }
     d->operand_widths[0] = 2;
+    return d;
+  }
+  case OP_ADD: {
+    definition_t *d = malloc(sizeof(definition_t));
+    if (!d) {
+      return NULL;
+    }
+
+    d->name = malloc(strlen(op_add_name) + 1);
+    if (!d->name) {
+      free(d);
+      return NULL;
+    }
+    strncpy(d->name, op_add_name, strlen(op_add_name));
+
+    d->operand_widths = NULL;
+    d->operand_widths_len = 0;
+
     return d;
   }
   default:
@@ -103,6 +122,8 @@ char *format_instruction(const instructions_t *instruction,
   }
 
   switch (def->operand_widths_len) {
+  case 0:
+    return strdup(def->name);
   case 1:
     size_t size = snprintf(NULL, 0, "%s %zu", def->name, operands->operands[0]);
     char *buf = malloc(size + 1);
@@ -117,23 +138,28 @@ char *format_instruction(const instructions_t *instruction,
   return buf;
 }
 
-char *instruction_to_string(const instructions_t *instruction) {
-  string_builder_t sb = {0, .cap = 16};
+char *instruction_to_string(const instructions_t *instructions) {
+  string_builder_t *sb = new_string_builder();
 
-  for (size_t i = 0; i < instruction->len; ++i) {
-    definition_t *def = definition_lookup(instruction->arr[i]);
+  size_t i = 0;
+  while (i < instructions->len) {
+    definition_t *def = definition_lookup(instructions->arr[i]);
     if (!def) {
-      sb_appendf(&sb, "ERROR: opcode %d undefined\n", instruction->arr[i]);
+      sb_appendf(sb, "ERROR: opcode %d undefined\n", instructions->arr[i]);
       continue;
     }
 
-    operands_t *operands = read_operands(def, instruction->arr + i + 1);
-    sb_appendf(&sb, "%04d %s\n", i,
-               format_instruction(instruction, def, operands));
+    operands_t *operands = read_operands(def, instructions->arr + i + 1);
+    char *ins_str = format_instruction(instructions, def, operands);
+    sb_appendf(sb, "%04d %s\n", i, ins_str);
 
-    i += 1 + operands->len;
+    i += 1 + operands->bytes_read;
   }
-  return strdup(sb.buf);
+
+  char *buf = strdup(sb->buf);
+  free(sb->buf);
+  free(sb);
+  return buf;
 }
 
 operands_t *read_operands(definition_t *def, uint8_t *instructions) {
@@ -143,10 +169,13 @@ operands_t *read_operands(definition_t *def, uint8_t *instructions) {
   }
 
   operands->len = def->operand_widths_len;
-  operands->operands = calloc(def->operand_widths_len, sizeof(size_t));
-  if (!operands->operands) {
-    free(operands);
-    return NULL;
+  operands->operands = NULL;
+  if (operands->len > 0) {
+    operands->operands = calloc(def->operand_widths_len, sizeof(size_t));
+    if (!operands->operands) {
+      free(operands);
+      return NULL;
+    }
   }
 
   size_t offset = 0;

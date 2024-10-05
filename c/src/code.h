@@ -5,6 +5,7 @@
 
 typedef enum : uint8_t {
   OP_CONSTANT,
+  OP_ADD,
 } opcode_t;
 
 typedef struct {
