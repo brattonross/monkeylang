@@ -50,10 +50,40 @@ fn lookupIdent(literal: []const u8) Token.Type {
     } else if (std.mem.eql(u8, "let", literal)) {
         return Token.Type.let;
     }
-    unreachable;
+    return Token.Type.ident;
+}
+
+fn isWhitespace(char: u8) bool {
+    return switch (char) {
+        ' ', '\t', '\n', '\r' => true,
+        else => false,
+    };
+}
+
+fn skipWhitespace(self: *Lexer) void {
+    while (isWhitespace(self.ch)) {
+        self.readChar();
+    }
+}
+
+fn isDigit(char: u8) bool {
+    return switch (char) {
+        '0'...'9' => true,
+        else => false,
+    };
+}
+
+fn readNumber(self: *Lexer) []const u8 {
+    const pos = self.pos;
+    while (isDigit(self.ch)) {
+        self.readChar();
+    }
+    return self.input[pos..self.pos];
 }
 
 pub fn nextToken(self: *Lexer) Token {
+    self.skipWhitespace();
+
     const token = switch (self.ch) {
         '=' => Token{ .type = Token.Type.assign, .literal = "=" },
         ';' => Token{ .type = Token.Type.semicolon, .literal = ";" },
@@ -68,6 +98,8 @@ pub fn nextToken(self: *Lexer) Token {
             if (isLetter(self.ch)) {
                 const literal = self.readIdentifier();
                 return Token{ .type = lookupIdent(literal), .literal = literal };
+            } else if (isDigit(self.ch)) {
+                return Token{ .type = Token.Type.int, .literal = self.readNumber() };
             }
             return Token{ .type = Token.Type.illegal, .literal = &[_]u8{self.ch} };
         },
@@ -130,8 +162,7 @@ test "next_token" {
     var l = Lexer.init(input);
     for (test_cases) |expected| {
         const actual = l.nextToken();
-        std.debug.print("actual token: {} {s}\n", .{ actual.type, actual.literal });
-        try std.testing.expectEqual(expected.type, actual.type);
-        try std.testing.expectEqual(expected.literal, actual.literal);
+        try std.testing.expect(expected.type == actual.type);
+        try std.testing.expect(std.mem.eql(u8, expected.literal, actual.literal));
     }
 }
