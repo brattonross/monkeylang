@@ -44,13 +44,18 @@ fn readIdentifier(self: *Lexer) []const u8 {
     return self.input[pos..self.pos];
 }
 
+const ident_map = std.StaticStringMap(Token.Type).initComptime(.{
+    .{ "fn", .function },
+    .{ "let", .let },
+    .{ "true", .true },
+    .{ "false", .false },
+    .{ "if", .@"if" },
+    .{ "else", .@"else" },
+    .{ "return", .@"return" },
+});
+
 fn lookupIdent(literal: []const u8) Token.Type {
-    if (std.mem.eql(u8, "fn", literal)) {
-        return Token.Type.function;
-    } else if (std.mem.eql(u8, "let", literal)) {
-        return Token.Type.let;
-    }
-    return Token.Type.ident;
+    return ident_map.get(literal) orelse .ident;
 }
 
 fn isWhitespace(char: u8) bool {
@@ -81,34 +86,63 @@ fn readNumber(self: *Lexer) []const u8 {
     return self.input[pos..self.pos];
 }
 
+fn peekChar(self: Lexer) u8 {
+    if (self.read_pos >= self.input.len) {
+        return 0;
+    }
+    return self.input[self.read_pos];
+}
+
 pub fn nextToken(self: *Lexer) Token {
     self.skipWhitespace();
 
     const token = switch (self.ch) {
-        '=' => Token{ .type = Token.Type.assign, .literal = "=" },
-        ';' => Token{ .type = Token.Type.semicolon, .literal = ";" },
-        '(' => Token{ .type = Token.Type.lparen, .literal = "(" },
-        ')' => Token{ .type = Token.Type.rparen, .literal = ")" },
-        ',' => Token{ .type = Token.Type.comma, .literal = "," },
-        '+' => Token{ .type = Token.Type.plus, .literal = "+" },
-        '{' => Token{ .type = Token.Type.lbrace, .literal = "{" },
-        '}' => Token{ .type = Token.Type.rbrace, .literal = "}" },
-        0 => Token{ .type = Token.Type.eof, .literal = "" },
+        '=' => blk: {
+            switch (self.peekChar()) {
+                '=' => {
+                    self.readChar();
+                    break :blk Token.eq;
+                },
+                else => break :blk Token.assign,
+            }
+        },
+        '+' => Token.plus,
+        '-' => Token.minus,
+        '!' => blk: {
+            switch (self.peekChar()) {
+                '=' => {
+                    self.readChar();
+                    break :blk Token.ne;
+                },
+                else => break :blk Token.bang,
+            }
+        },
+        '/' => Token.slash,
+        '*' => Token.asterisk,
+        '<' => Token.lt,
+        '>' => Token.gt,
+        ',' => Token.comma,
+        ';' => Token.semicolon,
+        '(' => Token.lparen,
+        ')' => Token.rparen,
+        '{' => Token.lbrace,
+        '}' => Token.rbrace,
+        0 => Token.eof,
         else => {
             if (isLetter(self.ch)) {
                 const literal = self.readIdentifier();
                 return Token{ .type = lookupIdent(literal), .literal = literal };
             } else if (isDigit(self.ch)) {
-                return Token{ .type = Token.Type.int, .literal = self.readNumber() };
+                return Token.int(self.readNumber());
             }
-            return Token{ .type = Token.Type.illegal, .literal = &[_]u8{self.ch} };
+            return Token{ .type = .illegal, .literal = &[_]u8{self.ch} };
         },
     };
     self.readChar();
     return token;
 }
 
-test "next_token" {
+test "nextToken" {
     const input =
         \\let five = 5;
         \\let ten = 10;
@@ -118,45 +152,93 @@ test "next_token" {
         \\};
         \\
         \\let result = add(five, ten);
+        \\!-/*5;
+        \\5 < 10 > 5;
+        \\
+        \\if (5 < 10) {
+        \\  return true;
+        \\} else {
+        \\  return false;
+        \\}
+        \\
+        \\10 == 10;
+        \\10 != 9;
     ;
-    const test_cases = [_]struct { type: Token.Type, literal: []const u8 }{
-        .{ .type = Token.Type.let, .literal = "let" },
-        .{ .type = Token.Type.ident, .literal = "five" },
-        .{ .type = Token.Type.assign, .literal = "=" },
-        .{ .type = Token.Type.int, .literal = "5" },
-        .{ .type = Token.Type.semicolon, .literal = ";" },
-        .{ .type = Token.Type.let, .literal = "let" },
-        .{ .type = Token.Type.ident, .literal = "ten" },
-        .{ .type = Token.Type.assign, .literal = "=" },
-        .{ .type = Token.Type.int, .literal = "10" },
-        .{ .type = Token.Type.semicolon, .literal = ";" },
-        .{ .type = Token.Type.let, .literal = "let" },
-        .{ .type = Token.Type.ident, .literal = "add" },
-        .{ .type = Token.Type.assign, .literal = "=" },
-        .{ .type = Token.Type.function, .literal = "fn" },
-        .{ .type = Token.Type.lparen, .literal = "(" },
-        .{ .type = Token.Type.ident, .literal = "x" },
-        .{ .type = Token.Type.comma, .literal = "," },
-        .{ .type = Token.Type.ident, .literal = "y" },
-        .{ .type = Token.Type.rparen, .literal = ")" },
-        .{ .type = Token.Type.lbrace, .literal = "{" },
-        .{ .type = Token.Type.ident, .literal = "x" },
-        .{ .type = Token.Type.plus, .literal = "+" },
-        .{ .type = Token.Type.ident, .literal = "y" },
-        .{ .type = Token.Type.semicolon, .literal = ";" },
-        .{ .type = Token.Type.rbrace, .literal = "}" },
-        .{ .type = Token.Type.semicolon, .literal = ";" },
-        .{ .type = Token.Type.let, .literal = "let" },
-        .{ .type = Token.Type.ident, .literal = "result" },
-        .{ .type = Token.Type.assign, .literal = "=" },
-        .{ .type = Token.Type.ident, .literal = "add" },
-        .{ .type = Token.Type.lparen, .literal = "(" },
-        .{ .type = Token.Type.ident, .literal = "five" },
-        .{ .type = Token.Type.comma, .literal = "," },
-        .{ .type = Token.Type.ident, .literal = "ten" },
-        .{ .type = Token.Type.rparen, .literal = ")" },
-        .{ .type = Token.Type.semicolon, .literal = ";" },
-        .{ .type = Token.Type.eof, .literal = "" },
+    const test_cases = [_]Token{
+        Token.let,
+        Token.ident("five"),
+        Token.assign,
+        Token.int("5"),
+        Token.semicolon,
+        Token.let,
+        Token.ident("ten"),
+        Token.assign,
+        Token.int("10"),
+        Token.semicolon,
+        Token.let,
+        Token.ident("add"),
+        Token.assign,
+        Token.function,
+        Token.lparen,
+        Token.ident("x"),
+        Token.comma,
+        Token.ident("y"),
+        Token.rparen,
+        Token.lbrace,
+        Token.ident("x"),
+        Token.plus,
+        Token.ident("y"),
+        Token.semicolon,
+        Token.rbrace,
+        Token.semicolon,
+        Token.let,
+        Token.ident("result"),
+        Token.assign,
+        Token.ident("add"),
+        Token.lparen,
+        Token.ident("five"),
+        Token.comma,
+        Token.ident("ten"),
+        Token.rparen,
+        Token.semicolon,
+        Token.bang,
+        Token.minus,
+        Token.slash,
+        Token.asterisk,
+        Token.int("5"),
+        Token.semicolon,
+        Token.int("5"),
+        Token.lt,
+        Token.int("10"),
+        Token.gt,
+        Token.int("5"),
+        Token.semicolon,
+        Token.@"if",
+        Token.lparen,
+        Token.int("5"),
+        Token.lt,
+        Token.int("10"),
+        Token.rparen,
+        Token.lbrace,
+        Token.@"return",
+        Token.true,
+        Token.semicolon,
+        Token.rbrace,
+        Token.@"else",
+        Token.lbrace,
+        Token.@"return",
+        Token.false,
+        Token.semicolon,
+        Token.rbrace,
+        Token.int("10"),
+        Token.eq,
+        Token.int("10"),
+        Token.semicolon,
+        Token.int("10"),
+        Token.ne,
+        Token.int("9"),
+        Token.semicolon,
+        Token.eof,
     };
 
     var l = Lexer.init(input);
