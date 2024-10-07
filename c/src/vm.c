@@ -48,6 +48,17 @@ vm_t *new_vm(bytecode_t *b) {
   return vm;
 }
 
+char *humanize_vm_error(vm_error_t err) {
+  switch (err) {
+  case VME_SUCCESS:
+    return strdup("success");
+  case VME_ALLOC_ERROR:
+    return strdup("allocation failed");
+  case VME_STACK_OVERFLOW:
+    return strdup("stack overflow");
+  }
+}
+
 static const uint64_t max_stack_size = 2048;
 
 vm_error_t vm_push(vm_t *vm, object_t *obj) {

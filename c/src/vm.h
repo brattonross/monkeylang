@@ -20,6 +20,8 @@ typedef enum {
   VME_STACK_OVERFLOW = -2,
 } vm_error_t;
 
+char *humanize_vm_error(vm_error_t err);
+
 vm_t *new_vm(bytecode_t *b);
 vm_error_t vm_run(vm_t *vm);
 object_t *vm_stack_top(const vm_t *vm);

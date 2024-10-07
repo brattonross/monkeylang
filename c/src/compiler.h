@@ -18,6 +18,8 @@ typedef enum {
   COMPILERE_UNKNOWN_OPERATOR = -1,
 } compiler_error_t;
 
+char *humanize_compiler_error(compiler_error_t err);
+
 compiler_error_t compiler_compile_program(compiler_t *c, program_t *p);
 
 typedef struct {

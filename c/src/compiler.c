@@ -30,6 +30,15 @@ compiler_t *new_compiler(void) {
   return c;
 }
 
+char *humanize_compiler_error(compiler_error_t err) {
+  switch (err) {
+  case COMPILERE_SUCCESS:
+    return strdup("success");
+  case COMPILERE_UNKNOWN_OPERATOR:
+    return strdup("unknown operator");
+  }
+}
+
 ssize_t compiler_add_constant(compiler_t *c, object_t *o) {
   if (c->constants == NULL || c->constants_cap == 0) {
     c->constants_cap = 16;
