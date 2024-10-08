@@ -74,12 +74,25 @@ fn parseLetStatement(self: *Parser) !?ast.Statement {
         self.nextToken();
     }
 
-    return ast.Statement{ .let = let };
+    return .{ .let = let };
+}
+
+fn parseReturnStatement(self: *Parser) ?ast.Statement {
+    const token = self.cur_token;
+    self.nextToken();
+
+    // TODO: we're skipping expressions until we encounter semicolon.
+    while (!self.curTokenIs(.semicolon)) {
+        self.nextToken();
+    }
+
+    return .{ .@"return" = .{ .token = token, .return_value = undefined } };
 }
 
 fn parseStatement(self: *Parser) !?ast.Statement {
     return switch (self.cur_token.type) {
         .let => try self.parseLetStatement(),
+        .@"return" => self.parseReturnStatement(),
         else => null,
     };
 }
@@ -140,5 +153,26 @@ test "let statements" {
     for (tests, 0..) |expected, i| {
         const s = program.statements.items[i];
         try testLetStatement(s, expected);
+    }
+}
+
+test "return statements" {
+    const l = Lexer.init(
+        \\return 5;
+        \\return 10;
+        \\return 993322;
+    );
+    var p = Parser.init(std.testing.allocator, l);
+    defer p.deinit();
+
+    var program = try p.parseProgram();
+    defer program.deinit();
+
+    try checkParserErrors(p);
+
+    try std.testing.expect(program.statements.items.len == 3);
+
+    for (program.statements.items) |s| {
+        try std.testing.expect(std.mem.eql(u8, s.tokenLiteral(), "return"));
     }
 }

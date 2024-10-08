@@ -14,6 +14,7 @@ pub const Identifier = struct {
 
 pub const StatementType = enum {
     let,
+    @"return",
 };
 
 pub const LetStatement = struct {
@@ -22,12 +23,19 @@ pub const LetStatement = struct {
     value: Expression,
 };
 
+pub const ReturnStatement = struct {
+    token: Token,
+    return_value: Expression,
+};
+
 pub const Statement = union(StatementType) {
     let: LetStatement,
+    @"return": ReturnStatement,
 
     pub fn tokenLiteral(self: Statement) []const u8 {
         return switch (self) {
             .let => |s| s.token.literal,
+            .@"return" => |s| s.token.literal,
         };
     }
 };
