@@ -1,121 +1,28 @@
 const std = @import("std");
-const Token = @import("Token.zig");
+const Token = @import("./Lexer.zig").Token;
 
-pub const ExpressionType = enum {
-    ident,
-    integer_literal,
-    prefix,
-    infix,
-};
+pub const Program = struct {
+    statements: std.ArrayList(Statement),
 
-pub const Expression = union(ExpressionType) {
-    ident: Identifier,
-    integer_literal: IntegerLiteral,
-    prefix: *PrefixExpression,
-    infix: *InfixExpression,
-
-    pub fn deinit(self: *const Expression, allocator: std.mem.Allocator) void {
-        switch (self.*) {
-            .prefix => self.prefix.deinit(allocator),
-            .infix => self.infix.deinit(allocator),
-            else => {},
+    pub fn format(self: Program, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        for (self.statements.items) |statement| {
+            try statement.format(fmt, options, writer);
         }
     }
+};
 
-    pub fn format(self: Expression, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+pub const Statement = union(enum) {
+    let: LetStatement,
+    @"return": ReturnStatement,
+    expression: ExpressionStatement,
+
+    pub fn format(self: Statement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
-            .ident => {
-                try writer.print("{}", .{self.ident});
-            },
-            .integer_literal => {
-                try writer.print("{}", .{self.integer_literal});
-            },
-            .prefix => {
-                try writer.print("{}", .{self.prefix});
-            },
-            .infix => {
-                try writer.print("{}", .{self.infix});
-            },
+            .let => try self.let.format(fmt, options, writer),
+            .@"return" => try self.@"return".format(fmt, options, writer),
+            .expression => try self.expression.format(fmt, options, writer),
         }
     }
-};
-
-pub const Identifier = struct {
-    token: Token,
-    value: []const u8,
-
-    pub fn tokenLiteral(self: Identifier) []const u8 {
-        return self.token.literal;
-    }
-
-    pub fn format(self: Identifier, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{s}", .{self.value});
-    }
-};
-
-pub const IntegerLiteral = struct {
-    token: Token,
-    value: i64,
-
-    pub fn tokenLiteral(self: IntegerLiteral) []const u8 {
-        return self.token.literal;
-    }
-
-    pub fn format(self: IntegerLiteral, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{}", .{self.value});
-    }
-};
-
-pub const PrefixExpression = struct {
-    token: Token,
-    operator: []const u8,
-    right: ?Expression,
-
-    pub fn deinit(self: *const PrefixExpression, allocator: std.mem.Allocator) void {
-        if (self.right) |right| {
-            right.deinit(allocator);
-        }
-        allocator.destroy(self);
-    }
-
-    pub fn tokenLiteral(self: PrefixExpression) []const u8 {
-        return self.token.literal;
-    }
-
-    pub fn format(self: PrefixExpression, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("({s}{?})", .{ self.operator, self.right });
-    }
-};
-
-pub const InfixExpression = struct {
-    token: Token,
-    left: ?Expression,
-    operator: []const u8,
-    right: ?Expression,
-
-    pub fn deinit(self: *const InfixExpression, allocator: std.mem.Allocator) void {
-        if (self.left) |left| {
-            left.deinit(allocator);
-        }
-        if (self.right) |right| {
-            right.deinit(allocator);
-        }
-        allocator.destroy(self);
-    }
-
-    pub fn tokenLiteral(self: InfixExpression) []const u8 {
-        return self.token.literal;
-    }
-
-    pub fn format(self: InfixExpression, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("({?} {s} {?})", .{ self.left, self.operator, self.right });
-    }
-};
-
-pub const StatementType = enum {
-    let,
-    @"return",
-    expression,
 };
 
 pub const LetStatement = struct {
@@ -123,8 +30,10 @@ pub const LetStatement = struct {
     name: Identifier,
     value: Expression,
 
-    pub fn format(self: LetStatement, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{s} {} = {};", .{ self.token.literal, self.name, self.value });
+    pub fn format(self: LetStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{} {} = {};", .{ self.token, self.name, self.value });
     }
 };
 
@@ -132,84 +41,171 @@ pub const ReturnStatement = struct {
     token: Token,
     return_value: Expression,
 
-    pub fn format(self: ReturnStatement, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{s} {};", .{ self.token.literal, self.return_value });
+    pub fn format(self: ReturnStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{} {};", .{ self.token, self.return_value });
     }
 };
 
 pub const ExpressionStatement = struct {
     token: Token,
-    expression: ?Expression,
+    expression: Expression,
 
-    pub fn deinit(self: *const ExpressionStatement, allocator: std.mem.Allocator) void {
-        if (self.*.expression) |exp| {
-            switch (exp) {
-                .prefix => exp.prefix.deinit(allocator),
-                .infix => exp.infix.deinit(allocator),
-                else => {},
-            }
-        }
-    }
-
-    pub fn format(self: ExpressionStatement, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        try writer.print("{?}", .{self.expression});
+    pub fn format(self: ExpressionStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        try self.expression.format(fmt, options, writer);
     }
 };
 
-pub const Statement = union(StatementType) {
-    let: LetStatement,
-    @"return": ReturnStatement,
-    expression: ExpressionStatement,
+pub const Identifier = struct {
+    token: Token,
+    value: []const u8,
 
-    pub fn deinit(self: *const Statement, allocator: std.mem.Allocator) void {
-        switch (self.*) {
-            .expression => self.expression.deinit(allocator),
-            else => {},
-        }
-    }
-
-    pub fn tokenLiteral(self: Statement) []const u8 {
-        return switch (self) {
-            .let => |s| s.token.literal,
-            .@"return" => |s| s.token.literal,
-            .expression => |s| s.token.literal,
-        };
-    }
-
-    pub fn format(self: Statement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        return try switch (self) {
-            .let => |s| s.format(fmt, options, writer),
-            .@"return" => |s| s.format(fmt, options, writer),
-            .expression => |s| s.format(fmt, options, writer),
-        };
+    pub fn format(self: Identifier, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{s}", .{self.value});
     }
 };
 
-pub const Program = struct {
-    allocator: std.mem.Allocator,
+pub const Expression = union(enum) {
+    identifier: Identifier,
+    integer: IntegerLiteral,
+    prefix: *PrefixExpression,
+    infix: *InfixExpression,
+    boolean: Boolean,
+    @"if": *IfExpression,
+    function: FunctionLiteral,
+    call: *CallExpression,
+
+    pub fn format(self: Expression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        switch (self) {
+            .identifier => try self.identifier.format(fmt, options, writer),
+            .integer => try self.integer.format(fmt, options, writer),
+            .prefix => try self.prefix.format(fmt, options, writer),
+            .infix => try self.infix.format(fmt, options, writer),
+            .boolean => try self.boolean.format(fmt, options, writer),
+            .@"if" => try self.@"if".format(fmt, options, writer),
+            .function => try self.function.format(fmt, options, writer),
+            .call => try self.call.format(fmt, options, writer),
+        }
+    }
+};
+
+pub const IntegerLiteral = struct {
+    token: Token,
+    value: i64,
+
+    pub fn format(self: IntegerLiteral, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{}", .{self.value});
+    }
+};
+
+pub const PrefixExpression = struct {
+    token: Token,
+    operator: []const u8,
+    right: Expression,
+
+    pub fn format(self: PrefixExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{s}{}", .{ self.operator, self.right });
+    }
+};
+
+pub const InfixExpression = struct {
+    token: Token,
+    left: Expression,
+    operator: []const u8,
+    right: Expression,
+
+    pub fn format(self: InfixExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{} {s} {}", .{ self.left, self.operator, self.right });
+    }
+};
+
+pub const Boolean = struct {
+    token: Token,
+    value: bool,
+
+    pub fn format(self: Boolean, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{}", .{self.value});
+    }
+};
+
+pub const IfExpression = struct {
+    token: Token,
+    condition: Expression,
+    consequence: BlockStatement,
+    alternative: ?BlockStatement,
+
+    pub fn format(self: IfExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("if ({}) {{\n", .{self.condition});
+        try writer.print("\t{}\n", .{self.consequence});
+        try writer.writeAll("}");
+
+        if (self.alternative) |alt| {
+            try writer.writeAll(" else {\n");
+            try writer.print("\t{}\n", .{alt});
+            try writer.writeAll("}");
+        }
+    }
+};
+
+pub const BlockStatement = struct {
+    token: Token,
     statements: std.ArrayList(Statement),
 
-    pub fn init(allocator: std.mem.Allocator) Program {
-        return .{
-            .allocator = allocator,
-            .statements = std.ArrayList(Statement).init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *Program) void {
-        for (self.statements.items) |s| {
-            s.deinit(self.allocator);
+    pub fn format(self: BlockStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        for (self.statements.items) |statement| {
+            try statement.format(fmt, options, writer);
         }
-        self.statements.deinit();
     }
+};
 
-    pub fn tokenLiteral(self: Program) []const u8 {
-        return if (self.statements.len > 0) self.statements[0].tokenLiteral() else "";
-    }
+pub const FunctionLiteral = struct {
+    token: Token,
+    parameters: std.ArrayList(Identifier),
+    body: BlockStatement,
 
-    pub fn format(self: Program, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-        for (self.statements.items) |s| {
-            try writer.print("{}", .{s});
+    pub fn format(self: FunctionLiteral, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{s}(", .{self.token.literal});
+        for (0..self.parameters.items.len) |i| {
+            try writer.print("{}", .{self.parameters.items[i]});
+            if (i != self.parameters.items.len - 1) {
+                try writer.writeAll(", ");
+            }
         }
+        try writer.print(") {{\n{}\n}}", .{self.body});
+    }
+};
+
+pub const CallExpression = struct {
+    token: Token,
+    function: Expression,
+    arguments: std.ArrayList(Expression),
+
+    pub fn format(self: CallExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print("{}(", .{self.function});
+        for (0..self.arguments.items.len) |i| {
+            try writer.print("{}", .{self.arguments.items[i]});
+            if (i != self.arguments.items.len - 1) {
+                try writer.writeAll(", ");
+            }
+        }
+        try writer.writeAll(")");
     }
 };
