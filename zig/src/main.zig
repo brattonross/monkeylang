@@ -1,6 +1,7 @@
 const std = @import("std");
 const Lexer = @import("./Lexer.zig");
 const Parser = @import("./Parser.zig");
+const Evaluator = @import("./Evaluator.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -8,31 +9,54 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    var root_arena = std.heap.ArenaAllocator.init(allocator);
-    defer root_arena.deinit();
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
 
-    const root_alloc = root_arena.allocator();
+    const root_alloc = arena.allocator();
 
     var args = try std.process.argsWithAllocator(root_alloc);
-    const exe = args.next() orelse unreachable; // ignore exe path
+    _ = args.next() orelse unreachable; // ignore exe path
 
-    const filename = args.next() orelse {
-        std.log.err("usage: {s} <filename>", .{exe});
-        std.process.exit(1);
-    };
+    if (args.next()) |filename| {
+        const cwd = std.fs.cwd();
+        var file = try cwd.openFile(filename, .{});
+        defer file.close();
 
-    const cwd = std.fs.cwd();
-    var file = try cwd.openFile(filename, .{});
-    defer file.close();
+        const input = try file.readToEndAlloc(root_alloc, 4096);
+        var lexer = Lexer.init(input);
+        var parser = try Parser.init(root_alloc, &lexer);
+        const program = try parser.parseProgram();
 
-    const input = try file.readToEndAlloc(root_alloc, 4096);
-    var lexer = Lexer.init(input);
-    var parser = try Parser.init(root_alloc, &lexer);
-    const program = try parser.parseProgram();
+        for (parser.errors.items) |err| {
+            std.log.err("{s}", .{err});
+        }
 
-    for (parser.errors.items) |err| {
-        std.log.err("{s}", .{err});
+        var evaluator = Evaluator{ .allocator = root_alloc };
+        const obj = try evaluator.evalProgram(program);
+        std.debug.print("{?}\n", .{obj});
+    } else {
+        var stdout = std.io.getStdOut().writer();
+        var stdin = std.io.getStdIn().reader();
+
+        while (true) {
+            try stdout.writeAll(">> ");
+
+            var buf: [4096]u8 = undefined;
+            if (try stdin.readUntilDelimiterOrEof(&buf, '\n')) |input| {
+                var lexer = Lexer.init(input);
+                var parser = try Parser.init(root_alloc, &lexer);
+                const program = try parser.parseProgram();
+
+                for (parser.errors.items) |err| {
+                    std.log.err("{s}", .{err});
+                }
+
+                var evaluator = Evaluator{ .allocator = root_alloc };
+                const result = try evaluator.evalProgram(program);
+                std.debug.print("{}\n", .{result});
+            }
+
+            _ = arena.reset(.free_all);
+        }
     }
-
-    std.debug.print("{}\n", .{program});
 }
