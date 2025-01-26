@@ -2,6 +2,7 @@ const std = @import("std");
 const Lexer = @import("./Lexer.zig");
 const Parser = @import("./Parser.zig");
 const Evaluator = @import("./Evaluator.zig");
+const Environment = @import("./Environment.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -26,17 +27,19 @@ pub fn main() !void {
         var lexer = Lexer.init(input);
         var parser = try Parser.init(root_alloc, &lexer);
         const program = try parser.parseProgram();
+        var env = Environment.init(root_alloc);
 
         for (parser.errors.items) |err| {
             std.log.err("{s}", .{err});
         }
 
         var evaluator = Evaluator{ .allocator = root_alloc };
-        const obj = try evaluator.evalProgram(program);
+        const obj = try evaluator.evalProgram(program, &env);
         std.debug.print("{?}\n", .{obj});
     } else {
         var stdout = std.io.getStdOut().writer();
         var stdin = std.io.getStdIn().reader();
+        var env = Environment.init(root_alloc);
 
         while (true) {
             try stdout.writeAll(">> ");
@@ -52,11 +55,10 @@ pub fn main() !void {
                 }
 
                 var evaluator = Evaluator{ .allocator = root_alloc };
-                const result = try evaluator.evalProgram(program);
-                std.debug.print("{}\n", .{result});
+                if (try evaluator.evalProgram(program, &env)) |result| {
+                    std.debug.print("{}\n", .{result});
+                }
             }
-
-            _ = arena.reset(.free_all);
         }
     }
 }

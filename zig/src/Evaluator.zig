@@ -1,61 +1,76 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ast = @import("./ast.zig");
+const Environment = @import("./Environment.zig");
 
 const Evaluator = @This();
 
 allocator: Allocator,
 
-pub fn evalProgram(self: *Evaluator, program: ast.Program) !Object {
-    var result: Object = undefined;
+pub fn evalProgram(self: *Evaluator, program: ast.Program, env: *Environment) !?Object {
+    var result: ?Object = null;
     for (program.statements.items) |statement| {
-        result = try self.evalStatement(statement);
-        if (result == .@"return") {
-            return result.@"return".value;
-        }
+        result = try self.evalStatement(statement, env);
+        if (result) |res| switch (res) {
+            .@"return" => |ret| return ret.value,
+            .@"error" => return result,
+            else => {},
+        };
     }
     return result;
 }
 
-fn evalStatement(self: *Evaluator, statement: ast.Statement) !Object {
+fn evalStatement(self: *Evaluator, statement: ast.Statement, env: *Environment) !?Object {
     return switch (statement) {
-        .expression => |s| self.evalExpression(s.expression),
-        .@"return" => |s| {
-            const value = try self.evalExpression(s.return_value);
+        .let => {
+            const value = try self.evalExpression(statement.let.value, env);
+            if (value) |obj| {
+                if (obj == .@"error") return obj;
+                try env.set(statement.let.name.value, obj);
+            }
+            return null;
+        },
+        .expression => |s| try self.evalExpression(s.expression, env),
+        .@"return" => {
+            const value = try self.evalExpression(statement.@"return".return_value, env) orelse return null;
+            if (value == .@"error") return value;
             const ret = try self.allocator.create(ReturnValue);
             ret.* = .{ .value = value };
             return .{ .@"return" = ret };
         },
-        else => std.debug.panic("unhandled eval statement type: {s}", .{@tagName(statement)}),
     };
 }
 
-fn evalExpression(self: *Evaluator, expression: ast.Expression) anyerror!Object {
+fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environment) anyerror!?Object {
     return switch (expression) {
+        .identifier => try self.evalIdentifier(expression.identifier, env),
         .integer => .{ .integer = .{ .value = expression.integer.value } },
         .boolean => nativeBoolToBooleanObject(expression.boolean.value),
         .prefix => blk: {
-            const right = try self.evalExpression(expression.prefix.right);
-            break :blk self.evalPrefixExpression(expression.prefix.operator, right);
+            const right = try self.evalExpression(expression.prefix.right, env) orelse return null;
+            if (right == .@"error") return right;
+            break :blk try self.evalPrefixExpression(expression.prefix.operator, right);
         },
         .infix => blk: {
-            const left = try self.evalExpression(expression.infix.left);
-            const right = try self.evalExpression(expression.infix.right);
-            break :blk self.evalInfixExpression(expression.infix.operator, left, right);
+            const left = try self.evalExpression(expression.infix.left, env) orelse return null;
+            if (left == .@"error") return left;
+            const right = try self.evalExpression(expression.infix.right, env) orelse return null;
+            if (right == .@"error") return right;
+            break :blk try self.evalInfixExpression(expression.infix.operator, left, right);
         },
-        .@"if" => self.evalIfExpression(expression.@"if"),
+        .@"if" => self.evalIfExpression(expression.@"if", env),
         else => std.debug.panic("unhandled eval expression type: {s}", .{@tagName(expression)}),
     };
 }
 
-fn evalPrefixExpression(self: *Evaluator, operator: []const u8, right: ?Object) Object {
+fn evalPrefixExpression(self: *Evaluator, operator: []const u8, right: ?Object) !Object {
     if (std.mem.eql(u8, operator, "!")) {
         return self.evalBangOperatorExpression(right);
-    }
-    if (std.mem.eql(u8, operator, "-")) {
+    } else if (std.mem.eql(u8, operator, "-")) {
         return self.evalMinusPrefixOperatorExpression(right);
     }
-    return null_object;
+    const msg = try std.fmt.allocPrint(self.allocator, "unknown operator: {s}{}", .{ operator, @as(Object.Type, right.?) });
+    return .{ .@"error" = .{ .message = msg } };
 }
 
 fn evalBangOperatorExpression(_: *Evaluator, right: ?Object) Object {
@@ -66,11 +81,14 @@ fn evalBangOperatorExpression(_: *Evaluator, right: ?Object) Object {
     } else false_object;
 }
 
-fn evalMinusPrefixOperatorExpression(_: *Evaluator, right: ?Object) Object {
+fn evalMinusPrefixOperatorExpression(self: *Evaluator, right: ?Object) !Object {
     const obj = right orelse return null_object;
     return switch (obj) {
         .integer => |integer| .{ .integer = .{ .value = -integer.value } },
-        else => null_object,
+        else => {
+            const msg = try std.fmt.allocPrint(self.allocator, "unknown operator: -{}", .{@as(Object.Type, right.?)});
+            return .{ .@"error" = .{ .message = msg } };
+        },
     };
 }
 
@@ -83,8 +101,12 @@ fn evalInfixExpression(self: *Evaluator, operator: []const u8, left: ?Object, ri
         return self.evalObjectEqualComparison(l, r);
     } else if (std.mem.eql(u8, operator, "!=")) {
         return self.evalObjectNotEqualComparison(l, r);
+    } else if (@as(Object.Type, l) != @as(Object.Type, r)) {
+        const msg = try std.fmt.allocPrint(self.allocator, "type mismatch: {} {s} {}", .{ @as(Object.Type, l), operator, @as(Object.Type, r) });
+        return .{ .@"error" = .{ .message = msg } };
     } else {
-        return null_object;
+        const msg = try std.fmt.allocPrint(self.allocator, "unknown operator: {} {s} {}", .{ @as(Object.Type, l), operator, @as(Object.Type, r) });
+        return .{ .@"error" = .{ .message = msg } };
     }
 }
 
@@ -110,7 +132,7 @@ fn evalObjectNotEqualComparison(_: *Evaluator, left: Object, right: Object) Obje
     };
 }
 
-fn evalIntegerInfixExpression(_: *Evaluator, operator: []const u8, left: Object, right: Object) !Object {
+fn evalIntegerInfixExpression(self: *Evaluator, operator: []const u8, left: Object, right: Object) !Object {
     const lvalue = left.integer.value;
     const rvalue = right.integer.value;
 
@@ -132,30 +154,40 @@ fn evalIntegerInfixExpression(_: *Evaluator, operator: []const u8, left: Object,
     } else if (std.mem.eql(u8, operator, "!=")) {
         return nativeBoolToBooleanObject(lvalue != rvalue);
     } else {
-        return null_object;
+        const msg = try std.fmt.allocPrint(self.allocator, "unknown operator: {} {s} {}", .{ @as(Object.Type, left), operator, @as(Object.Type, right) });
+        return .{ .@"error" = .{ .message = msg } };
     }
 }
 
-fn evalIfExpression(self: *Evaluator, expression: *ast.IfExpression) !Object {
-    const condition = try self.evalExpression(expression.condition);
-    if (isTruthy(condition)) {
-        return self.evalBlockStatement(expression.consequence);
+fn evalIfExpression(self: *Evaluator, expression: *ast.IfExpression, env: *Environment) !?Object {
+    const condition = try self.evalExpression(expression.condition, env) orelse return null;
+    if (condition == .@"error") {
+        return condition;
+    } else if (isTruthy(condition)) {
+        return self.evalBlockStatement(expression.consequence, env);
     } else if (expression.alternative) |alt| {
-        return self.evalBlockStatement(alt);
+        return self.evalBlockStatement(alt, env);
     } else {
         return null_object;
     }
 }
 
-fn evalBlockStatement(self: *Evaluator, blk: ast.BlockStatement) !Object {
-    var result: Object = undefined;
+fn evalBlockStatement(self: *Evaluator, blk: ast.BlockStatement, env: *Environment) !?Object {
+    var result: ?Object = null;
     for (blk.statements.items) |statement| {
-        result = try self.evalStatement(statement);
-        if (result == .@"return") {
+        result = try self.evalStatement(statement, env);
+        if (result) |res| if (res == .@"return" or res == .@"error") {
             return result;
-        }
+        };
     }
     return result;
+}
+
+fn evalIdentifier(self: *Evaluator, identifier: ast.Identifier, env: *Environment) !Object {
+    return env.get(identifier.value) orelse {
+        const msg = try std.fmt.allocPrint(self.allocator, "identifier not found: {s}", .{identifier.value});
+        return .{ .@"error" = .{ .message = msg } };
+    };
 }
 
 fn isTruthy(obj: Object) bool {
@@ -179,12 +211,14 @@ pub const Object = union(Type) {
     boolean: Boolean,
     null: void,
     @"return": *ReturnValue,
+    @"error": Error,
 
     pub const Type = enum {
         integer,
         boolean,
         null,
         @"return",
+        @"error",
     };
 
     pub fn format(self: Object, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -193,6 +227,7 @@ pub const Object = union(Type) {
             .boolean => try self.boolean.format(fmt, options, writer),
             .null => try writer.writeAll("null"),
             .@"return" => try self.@"return".format(fmt, options, writer),
+            .@"error" => try self.@"error".format(fmt, options, writer),
         }
     }
 };
@@ -224,5 +259,15 @@ pub const ReturnValue = struct {
         _ = fmt;
         _ = options;
         try writer.print("{}", .{self.value});
+    }
+};
+
+pub const Error = struct {
+    message: []const u8,
+
+    pub fn format(self: Error, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{s}", .{self.message});
     }
 };
