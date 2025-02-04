@@ -59,8 +59,63 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
             break :blk try self.evalInfixExpression(expression.infix.operator, left, right);
         },
         .@"if" => self.evalIfExpression(expression.@"if", env),
-        else => std.debug.panic("unhandled eval expression type: {s}", .{@tagName(expression)}),
+        .function => .{ .function = .{
+            .parameters = expression.function.parameters,
+            .body = expression.function.body,
+            .env = env,
+        } },
+        .call => {
+            const func = try self.evalExpression(expression.call.function, env) orelse return null;
+            if (func == .@"error") {
+                return func;
+            }
+            const args = try self.evalExpressions(expression.call.arguments.items, env);
+            if (args.items.len == 1 and args.items[0] == .@"error") {
+                return args.items[0];
+            }
+            return try self.applyFunction(func, args.items);
+        },
     };
+}
+
+fn evalExpressions(self: *Evaluator, expressions: []ast.Expression, env: *Environment) !std.ArrayList(Object) {
+    var result = std.ArrayList(Object).init(self.allocator);
+
+    for (expressions) |exp| {
+        if (try self.evalExpression(exp, env)) |res| {
+            if (res == .@"error") {
+                result.clearAndFree();
+                try result.append(res);
+                return result;
+            }
+            try result.append(res);
+        }
+    }
+
+    return result;
+}
+
+fn applyFunction(self: *Evaluator, func: Object, args: []Object) !?Object {
+    if (func != .function) {
+        const msg = try std.fmt.allocPrint(self.allocator, "not a function: {s}", .{@tagName(func)});
+        return .{ .@"error" = .{ .message = msg } };
+    }
+    const extended_env = try self.extendFunctionEnv(func.function, args);
+    const result = try self.evalBlockStatement(func.function.body, extended_env) orelse return null;
+    return switch (result) {
+        .@"return" => result.@"return".value,
+        else => result,
+    };
+}
+
+fn extendFunctionEnv(self: *Evaluator, func: Function, args: []Object) !*Environment {
+    var env = try self.allocator.create(Environment);
+    env.* = Environment.init(self.allocator);
+    env.outer = func.env;
+    for (func.parameters.items, 0..) |param, i| {
+        try env.set(param.value, args[i]);
+    }
+    return env;
 }
 
 fn evalPrefixExpression(self: *Evaluator, operator: []const u8, right: ?Object) !Object {
@@ -212,6 +267,7 @@ pub const Object = union(Type) {
     null: void,
     @"return": *ReturnValue,
     @"error": Error,
+    function: Function,
 
     pub const Type = enum {
         integer,
@@ -219,6 +275,7 @@ pub const Object = union(Type) {
         null,
         @"return",
         @"error",
+        function,
     };
 
     pub fn format(self: Object, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -228,6 +285,7 @@ pub const Object = union(Type) {
             .null => try writer.writeAll("null"),
             .@"return" => try self.@"return".format(fmt, options, writer),
             .@"error" => try self.@"error".format(fmt, options, writer),
+            .function => try self.function.format(fmt, options, writer),
         }
     }
 };
@@ -269,5 +327,24 @@ pub const Error = struct {
         _ = fmt;
         _ = options;
         try writer.print("{s}", .{self.message});
+    }
+};
+
+pub const Function = struct {
+    parameters: std.ArrayList(ast.Identifier),
+    body: ast.BlockStatement,
+    env: *Environment,
+
+    pub fn format(self: Function, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.writeAll("fn(");
+        for (0..self.parameters.items.len) |i| {
+            try writer.print("{}", .{self.parameters.items[i]});
+            if (i < self.parameters.items.len - 1) {
+                try writer.writeAll(", ");
+            }
+        }
+        try writer.print(") {{\n{}\n}}", .{self.body});
     }
 };

@@ -1,84 +1,79 @@
-#include "token.h"
-#include <stdlib.h>
+#pragma once
+
+#include "string.c"
 #include <string.h>
 
-void token_free(token_t *t) {
-  free(t->literal);
-  t->literal = NULL;
-  free(t);
-  t = NULL;
-}
+typedef enum TokenType {
+  TOKEN_ILLEGAL,
+  TOKEN_EOF,
 
-char *token_type_humanize(token_type_t t) {
-  switch (t) {
-  case TOKEN_EOF:
-    return strdup("EOF");
-  case TOKEN_ILLEGAL:
-    return strdup("ILLEGAL");
+  // identifiers and literals
+  TOKEN_IDENT,
+  TOKEN_INT,
 
-  case TOKEN_IDENTIFIER:
-    return strdup("IDENTIFIER");
-  case TOKEN_INT:
-    return strdup("INT");
-  case TOKEN_STRING:
-    return strdup("STRING");
+  // operators
+  TOKEN_ASSIGN,
+  TOKEN_PLUS,
+  TOKEN_MINUS,
+  TOKEN_BANG,
+  TOKEN_ASTERISK,
+  TOKEN_SLASH,
 
-  case TOKEN_ASSIGN:
-    return strdup("ASSIGN");
-  case TOKEN_PLUS:
-    return strdup("PLUS");
-  case TOKEN_MINUS:
-    return strdup("MINUS");
-  case TOKEN_BANG:
-    return strdup("BANG");
-  case TOKEN_ASTERISK:
-    return strdup("ASTERISK");
-  case TOKEN_SLASH:
-    return strdup("SLASH");
+  TOKEN_LT,
+  TOKEN_GT,
 
-  case TOKEN_LESS_THAN:
-    return strdup("LESS_THAN");
-  case TOKEN_GREATER_THAN:
-    return strdup("GREATER_THAN");
+  TOKEN_EQ,
+  TOKEN_NOT_EQ,
 
-  case TOKEN_EQUAL:
-    return strdup("EQUAL");
-  case TOKEN_NOT_EQUAL:
-    return strdup("NOT_EQUAL");
+  // delimiters
+  TOKEN_COMMA,
+  TOKEN_SEMICOLON,
 
-  case TOKEN_COMMA:
-    return strdup("COMMA");
-  case TOKEN_SEMICOLON:
-    return strdup("SEMICOLON");
-  case TOKEN_COLON:
-    return strdup("COLON");
+  TOKEN_LPAREN,
+  TOKEN_RPAREN,
+  TOKEN_LBRACE,
+  TOKEN_RBRACE,
 
-  case TOKEN_LEFT_PAREN:
-    return strdup("LEFT_PAREN");
-  case TOKEN_RIGHT_PAREN:
-    return strdup("RIGHT_PAREN");
-  case TOKEN_LEFT_BRACE:
-    return strdup("LEFT_BRACE");
-  case TOKEN_RIGHT_BRACE:
-    return strdup("RIGHT_BRACE");
-  case TOKEN_LEFT_BRACKET:
-    return strdup("LEFT_BRACKET");
-  case TOKEN_RIGHT_BRACKET:
-    return strdup("RIGHT_BRACKET");
+  // keywords
+  TOKEN_FUNCTION,
+  TOKEN_LET,
+  TOKEN_TRUE,
+  TOKEN_FALSE,
+  TOKEN_IF,
+  TOKEN_ELSE,
+  TOKEN_RETURN,
+} TokenType;
 
-  case TOKEN_FUNCTION:
-    return strdup("FUNCTION");
-  case TOKEN_LET:
-    return strdup("LET");
-  case TOKEN_TRUE:
-    return strdup("TRUE");
-  case TOKEN_FALSE:
-    return strdup("FALSE");
-  case TOKEN_IF:
-    return strdup("IF");
-  case TOKEN_ELSE:
-    return strdup("ELSE");
-  case TOKEN_RETURN:
-    return strdup("RETURN");
+const String token_type_strings[] = {
+    String("ILLEGAL"),  String("EOF"),    String("IDENT"),  String("INT"),
+    String("ASSIGN"),   String("PLUS"),   String("MINUS"),  String("BANG"),
+    String("ASTERISK"), String("SLASH"),  String("LT"),     String("GT"),
+    String("EQ"),       String("NOT_EQ"), String("COMMA"),  String("SEMICOLON"),
+    String("LPAREN"),   String("RPAREN"), String("LBRACE"), String("RBRACE"),
+    String("FUNCTION"), String("LET"),    String("TRUE"),   String("FALSE"),
+    String("IF"),       String("ELSE"),   String("RETURN"),
+};
+
+typedef struct Token {
+  TokenType type;
+  String literal;
+} Token;
+
+TokenType token_type_from_ident(String ident) {
+  if (strncmp(ident.buffer, "fn", ident.len) == 0) {
+    return TOKEN_FUNCTION;
+  } else if (strncmp(ident.buffer, "let", ident.len) == 0) {
+    return TOKEN_LET;
+  } else if (strncmp(ident.buffer, "true", ident.len) == 0) {
+    return TOKEN_TRUE;
+  } else if (strncmp(ident.buffer, "false", ident.len) == 0) {
+    return TOKEN_FALSE;
+  } else if (strncmp(ident.buffer, "if", ident.len) == 0) {
+    return TOKEN_IF;
+  } else if (strncmp(ident.buffer, "else", ident.len) == 0) {
+    return TOKEN_ELSE;
+  } else if (strncmp(ident.buffer, "return", ident.len) == 0) {
+    return TOKEN_RETURN;
   }
+  return TOKEN_IDENT;
 }

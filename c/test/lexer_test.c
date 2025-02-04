@@ -1,89 +1,145 @@
-#include "lexer_test.h"
-#include "../src/lexer.h"
-#include "unity.h"
+#include "../src/lexer.c"
+#include "../src/token.c"
+#include <assert.h>
+#include <string.h>
 
-void test_lexer_next_token(void) {
-  typedef struct {
-    const token_type_t type;
-    const char *literal;
-  } testcase_t;
-  testcase_t expected[] = {
-      {TOKEN_LET, "let"},        {TOKEN_IDENTIFIER, "five"},
-      {TOKEN_ASSIGN, "="},       {TOKEN_INT, "5"},
-      {TOKEN_SEMICOLON, ";"},    {TOKEN_LET, "let"},
-      {TOKEN_IDENTIFIER, "ten"}, {TOKEN_ASSIGN, "="},
-      {TOKEN_INT, "10"},         {TOKEN_SEMICOLON, ";"},
-      {TOKEN_LET, "let"},        {TOKEN_IDENTIFIER, "add"},
-      {TOKEN_ASSIGN, "="},       {TOKEN_FUNCTION, "fn"},
-      {TOKEN_LEFT_PAREN, "("},   {TOKEN_IDENTIFIER, "x"},
-      {TOKEN_COMMA, ","},        {TOKEN_IDENTIFIER, "y"},
-      {TOKEN_RIGHT_PAREN, ")"},  {TOKEN_LEFT_BRACE, "{"},
-      {TOKEN_IDENTIFIER, "x"},   {TOKEN_PLUS, "+"},
-      {TOKEN_IDENTIFIER, "y"},   {TOKEN_SEMICOLON, ";"},
-      {TOKEN_RIGHT_BRACE, "}"},  {TOKEN_SEMICOLON, ";"},
-      {TOKEN_LET, "let"},        {TOKEN_IDENTIFIER, "result"},
-      {TOKEN_ASSIGN, "="},       {TOKEN_IDENTIFIER, "add"},
-      {TOKEN_LEFT_PAREN, "("},   {TOKEN_IDENTIFIER, "five"},
-      {TOKEN_COMMA, ","},        {TOKEN_IDENTIFIER, "ten"},
-      {TOKEN_RIGHT_PAREN, ")"},  {TOKEN_SEMICOLON, ";"},
-      {TOKEN_BANG, "!"},         {TOKEN_MINUS, "-"},
-      {TOKEN_SLASH, "/"},        {TOKEN_ASTERISK, "*"},
-      {TOKEN_INT, "5"},          {TOKEN_SEMICOLON, ";"},
-      {TOKEN_INT, "5"},          {TOKEN_LESS_THAN, "<"},
-      {TOKEN_INT, "10"},         {TOKEN_GREATER_THAN, ">"},
-      {TOKEN_INT, "5"},          {TOKEN_SEMICOLON, ";"},
-      {TOKEN_IF, "if"},          {TOKEN_LEFT_PAREN, "("},
-      {TOKEN_INT, "5"},          {TOKEN_LESS_THAN, "<"},
-      {TOKEN_INT, "10"},         {TOKEN_RIGHT_PAREN, ")"},
-      {TOKEN_LEFT_BRACE, "{"},   {TOKEN_RETURN, "return"},
-      {TOKEN_TRUE, "true"},      {TOKEN_SEMICOLON, ";"},
-      {TOKEN_RIGHT_BRACE, "}"},  {TOKEN_ELSE, "else"},
-      {TOKEN_LEFT_BRACE, "{"},   {TOKEN_RETURN, "return"},
-      {TOKEN_FALSE, "false"},    {TOKEN_SEMICOLON, ";"},
-      {TOKEN_RIGHT_BRACE, "}"},  {TOKEN_INT, "10"},
-      {TOKEN_EQUAL, "=="},       {TOKEN_INT, "10"},
-      {TOKEN_SEMICOLON, ";"},    {TOKEN_INT, "10"},
-      {TOKEN_NOT_EQUAL, "!="},   {TOKEN_INT, "9"},
-      {TOKEN_SEMICOLON, ";"},    {TOKEN_STRING, "foobar"},
-      {TOKEN_STRING, "foo bar"}, {TOKEN_LEFT_BRACKET, "["},
-      {TOKEN_INT, "1"},          {TOKEN_COMMA, ","},
-      {TOKEN_INT, "2"},          {TOKEN_RIGHT_BRACKET, "]"},
-      {TOKEN_SEMICOLON, ";"},    {TOKEN_LEFT_BRACE, "{"},
-      {TOKEN_STRING, "foo"},     {TOKEN_COLON, ":"},
-      {TOKEN_STRING, "bar"},     {TOKEN_RIGHT_BRACE, "}"},
-      {TOKEN_EOF, ""},
+void test_token_type(void);
+void test_next_token(void);
+
+int main(void) {
+  test_token_type();
+  test_next_token();
+}
+
+void test_token_type(void) {
+  char *input = "=+(){},;";
+  Lexer l = {0};
+  lexer_init(&l, input);
+
+  Token expected[] = {
+      (Token){.type = TOKEN_ASSIGN, .literal = String("=")},
+      (Token){.type = TOKEN_PLUS, .literal = String("+")},
+      (Token){.type = TOKEN_LPAREN, .literal = String("(")},
+      (Token){.type = TOKEN_RPAREN, .literal = String(")")},
+      (Token){.type = TOKEN_LBRACE, .literal = String("{")},
+      (Token){.type = TOKEN_RBRACE, .literal = String("}")},
+      (Token){.type = TOKEN_COMMA, .literal = String(",")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_EOF, .literal = String("")},
   };
-  lexer_t *l = lexer_init("let five = 5;\n"
-                          "let ten = 10;\n"
-                          "\n"
-                          "let add = fn(x, y) {\n"
-                          "  x + y;\n"
-                          "};\n"
-                          "\n"
-                          "let result = add(five, ten);\n"
-                          "!-/*5;\n"
-                          "5 < 10 > 5;\n"
-                          "\n"
-                          "if (5 < 10) {\n"
-                          "  return true;\n"
-                          "} else {\n"
-                          "  return false;\n"
-                          "}\n"
-                          "\n"
-                          "10 == 10;\n"
-                          "10 != 9;\n"
-                          "\"foobar\"\n"
-                          "\"foo bar\"\n"
-                          "[1, 2];\n"
-                          "{\"foo\": \"bar\"}\n");
-  TEST_ASSERT_NOT_NULL(l);
+  for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+    Token t = lexer_next_token(&l);
+    assert(expected[i].type == t.type);
+    assert(expected[i].literal.len == t.literal.len);
+    assert(strncmp(expected[i].literal.buffer, t.literal.buffer,
+                   t.literal.len) == 0);
+  }
+}
 
-  int i = 0;
-  for (token_t *actual = lexer_next_token(l); actual->type != TOKEN_EOF;
-       actual = lexer_next_token(l)) {
-    TEST_ASSERT_NOT_NULL(actual);
-    TEST_ASSERT_EQUAL_INT(expected[i].type, actual->type);
-    TEST_ASSERT_EQUAL_STRING(expected[i].literal, actual->literal);
-    i++;
+void test_next_token(void) {
+  char *input = "let five = 5;\n"
+                "let ten = 10;\n"
+                "\n"
+                "let add = fn(x, y) {\n"
+                "\tx + y;\n"
+                "};\n"
+                "\n"
+                "let result = add(five, ten);\n"
+                "!-/*5;\n"
+                "5 < 10 > 5;\n"
+                "\n"
+                "if (5 < 10) {\n"
+                "\treturn true;\n"
+                "} else {\n"
+                "\treturn false;\n"
+                "}\n"
+                "\n"
+                "10 == 10;\n"
+                "10 != 9;\n";
+  Lexer l = {0};
+  lexer_init(&l, input);
+
+  Token expected[] = {
+      (Token){.type = TOKEN_LET, .literal = String("let")},
+      (Token){.type = TOKEN_IDENT, .literal = String("five")},
+      (Token){.type = TOKEN_ASSIGN, .literal = String("=")},
+      (Token){.type = TOKEN_INT, .literal = String("5")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_LET, .literal = String("let")},
+      (Token){.type = TOKEN_IDENT, .literal = String("ten")},
+      (Token){.type = TOKEN_ASSIGN, .literal = String("=")},
+      (Token){.type = TOKEN_INT, .literal = String("10")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_LET, .literal = String("let")},
+      (Token){.type = TOKEN_IDENT, .literal = String("add")},
+      (Token){.type = TOKEN_ASSIGN, .literal = String("=")},
+      (Token){.type = TOKEN_FUNCTION, .literal = String("fn")},
+      (Token){.type = TOKEN_LPAREN, .literal = String("(")},
+      (Token){.type = TOKEN_IDENT, .literal = String("x")},
+      (Token){.type = TOKEN_COMMA, .literal = String(",")},
+      (Token){.type = TOKEN_IDENT, .literal = String("y")},
+      (Token){.type = TOKEN_RPAREN, .literal = String(")")},
+      (Token){.type = TOKEN_LBRACE, .literal = String("{")},
+      (Token){.type = TOKEN_IDENT, .literal = String("x")},
+      (Token){.type = TOKEN_PLUS, .literal = String("+")},
+      (Token){.type = TOKEN_IDENT, .literal = String("y")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_RBRACE, .literal = String("}")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_LET, .literal = String("let")},
+      (Token){.type = TOKEN_IDENT, .literal = String("result")},
+      (Token){.type = TOKEN_ASSIGN, .literal = String("=")},
+      (Token){.type = TOKEN_IDENT, .literal = String("add")},
+      (Token){.type = TOKEN_LPAREN, .literal = String("(")},
+      (Token){.type = TOKEN_IDENT, .literal = String("five")},
+      (Token){.type = TOKEN_COMMA, .literal = String(",")},
+      (Token){.type = TOKEN_IDENT, .literal = String("ten")},
+      (Token){.type = TOKEN_RPAREN, .literal = String(")")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_BANG, .literal = String("!")},
+      (Token){.type = TOKEN_MINUS, .literal = String("-")},
+      (Token){.type = TOKEN_SLASH, .literal = String("/")},
+      (Token){.type = TOKEN_ASTERISK, .literal = String("*")},
+      (Token){.type = TOKEN_INT, .literal = String("5")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_INT, .literal = String("5")},
+      (Token){.type = TOKEN_LT, .literal = String("<")},
+      (Token){.type = TOKEN_INT, .literal = String("10")},
+      (Token){.type = TOKEN_GT, .literal = String(">")},
+      (Token){.type = TOKEN_INT, .literal = String("5")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_IF, .literal = String("if")},
+      (Token){.type = TOKEN_LPAREN, .literal = String("(")},
+      (Token){.type = TOKEN_INT, .literal = String("5")},
+      (Token){.type = TOKEN_LT, .literal = String("<")},
+      (Token){.type = TOKEN_INT, .literal = String("10")},
+      (Token){.type = TOKEN_RPAREN, .literal = String(")")},
+      (Token){.type = TOKEN_LBRACE, .literal = String("{")},
+      (Token){.type = TOKEN_RETURN, .literal = String("return")},
+      (Token){.type = TOKEN_TRUE, .literal = String("true")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_RBRACE, .literal = String("}")},
+      (Token){.type = TOKEN_ELSE, .literal = String("else")},
+      (Token){.type = TOKEN_LBRACE, .literal = String("{")},
+      (Token){.type = TOKEN_RETURN, .literal = String("return")},
+      (Token){.type = TOKEN_FALSE, .literal = String("false")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_RBRACE, .literal = String("}")},
+      (Token){.type = TOKEN_INT, .literal = String("10")},
+      (Token){.type = TOKEN_EQ, .literal = String("==")},
+      (Token){.type = TOKEN_INT, .literal = String("10")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_INT, .literal = String("10")},
+      (Token){.type = TOKEN_NOT_EQ, .literal = String("!=")},
+      (Token){.type = TOKEN_INT, .literal = String("9")},
+      (Token){.type = TOKEN_SEMICOLON, .literal = String(";")},
+      (Token){.type = TOKEN_EOF, .literal = String("")},
+  };
+  for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+    Token t = lexer_next_token(&l);
+    assert(expected[i].type == t.type);
+    assert(expected[i].literal.len == t.literal.len);
+    assert(strncmp(expected[i].literal.buffer, t.literal.buffer,
+                   t.literal.len) == 0);
   }
 }
