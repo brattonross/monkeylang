@@ -14,5 +14,9 @@ cflags := "-std=c99 -Wall -Werror -Wextra -pedantic"
 
 @test:
 	mkdir -p {{build_dir}}
+
 	zig cc {{cflags}} -o {{build_dir}}/lexer_test test/lexer_test.c
 	{{build_dir}}/lexer_test
+
+	zig cc {{cflags}} -o {{build_dir}}/parser_test test/parser_test.c
+	{{build_dir}}/parser_test
