@@ -53,7 +53,6 @@ struct StatementChunk {
 };
 
 typedef struct Program {
-  Arena *arena;
   StatementChunk *first_chunk;
   StatementChunk *current_chunk;
   size_t statements_len;
@@ -71,7 +70,6 @@ Program *create_program(Arena *arena) {
   chunk->next = NULL;
   chunk->used = 0;
 
-  program->arena = arena;
   program->first_chunk = chunk;
   program->current_chunk = chunk;
   program->statements_len = 0;
@@ -96,10 +94,10 @@ Statement *program_statement_at(const Program *program, size_t index) {
   return &chunk->statements[index - start];
 }
 
-void program_append_statement(Program *program, Statement statement) {
+void program_append_statement(Program *program, Arena *arena,
+                              Statement statement) {
   if (program->current_chunk->used == STATEMENT_CHUNK_SIZE) {
-    StatementChunk *new_chunk =
-        arena_alloc(program->arena, sizeof(StatementChunk));
+    StatementChunk *new_chunk = arena_alloc(arena, sizeof(StatementChunk));
     new_chunk->next = NULL;
     new_chunk->used = 0;
 

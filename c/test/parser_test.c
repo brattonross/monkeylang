@@ -1,11 +1,25 @@
 #include "../src/parser.c"
 #include <assert.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 void test_let_statements(void);
 void test_let_statement(Statement s, String name);
 
 int main(void) { test_let_statements(); }
+
+void check_parser_errors(const Parser *p) {
+  if (p->errors.length == 0) {
+    return;
+  }
+  for (size_t i = 0; i < p->errors.length; ++i) {
+    fprintf(stderr, "parser error: %.*s\n",
+            (int)p->errors.errors[i].message.len,
+            p->errors.errors[i].message.buffer);
+  }
+  exit(EXIT_FAILURE);
+}
 
 void test_let_statements(void) {
   char *input = "let x = 5;\n"
@@ -20,9 +34,10 @@ void test_let_statements(void) {
   Lexer lexer = {0};
   lexer_init(&lexer, input);
   Parser parser = {0};
-  parser_init(&parser, &lexer);
+  parser_init(&parser, &arena, &lexer);
 
   Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
   assert(program->statements_len == 3);
 
   typedef struct {
