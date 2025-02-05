@@ -51,6 +51,7 @@ void parser_next_token(Parser *parser);
 void parser_parse_statement(Parser *parser, Arena *arena, Statement *statement);
 void parser_parse_let_statement(Parser *parser, Arena *arena,
                                 Statement *statement);
+void parser_parse_return_statement(Parser *parser, Statement *statement);
 bool parser_expect_peek(Parser *parser, Arena *arena, TokenType token_type);
 
 void parser_init(Parser *parser, Arena *arena, Lexer *lexer) {
@@ -84,6 +85,9 @@ void parser_parse_statement(Parser *parser, Arena *arena,
   case TOKEN_LET:
     parser_parse_let_statement(parser, arena, statement);
     break;
+  case TOKEN_RETURN:
+    parser_parse_return_statement(parser, statement);
+    break;
   default:
     break;
   }
@@ -98,8 +102,9 @@ void parser_parse_let_statement(Parser *parser, Arena *arena,
     return;
   }
 
-  let.name.token = parser->current_token;
-  let.name.value = parser->current_token.literal;
+  let.name = arena_alloc(arena, sizeof(Identifier));
+  let.name->token = parser->current_token;
+  let.name->value = parser->current_token.literal;
 
   if (!parser_expect_peek(parser, arena, TOKEN_ASSIGN)) {
     return;
@@ -111,7 +116,22 @@ void parser_parse_let_statement(Parser *parser, Arena *arena,
   }
 
   statement->type = STATEMENT_LET;
-  statement->value.let = let;
+  statement->value.let_statement = let;
+}
+
+void parser_parse_return_statement(Parser *parser, Statement *statement) {
+  ReturnStatement ret = {0};
+  ret.token = parser->current_token;
+
+  parser_next_token(parser);
+
+  // TODO: skipping expressions
+  while (parser->current_token.type != TOKEN_SEMICOLON) {
+    parser_next_token(parser);
+  }
+
+  statement->type = STATEMENT_RETURN;
+  statement->value.return_statement = ret;
 }
 
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {

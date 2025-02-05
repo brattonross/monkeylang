@@ -21,25 +21,34 @@ typedef struct Identifier {
 
 typedef struct LetStatement {
   Token token;
-  Identifier name;
-  Expression value;
+  Identifier *name;
+  Expression *value;
 } LetStatement;
+
+typedef struct ReturnStatement {
+  Token token;
+  Expression *return_value;
+} ReturnStatement;
 
 typedef enum StatementType {
   STATEMENT_LET,
+  STATEMENT_RETURN,
 } StatementType;
 
 typedef struct Statement {
   StatementType type;
   union {
-    LetStatement let;
+    LetStatement let_statement;
+    ReturnStatement return_statement;
   } value;
 } Statement;
 
 String statement_token_literal(const Statement s) {
   switch (s.type) {
   case STATEMENT_LET:
-    return s.value.let.token.literal;
+    return s.value.let_statement.token.literal;
+  case STATEMENT_RETURN:
+    return s.value.return_statement.token.literal;
   }
 }
 
@@ -108,4 +117,26 @@ void program_append_statement(Program *program, Arena *arena,
   program->current_chunk->statements[program->current_chunk->used++] =
       statement;
   ++program->statements_len;
+}
+
+typedef struct StatementIterator {
+  StatementChunk *chunk;
+  size_t index;
+} StatementIterator;
+
+void statement_iterator_init(StatementIterator *iter, StatementChunk *chunk) {
+  iter->chunk = chunk;
+  iter->index = 0;
+}
+
+Statement *statement_iterator_next(StatementIterator *iter) {
+  if (iter->index >= iter->chunk->used) {
+    iter->chunk = iter->chunk->next;
+    iter->index = 0;
+  }
+
+  if (!iter->chunk) {
+    return NULL;
+  }
+  return &iter->chunk->statements[iter->index++];
 }
