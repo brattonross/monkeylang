@@ -3,21 +3,41 @@
 #include "mem.c"
 #include "token.c"
 #include <stddef.h>
-
-typedef enum ExpressionType {
-  EXPRESSION_,
-} ExpressionType;
-
-typedef struct Expression {
-  ExpressionType type;
-  // union {
-  // } value;
-} Expression;
+#include <stdint.h>
 
 typedef struct Identifier {
   Token token;
   String value;
 } Identifier;
+
+typedef enum ExpressionType {
+  EXPRESSION_IDENTIFIER,
+  EXPRESSION_INTEGER,
+} ExpressionType;
+
+typedef struct IntegerLiteral {
+  Token token;
+  int64_t value;
+} IntegerLiteral;
+
+typedef union ExpressionData {
+  Identifier identifier;
+  IntegerLiteral integer;
+} ExpressionData;
+
+typedef struct Expression {
+  ExpressionType type;
+  ExpressionData data;
+} Expression;
+
+String expression_to_string(const Expression *expression, Arena *arena) {
+  switch (expression->type) {
+  case EXPRESSION_IDENTIFIER:
+    return expression->data.identifier.value;
+  case EXPRESSION_INTEGER:
+    return string_fmt(arena, "%lld", expression->data.integer.value);
+  }
+}
 
 typedef struct LetStatement {
   Token token;
@@ -25,30 +45,84 @@ typedef struct LetStatement {
   Expression *value;
 } LetStatement;
 
+String let_statement_to_string(LetStatement let, Arena *arena) {
+  StringBuilder sb = string_builder_create(arena);
+  string_builder_append(
+      &sb, string_fmt(arena, "%.*s %.*s = ", let.token.literal.length,
+                      let.token.literal.buffer, let.name->value.length,
+                      let.name->value.buffer));
+  if (let.value) {
+    string_builder_append(&sb, expression_to_string(let.value, arena));
+  }
+  string_builder_append(&sb, String(";"));
+  return string_builder_build(&sb);
+}
+
 typedef struct ReturnStatement {
   Token token;
   Expression *return_value;
 } ReturnStatement;
 
+String return_statement_to_string(ReturnStatement ret, Arena *arena) {
+  StringBuilder sb = string_builder_create(arena);
+  string_builder_append(&sb,
+                        string_fmt(arena, "%.*s ", ret.token.literal.length,
+                                   ret.token.literal.buffer));
+  if (ret.return_value) {
+    string_builder_append(&sb, expression_to_string(ret.return_value, arena));
+  }
+  string_builder_append(&sb, String(";"));
+  return string_builder_build(&sb);
+}
+
+typedef struct ExpressionStatement {
+  Token token;
+  Expression *expression;
+} ExpressionStatement;
+
+String expression_statement_to_string(ExpressionStatement exp, Arena *arena) {
+  if (exp.expression) {
+    return expression_to_string(exp.expression, arena);
+  }
+  return String("");
+}
+
 typedef enum StatementType {
   STATEMENT_LET,
   STATEMENT_RETURN,
+  STATEMENT_EXPRESSION,
 } StatementType;
+
+typedef union StatementData {
+  LetStatement let_statement;
+  ReturnStatement return_statement;
+  ExpressionStatement expression_statement;
+} StatementData;
 
 typedef struct Statement {
   StatementType type;
-  union {
-    LetStatement let_statement;
-    ReturnStatement return_statement;
-  } value;
+  StatementData data;
 } Statement;
 
 String statement_token_literal(const Statement s) {
   switch (s.type) {
   case STATEMENT_LET:
-    return s.value.let_statement.token.literal;
+    return s.data.let_statement.token.literal;
   case STATEMENT_RETURN:
-    return s.value.return_statement.token.literal;
+    return s.data.return_statement.token.literal;
+  case STATEMENT_EXPRESSION:
+    return s.data.expression_statement.token.literal;
+  }
+}
+
+String statement_to_string(const Statement *s, Arena *arena) {
+  switch (s->type) {
+  case STATEMENT_LET:
+    return let_statement_to_string(s->data.let_statement, arena);
+  case STATEMENT_RETURN:
+    return return_statement_to_string(s->data.return_statement, arena);
+  case STATEMENT_EXPRESSION:
+    return expression_statement_to_string(s->data.expression_statement, arena);
   }
 }
 
@@ -72,7 +146,7 @@ typedef struct Program {
  * We do this since the program and all associated statements probably want to
  * be using the same lifetime.
  */
-Program *create_program(Arena *arena) {
+Program *program_create(Arena *arena) {
   Program *program = arena_alloc(arena, sizeof(Program));
   StatementChunk *chunk = arena_alloc(arena, sizeof(StatementChunk));
 
@@ -139,4 +213,15 @@ Statement *statement_iterator_next(StatementIterator *iter) {
     return NULL;
   }
   return &iter->chunk->statements[iter->index++];
+}
+
+String program_to_string(const Program *program, Arena *arena) {
+  StringBuilder sb = string_builder_create(arena);
+  StatementIterator iter = {0};
+  statement_iterator_init(&iter, program->first_chunk);
+  Statement *s;
+  while ((s = statement_iterator_next(&iter))) {
+    string_builder_append(&sb, statement_to_string(s, arena));
+  }
+  return string_builder_build(&sb);
 }

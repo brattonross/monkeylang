@@ -30,9 +30,9 @@ void test_token_type(void) {
   for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
     Token t = lexer_next_token(&l);
     assert(expected[i].type == t.type);
-    assert(expected[i].literal.len == t.literal.len);
+    assert(expected[i].literal.length == t.literal.length);
     assert(strncmp(expected[i].literal.buffer, t.literal.buffer,
-                   t.literal.len) == 0);
+                   t.literal.length) == 0);
   }
 }
 
@@ -138,8 +138,8 @@ void test_next_token(void) {
   for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
     Token t = lexer_next_token(&l);
     assert(expected[i].type == t.type);
-    assert(expected[i].literal.len == t.literal.len);
+    assert(expected[i].literal.length == t.literal.length);
     assert(strncmp(expected[i].literal.buffer, t.literal.buffer,
-                   t.literal.len) == 0);
+                   t.literal.length) == 0);
   }
 }

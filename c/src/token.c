@@ -1,7 +1,6 @@
 #pragma once
 
 #include "string.c"
-#include <string.h>
 
 typedef enum TokenType {
   TOKEN_ILLEGAL,
@@ -60,19 +59,19 @@ typedef struct Token {
 } Token;
 
 TokenType token_type_from_ident(String ident) {
-  if (strncmp(ident.buffer, "fn", ident.len) == 0) {
+  if (string_cmp(ident, String("fn"))) {
     return TOKEN_FUNCTION;
-  } else if (strncmp(ident.buffer, "let", ident.len) == 0) {
+  } else if (string_cmp(ident, String("let"))) {
     return TOKEN_LET;
-  } else if (strncmp(ident.buffer, "true", ident.len) == 0) {
+  } else if (string_cmp(ident, String("true"))) {
     return TOKEN_TRUE;
-  } else if (strncmp(ident.buffer, "false", ident.len) == 0) {
+  } else if (string_cmp(ident, String("false"))) {
     return TOKEN_FALSE;
-  } else if (strncmp(ident.buffer, "if", ident.len) == 0) {
+  } else if (string_cmp(ident, String("if"))) {
     return TOKEN_IF;
-  } else if (strncmp(ident.buffer, "else", ident.len) == 0) {
+  } else if (string_cmp(ident, String("else"))) {
     return TOKEN_ELSE;
-  } else if (strncmp(ident.buffer, "return", ident.len) == 0) {
+  } else if (string_cmp(ident, String("return"))) {
     return TOKEN_RETURN;
   }
   return TOKEN_IDENT;

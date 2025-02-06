@@ -17,8 +17,6 @@ char lexer_current_char(const Lexer *lexer);
 char lexer_peek_char(const Lexer *lexer);
 void lexer_advance(Lexer *lexer);
 void lexer_skip_whitespace(Lexer *lexer);
-bool is_letter(char c);
-bool is_digit(char c);
 
 void lexer_init(Lexer *lexer, char *input) {
   lexer->buffer = String(input);
@@ -126,7 +124,7 @@ String lexer_read_number(Lexer *lexer) {
 }
 
 char lexer_char_at_pos(const Lexer *lexer, size_t pos) {
-  if (pos >= lexer->buffer.len) {
+  if (pos >= lexer->buffer.length) {
     return 0;
   }
   return lexer->buffer.buffer[pos];
@@ -149,9 +147,3 @@ void lexer_skip_whitespace(Lexer *lexer) {
     lexer_advance(lexer);
   }
 }
-
-bool is_letter(char c) {
-  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
-}
-
-bool is_digit(char c) { return '0' <= c && c <= '9'; }
