@@ -69,6 +69,8 @@ void parser_parse_prefix_expression(Parser *parser, Arena *arena,
 void parser_parse_infix_expression(Parser *parser, Arena *arena,
                                    Expression *expression);
 void parser_parse_boolean(Parser *parser, Expression *expression);
+void parser_parse_grouped_expression(Parser *parser, Arena *arena,
+                                     Expression *expression);
 
 typedef enum Precedence {
   PRECEDENCE_LOWEST,
@@ -180,6 +182,9 @@ void parser_parse_expression(Parser *parser, Arena *arena,
   case TOKEN_TRUE:
   case TOKEN_FALSE:
     parser_parse_boolean(parser, expression);
+    break;
+  case TOKEN_LPAREN:
+    parser_parse_grouped_expression(parser, arena, expression);
     break;
   default: {
     String msg =
@@ -295,6 +300,15 @@ void parser_parse_boolean(Parser *parser, Expression *expression) {
       .token = parser->current_token,
       .value = parser->current_token.type == TOKEN_TRUE,
   };
+}
+
+void parser_parse_grouped_expression(Parser *parser, Arena *arena,
+                                     Expression *expression) {
+  parser_next_token(parser);
+  parser_parse_expression(parser, arena, expression, PRECEDENCE_LOWEST);
+  if (!parser_expect_peek(parser, arena, TOKEN_RPAREN)) {
+    expression = NULL;
+  }
 }
 
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {

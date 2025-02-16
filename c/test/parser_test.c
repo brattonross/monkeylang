@@ -359,7 +359,16 @@ void test_operator_precedence_parsing(void) {
                     {
                         "3 + 4 * 5 == 3 * 1 + 4 * 5",
                         String("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
-                    }};
+                    },
+                    {"true", String("true")},
+                    {"false", String("false")},
+                    {"3 > 5 == false", String("((3 > 5) == false)")},
+                    {"3 < 5 == true", String("((3 < 5) == true)")},
+                    {"1 + (2 + 3) + 4", String("((1 + (2 + 3)) + 4)")},
+                    {"(5 + 5) * 2", String("((5 + 5) * 2)")},
+                    {"2 / (5 + 5)", String("(2 / (5 + 5))")},
+                    {"-(5 + 5)", String("(-(5 + 5))")},
+                    {"!(true == true)", String("(!(true == true))")}};
 
   Arena arena = {0};
   char arena_buffer[8192];
