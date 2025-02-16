@@ -18,6 +18,8 @@ void arena_init(Arena *arena, void *buffer, size_t buffer_size) {
   arena->offset = 0;
 }
 
+void arena_reset(Arena *arena) { arena->offset = 0; }
+
 bool is_power_of_two(uintptr_t x) { return (x & (x - 1)) == 0; }
 
 uintptr_t align_forward(uintptr_t ptr, size_t align) {

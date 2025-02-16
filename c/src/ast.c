@@ -10,9 +10,13 @@ typedef struct Identifier {
   String value;
 } Identifier;
 
+typedef struct Expression Expression;
+
 typedef enum ExpressionType {
   EXPRESSION_IDENTIFIER,
   EXPRESSION_INTEGER,
+  EXPRESSION_PREFIX,
+  EXPRESSION_INFIX,
 } ExpressionType;
 
 typedef struct IntegerLiteral {
@@ -20,15 +24,30 @@ typedef struct IntegerLiteral {
   int64_t value;
 } IntegerLiteral;
 
+typedef struct PrefixExpression {
+  Token token;
+  String op;
+  Expression *right;
+} PrefixExpression;
+
+typedef struct InfixExpression {
+  Token token;
+  Expression *left;
+  String op;
+  Expression *right;
+} InfixExpression;
+
 typedef union ExpressionData {
   Identifier identifier;
   IntegerLiteral integer;
+  PrefixExpression prefix;
+  InfixExpression infix;
 } ExpressionData;
 
-typedef struct Expression {
+struct Expression {
   ExpressionType type;
   ExpressionData data;
-} Expression;
+};
 
 String expression_to_string(const Expression *expression, Arena *arena) {
   switch (expression->type) {
@@ -36,6 +55,22 @@ String expression_to_string(const Expression *expression, Arena *arena) {
     return expression->data.identifier.value;
   case EXPRESSION_INTEGER:
     return string_fmt(arena, "%lld", expression->data.integer.value);
+  case EXPRESSION_PREFIX: {
+    String right_str =
+        expression_to_string(expression->data.prefix.right, arena);
+    return string_fmt(arena, "(%.*s%.*s)", expression->data.prefix.op.length,
+                      expression->data.prefix.op.buffer, right_str.length,
+                      right_str.buffer);
+  }
+  case EXPRESSION_INFIX: {
+    String left_str = expression_to_string(expression->data.infix.right, arena);
+    String right_str =
+        expression_to_string(expression->data.infix.right, arena);
+    return string_fmt(arena, "(%.*s %.*s %.*s", left_str.length,
+                      left_str.buffer, expression->data.prefix.op.length,
+                      expression->data.prefix.op.buffer, right_str.length,
+                      right_str.buffer);
+  }
   }
 }
 

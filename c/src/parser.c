@@ -5,7 +5,6 @@
 #include "mem.c"
 #include "strconv.c"
 #include "token.c"
-#include <c++/14.2.1/bits/fs_dir.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -61,7 +60,23 @@ void parser_parse_expression_statement(Parser *parser, Arena *arena,
 void parser_parse_identifier(Parser *parser, Expression *expression);
 void parser_parse_integer_literal(Parser *parser, Arena *arena,
                                   Expression *expression);
+void parser_parse_prefix_expression(Parser *parser, Arena *arena,
+                                    Expression *expression);
+void parser_parse_infix_expression(Parser *parser, Arena *arena,
+                                   Expression *expression);
 bool parser_expect_peek(Parser *parser, Arena *arena, TokenType token_type);
+
+typedef enum Precedence {
+  PRECEDENCE_LOWEST,
+  PRECEDENCE_EQUALS,
+  PRECEDENCE_LESSGREATER,
+  PRECEDENCE_SUM,
+  PRECEDENCE_PRODUCT,
+  PRECEDENCE_PREFIX,
+  PRECEDENCE_CALL,
+} Precedence;
+
+Precedence token_type_to_precedence(TokenType t);
 
 void parser_init(Parser *parser, Arena *arena, Lexer *lexer) {
   parser->lexer = lexer;
@@ -144,16 +159,6 @@ void parser_parse_return_statement(Parser *parser, Statement *statement) {
   statement->data.return_statement = ret;
 }
 
-typedef enum Precedence {
-  PRECEDENCE_LOWEST,
-  PRECEDENCE_EQUALS,
-  PRECEDENCE_LESSGREATER,
-  PRECEDENCE_SUM,
-  PRECEDENCE_PRODUCT,
-  PRECEDENCE_PREFIX,
-  PRECEDENCE_CALL,
-} Precedence;
-
 void parser_parse_expression(Parser *parser, Arena *arena,
                              Expression *expression, Precedence precedence) {
   switch (parser->current_token.type) {
@@ -163,11 +168,37 @@ void parser_parse_expression(Parser *parser, Arena *arena,
   case TOKEN_INT:
     parser_parse_integer_literal(parser, arena, expression);
     break;
-  default:
+  case TOKEN_BANG:
+  case TOKEN_MINUS:
+    parser_parse_prefix_expression(parser, arena, expression);
     break;
+  default: {
+    String msg =
+        string_fmt(arena, "no prefix parse function found for token type %.*s",
+                   token_type_strings[parser->current_token.type].length,
+                   token_type_strings[parser->current_token.type].buffer);
+    error_list_append(&parser->errors, arena, msg);
+    return;
+  }
   }
 
-  if (precedence) { // TODO: remove
+  while (parser->peek_token.type != TOKEN_SEMICOLON &&
+         precedence < token_type_to_precedence(parser->peek_token.type)) {
+    switch (parser->peek_token.type) {
+    case TOKEN_PLUS:
+    case TOKEN_MINUS:
+    case TOKEN_SLASH:
+    case TOKEN_ASTERISK:
+    case TOKEN_EQ:
+    case TOKEN_NOT_EQ:
+    case TOKEN_LT:
+    case TOKEN_GT: {
+      parser_next_token(parser);
+      parser_parse_infix_expression(parser, arena, expression);
+    } break;
+    default:
+      return;
+    }
   }
 }
 
@@ -214,6 +245,35 @@ void parser_parse_integer_literal(Parser *parser, Arena *arena,
   };
 }
 
+void parser_parse_prefix_expression(Parser *parser, Arena *arena,
+                                    Expression *expression) {
+  PrefixExpression prefix = {0};
+  prefix.token = parser->current_token;
+  prefix.op = parser->current_token.literal;
+
+  parser_next_token(parser);
+
+  prefix.right = arena_alloc(arena, sizeof(Expression));
+  parser_parse_expression(parser, arena, prefix.right, PRECEDENCE_PREFIX);
+
+  expression->type = EXPRESSION_PREFIX;
+  expression->data.prefix = prefix;
+}
+
+void parser_parse_infix_expression(Parser *parser, Arena *arena,
+                                   Expression *expression) {
+  InfixExpression infix = {0};
+  infix.token = parser->current_token;
+  infix.op = parser->current_token.literal;
+
+  Precedence precedence = token_type_to_precedence(parser->current_token.type);
+  parser_next_token(parser);
+  parser_parse_expression(parser, arena, infix.right, precedence);
+
+  expression->type = EXPRESSION_INFIX;
+  expression->data.infix = infix;
+}
+
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {
   String message =
       string_fmt(arena, "expected next token to be %.*s, got %.*s instead",
@@ -231,4 +291,23 @@ bool parser_expect_peek(Parser *parser, Arena *arena, TokenType token_type) {
   }
   parser_peek_error(parser, arena, token_type);
   return false;
+}
+
+Precedence token_type_to_precedence(TokenType t) {
+  switch (t) {
+  case TOKEN_EQ:
+  case TOKEN_NOT_EQ:
+    return PRECEDENCE_EQUALS;
+  case TOKEN_LT:
+  case TOKEN_GT:
+    return PRECEDENCE_LESSGREATER;
+  case TOKEN_PLUS:
+  case TOKEN_MINUS:
+    return PRECEDENCE_SUM;
+  case TOKEN_SLASH:
+  case TOKEN_ASTERISK:
+    return PRECEDENCE_PRODUCT;
+  default:
+    return PRECEDENCE_LOWEST;
+  }
 }

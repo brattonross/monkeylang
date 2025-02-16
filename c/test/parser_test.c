@@ -1,6 +1,8 @@
 #include "../src/parser.c"
 #include <assert.h>
+#include <inttypes.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,6 +11,9 @@ void test_let_statement(Statement s, String name);
 void test_return_statements(void);
 void test_identifier_expression(void);
 void test_integer_literal_expression(void);
+void test_parsing_prefix_expressions(void);
+void test_parsing_infix_expressions(void);
+void test_operator_precedence_parsing(void);
 
 int main(void) {
   test_let_statements();
@@ -153,4 +158,217 @@ void test_integer_literal_expression(void) {
       expression_statement.expression->data.integer;
   assert(integer_literal.value == 5);
   assert(string_cmp(integer_literal.token.literal, String("5")));
+}
+
+void test_integer_literal(Arena *arena, Expression *expression, int64_t value) {
+  assert(expression->type == EXPRESSION_INTEGER);
+  IntegerLiteral integer_literal = expression->data.integer;
+  assert(integer_literal.value == value);
+  assert(string_cmp(integer_literal.token.literal,
+                    string_fmt(arena, "%" PRId64, value)));
+}
+
+void test_parsing_prefix_expressions(void) {
+  struct {
+    char *input;
+    String op;
+    int64_t integer_value;
+  } test_cases[] = {
+      {
+          .input = "!5;",
+          .op = String("!"),
+          .integer_value = 5,
+      },
+      {
+          .input = "-15;",
+          .op = String("-"),
+          .integer_value = 15,
+      },
+  };
+
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+    Program *program = parser_parse_program(&parser, &arena);
+    check_parser_errors(&parser);
+
+    assert(program->statements_len == 1);
+    assert(program->current_chunk->statements[0].type == STATEMENT_EXPRESSION);
+    ExpressionStatement expression_statement =
+        program->current_chunk->statements[0].data.expression_statement;
+
+    assert(expression_statement.expression->type == EXPRESSION_PREFIX);
+    PrefixExpression prefix_expression =
+        expression_statement.expression->data.prefix;
+
+    assert(string_cmp(prefix_expression.op, test_cases[i].op));
+    test_integer_literal(&arena, prefix_expression.right,
+                         test_cases[i].integer_value);
+
+    arena_reset(&arena);
+  }
+}
+
+void test_parsing_infix_expressions(void) {
+  struct {
+    char *input;
+    int64_t left_value;
+    String op;
+    int64_t right_value;
+  } test_cases[] = {
+      {
+          "5 + 5;",
+          5,
+          String("+"),
+          5,
+      },
+      {
+          "5 - 5;",
+          5,
+          String("-"),
+          5,
+      },
+      {
+          "5 * 5;",
+          5,
+          String("*"),
+          5,
+      },
+      {
+          "5 / 5;",
+          5,
+          String("/"),
+          5,
+      },
+      {
+          "5 > 5;",
+          5,
+          String(">"),
+          5,
+      },
+      {
+          "5 < 5;",
+          5,
+          String("<"),
+          5,
+      },
+      {
+          "5 == 5;",
+          5,
+          String("=="),
+          5,
+      },
+      {
+          "5 != 5;",
+          5,
+          String("!="),
+          5,
+      },
+  };
+
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+    Program *program = parser_parse_program(&parser, &arena);
+    check_parser_errors(&parser);
+
+    assert(program->statements_len == 1);
+    assert(program->current_chunk->statements[0].type == STATEMENT_EXPRESSION);
+    ExpressionStatement expression_statement =
+        program->current_chunk->statements[0].data.expression_statement;
+
+    assert(expression_statement.expression->type == EXPRESSION_INFIX);
+    InfixExpression infix_expression =
+        expression_statement.expression->data.infix;
+
+    test_integer_literal(&arena, infix_expression.left,
+                         test_cases[i].left_value);
+    assert(string_cmp(infix_expression.op, test_cases[i].op));
+    test_integer_literal(&arena, infix_expression.right,
+                         test_cases[i].right_value);
+
+    arena_reset(&arena);
+  }
+}
+
+void test_operator_precedence_parsing(void) {
+  struct {
+    char *input;
+    String expected;
+  } test_cases[] = {{
+                        "-a * b",
+                        String("((-a) * b)"),
+                    },
+                    {
+                        "!-a",
+                        String("(!(-a))"),
+                    },
+                    {
+                        "a + b + c",
+                        String("((a + b) + c)"),
+                    },
+                    {
+                        "a + b - c",
+                        String("((a + b) - c)"),
+                    },
+                    {
+                        "a * b * c",
+                        String("((a * b) * c)"),
+                    },
+                    {
+                        "a * b / c",
+                        String("((a * b) / c)"),
+                    },
+                    {
+                        "a + b / c",
+                        String("(a + (b / c))"),
+                    },
+                    {
+                        "a + b * c + d / e - f",
+                        String("(((a + (b * c)) + (d / e)) - f)"),
+                    },
+                    {
+                        "3 + 4; -5 * 5",
+                        String("(3 + 4)((-5) * 5)"),
+                    },
+                    {
+                        "5 > 4 == 3 < 4",
+                        String("((5 > 4) == (3 < 4))"),
+                    },
+                    {
+                        "5 < 4 != 3 > 4",
+                        String("((5 < 4) != (3 > 4))"),
+                    },
+                    {
+                        "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                        String("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
+                    }};
+
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+    Program *program = parser_parse_program(&parser, &arena);
+    check_parser_errors(&parser);
+
+    String actual = program_to_string(program, &arena);
+    assert(string_cmp(actual, test_cases[i].expected));
+  }
 }
