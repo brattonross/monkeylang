@@ -17,6 +17,7 @@ typedef enum ExpressionType {
   EXPRESSION_INTEGER,
   EXPRESSION_PREFIX,
   EXPRESSION_INFIX,
+  EXPRESSION_BOOLEAN,
 } ExpressionType;
 
 typedef struct IntegerLiteral {
@@ -37,11 +38,17 @@ typedef struct InfixExpression {
   Expression *right;
 } InfixExpression;
 
+typedef struct Boolean {
+  Token token;
+  bool value;
+} Boolean;
+
 typedef union ExpressionData {
   Identifier identifier;
   IntegerLiteral integer;
   PrefixExpression prefix;
   InfixExpression infix;
+  Boolean boolean;
 } ExpressionData;
 
 struct Expression {
@@ -63,14 +70,16 @@ String expression_to_string(const Expression *expression, Arena *arena) {
                       right_str.buffer);
   }
   case EXPRESSION_INFIX: {
-    String left_str = expression_to_string(expression->data.infix.right, arena);
+    String left_str = expression_to_string(expression->data.infix.left, arena);
     String right_str =
         expression_to_string(expression->data.infix.right, arena);
-    return string_fmt(arena, "(%.*s %.*s %.*s", left_str.length,
-                      left_str.buffer, expression->data.prefix.op.length,
-                      expression->data.prefix.op.buffer, right_str.length,
+    return string_fmt(arena, "(%.*s %.*s %.*s)", left_str.length,
+                      left_str.buffer, expression->data.infix.op.length,
+                      expression->data.infix.op.buffer, right_str.length,
                       right_str.buffer);
   }
+  case EXPRESSION_BOOLEAN:
+    return expression->data.boolean.token.literal;
   }
 }
 

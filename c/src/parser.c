@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct Error {
   String message;
@@ -51,12 +52,15 @@ typedef struct Parser {
 } Parser;
 
 void parser_next_token(Parser *parser);
+bool parser_expect_peek(Parser *parser, Arena *arena, TokenType token_type);
+
 void parser_parse_statement(Parser *parser, Arena *arena, Statement *statement);
 void parser_parse_let_statement(Parser *parser, Arena *arena,
                                 Statement *statement);
 void parser_parse_return_statement(Parser *parser, Statement *statement);
 void parser_parse_expression_statement(Parser *parser, Arena *arena,
                                        Statement *statement);
+
 void parser_parse_identifier(Parser *parser, Expression *expression);
 void parser_parse_integer_literal(Parser *parser, Arena *arena,
                                   Expression *expression);
@@ -64,7 +68,7 @@ void parser_parse_prefix_expression(Parser *parser, Arena *arena,
                                     Expression *expression);
 void parser_parse_infix_expression(Parser *parser, Arena *arena,
                                    Expression *expression);
-bool parser_expect_peek(Parser *parser, Arena *arena, TokenType token_type);
+void parser_parse_boolean(Parser *parser, Expression *expression);
 
 typedef enum Precedence {
   PRECEDENCE_LOWEST,
@@ -161,6 +165,7 @@ void parser_parse_return_statement(Parser *parser, Statement *statement) {
 
 void parser_parse_expression(Parser *parser, Arena *arena,
                              Expression *expression, Precedence precedence) {
+  // parse prefix
   switch (parser->current_token.type) {
   case TOKEN_IDENT:
     parser_parse_identifier(parser, expression);
@@ -171,6 +176,10 @@ void parser_parse_expression(Parser *parser, Arena *arena,
   case TOKEN_BANG:
   case TOKEN_MINUS:
     parser_parse_prefix_expression(parser, arena, expression);
+    break;
+  case TOKEN_TRUE:
+  case TOKEN_FALSE:
+    parser_parse_boolean(parser, expression);
     break;
   default: {
     String msg =
@@ -184,6 +193,7 @@ void parser_parse_expression(Parser *parser, Arena *arena,
 
   while (parser->peek_token.type != TOKEN_SEMICOLON &&
          precedence < token_type_to_precedence(parser->peek_token.type)) {
+    // parse infix
     switch (parser->peek_token.type) {
     case TOKEN_PLUS:
     case TOKEN_MINUS:
@@ -266,12 +276,25 @@ void parser_parse_infix_expression(Parser *parser, Arena *arena,
   infix.token = parser->current_token;
   infix.op = parser->current_token.literal;
 
+  infix.left = arena_alloc(arena, sizeof(Expression));
+  memcpy(infix.left, expression, sizeof(Expression));
+
   Precedence precedence = token_type_to_precedence(parser->current_token.type);
   parser_next_token(parser);
+
+  infix.right = arena_alloc(arena, sizeof(Expression));
   parser_parse_expression(parser, arena, infix.right, precedence);
 
   expression->type = EXPRESSION_INFIX;
   expression->data.infix = infix;
+}
+
+void parser_parse_boolean(Parser *parser, Expression *expression) {
+  expression->type = EXPRESSION_BOOLEAN;
+  expression->data.boolean = (Boolean){
+      .token = parser->current_token,
+      .value = parser->current_token.type == TOKEN_TRUE,
+  };
 }
 
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {

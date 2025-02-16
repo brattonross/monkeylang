@@ -14,12 +14,17 @@ void test_integer_literal_expression(void);
 void test_parsing_prefix_expressions(void);
 void test_parsing_infix_expressions(void);
 void test_operator_precedence_parsing(void);
+void test_boolean_expression(void);
 
 int main(void) {
   test_let_statements();
   test_return_statements();
   test_identifier_expression();
   test_integer_literal_expression();
+  test_parsing_prefix_expressions();
+  test_parsing_infix_expressions();
+  test_operator_precedence_parsing();
+  test_boolean_expression();
 }
 
 void check_parser_errors(const Parser *p) {
@@ -370,5 +375,62 @@ void test_operator_precedence_parsing(void) {
 
     String actual = program_to_string(program, &arena);
     assert(string_cmp(actual, test_cases[i].expected));
+
+    arena_reset(&arena);
   }
+}
+
+void test_boolean_expression_true(void) {
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  Lexer lexer = {0};
+  lexer_init(&lexer, "true;");
+  Parser parser = {0};
+  parser_init(&parser, &arena, &lexer);
+
+  Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
+
+  assert(program->statements_len == 1);
+  assert(program->first_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement expression_statement =
+      program->first_chunk->statements[0].data.expression_statement;
+  assert(expression_statement.expression->type == EXPRESSION_BOOLEAN);
+
+  Boolean boolean = expression_statement.expression->data.boolean;
+  assert(boolean.value == true);
+  assert(string_cmp(boolean.token.literal, String("true")));
+}
+
+void test_boolean_expression_false(void) {
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  Lexer lexer = {0};
+  lexer_init(&lexer, "false;");
+  Parser parser = {0};
+  parser_init(&parser, &arena, &lexer);
+
+  Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
+
+  assert(program->statements_len == 1);
+  assert(program->first_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement expression_statement =
+      program->first_chunk->statements[0].data.expression_statement;
+  assert(expression_statement.expression->type == EXPRESSION_BOOLEAN);
+
+  Boolean boolean = expression_statement.expression->data.boolean;
+  assert(boolean.value == false);
+  assert(string_cmp(boolean.token.literal, String("false")));
+}
+
+void test_boolean_expression(void) {
+  test_boolean_expression_true();
+  test_boolean_expression_false();
 }

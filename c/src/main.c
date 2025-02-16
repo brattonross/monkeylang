@@ -25,7 +25,7 @@ int main(void) {
     Token token;
     while ((token = lexer_next_token(&lexer)).type != TOKEN_EOF) {
       printf("Token{.type = %s, .literal = %.*s}\n",
-             token_type_strings[token.type].buffer, (int)token.literal.len,
+             token_type_strings[token.type].buffer, (int)token.literal.length,
              token.literal.buffer);
     }
 
