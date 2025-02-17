@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mem.c"
+#include "string.c"
 #include "token.c"
 #include <stddef.h>
 #include <stdint.h>
@@ -10,6 +11,8 @@ typedef struct Identifier {
   String value;
 } Identifier;
 
+// expressions
+
 typedef struct Expression Expression;
 
 typedef enum ExpressionType {
@@ -18,6 +21,7 @@ typedef enum ExpressionType {
   EXPRESSION_PREFIX,
   EXPRESSION_INFIX,
   EXPRESSION_BOOLEAN,
+  EXPRESSION_IF,
 } ExpressionType;
 
 typedef struct IntegerLiteral {
@@ -43,12 +47,32 @@ typedef struct Boolean {
   bool value;
 } Boolean;
 
+typedef struct StatementChunk StatementChunk;
+
+typedef struct BlockStatement {
+  Token token;
+  StatementChunk *first_chunk;
+  StatementChunk *current_chunk;
+  size_t statements_len;
+} BlockStatement;
+
+BlockStatement *block_statement_create(Arena *arena);
+String block_statement_to_string(BlockStatement *block, Arena *arena);
+
+typedef struct IfExpression {
+  Token token;
+  Expression *condition;
+  BlockStatement *consequence;
+  BlockStatement *alternative;
+} IfExpression;
+
 typedef union ExpressionData {
   Identifier identifier;
   IntegerLiteral integer;
   PrefixExpression prefix;
   InfixExpression infix;
   Boolean boolean;
+  IfExpression if_expression;
 } ExpressionData;
 
 struct Expression {
@@ -80,8 +104,30 @@ String expression_to_string(const Expression *expression, Arena *arena) {
   }
   case EXPRESSION_BOOLEAN:
     return expression->data.boolean.token.literal;
+  case EXPRESSION_IF: {
+    IfExpression ie = expression->data.if_expression;
+    StringBuilder sb = string_builder_create(arena);
+
+    String condition_str = expression_to_string(ie.condition, arena);
+    String consequence_str = block_statement_to_string(ie.consequence, arena);
+    string_builder_append(
+        &sb, string_fmt(arena, "if %.*s %.*s", condition_str.length,
+                        condition_str.buffer, consequence_str.length,
+                        consequence_str.buffer));
+
+    if (ie.alternative) {
+      String alternative_str = block_statement_to_string(ie.alternative, arena);
+      string_builder_append(&sb, string_fmt(arena, "else %.*s",
+                                            alternative_str.length,
+                                            alternative_str.buffer));
+    }
+
+    return string_builder_build(&sb);
+  }
   }
 }
+
+// statements
 
 typedef struct LetStatement {
   Token token;
@@ -171,13 +217,77 @@ String statement_to_string(const Statement *s, Arena *arena) {
 }
 
 #define STATEMENT_CHUNK_SIZE 64
-
-typedef struct StatementChunk StatementChunk;
 struct StatementChunk {
   Statement statements[STATEMENT_CHUNK_SIZE];
   StatementChunk *next;
   size_t used;
 };
+
+typedef struct StatementIterator {
+  StatementChunk *chunk;
+  size_t index;
+} StatementIterator;
+
+void statement_iterator_init(StatementIterator *iter, StatementChunk *chunk) {
+  iter->chunk = chunk;
+  iter->index = 0;
+}
+
+Statement *statement_iterator_next(StatementIterator *iter) {
+  if (iter->index >= iter->chunk->used) {
+    iter->chunk = iter->chunk->next;
+    iter->index = 0;
+  }
+
+  if (!iter->chunk) {
+    return NULL;
+  }
+  return &iter->chunk->statements[iter->index++];
+}
+
+BlockStatement *block_statement_create(Arena *arena) {
+  BlockStatement *block = arena_alloc(arena, sizeof(BlockStatement));
+  StatementChunk *chunk = arena_alloc(arena, sizeof(StatementChunk));
+
+  chunk->next = NULL;
+  chunk->used = 0;
+
+  block->first_chunk = chunk;
+  block->current_chunk = chunk;
+  block->statements_len = 0;
+
+  return block;
+}
+
+void block_statement_append_statement(BlockStatement *block, Arena *arena,
+                                      Statement statement) {
+  if (block->current_chunk->used == STATEMENT_CHUNK_SIZE) {
+    StatementChunk *new_chunk = arena_alloc(arena, sizeof(StatementChunk));
+    new_chunk->next = NULL;
+    new_chunk->used = 0;
+
+    block->current_chunk->next = new_chunk;
+    block->current_chunk = new_chunk;
+  }
+
+  block->current_chunk->statements[block->current_chunk->used++] = statement;
+  ++block->statements_len;
+}
+
+String block_statement_to_string(BlockStatement *block, Arena *arena) {
+  StringBuilder sb = string_builder_create(arena);
+  StatementIterator iter = {0};
+  statement_iterator_init(&iter, block->current_chunk);
+
+  Statement *s = {0};
+  while ((s = statement_iterator_next(&iter))) {
+    string_builder_append(&sb, statement_to_string(s, arena));
+  }
+
+  return string_builder_build(&sb);
+}
+
+// program
 
 typedef struct Program {
   StatementChunk *first_chunk;
@@ -235,28 +345,6 @@ void program_append_statement(Program *program, Arena *arena,
   program->current_chunk->statements[program->current_chunk->used++] =
       statement;
   ++program->statements_len;
-}
-
-typedef struct StatementIterator {
-  StatementChunk *chunk;
-  size_t index;
-} StatementIterator;
-
-void statement_iterator_init(StatementIterator *iter, StatementChunk *chunk) {
-  iter->chunk = chunk;
-  iter->index = 0;
-}
-
-Statement *statement_iterator_next(StatementIterator *iter) {
-  if (iter->index >= iter->chunk->used) {
-    iter->chunk = iter->chunk->next;
-    iter->index = 0;
-  }
-
-  if (!iter->chunk) {
-    return NULL;
-  }
-  return &iter->chunk->statements[iter->index++];
 }
 
 String program_to_string(const Program *program, Arena *arena) {

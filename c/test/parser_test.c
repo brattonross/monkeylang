@@ -15,6 +15,8 @@ void test_parsing_prefix_expressions(void);
 void test_parsing_infix_expressions(void);
 void test_operator_precedence_parsing(void);
 void test_boolean_expression(void);
+void test_if_expression(void);
+void test_if_else_expression(void);
 
 int main(void) {
   test_let_statements();
@@ -25,6 +27,8 @@ int main(void) {
   test_parsing_infix_expressions();
   test_operator_precedence_parsing();
   test_boolean_expression();
+  test_if_expression();
+  test_if_else_expression();
 }
 
 void check_parser_errors(const Parser *p) {
@@ -442,4 +446,104 @@ void test_boolean_expression_false(void) {
 void test_boolean_expression(void) {
   test_boolean_expression_true();
   test_boolean_expression_false();
+}
+
+void test_if_expression(void) {
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  Lexer lexer = {0};
+  lexer_init(&lexer, "if (x < y) { x }");
+  Parser parser = {0};
+  parser_init(&parser, &arena, &lexer);
+
+  Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
+
+  assert(program->statements_len == 1);
+  assert(program->first_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement expression_statement =
+      program->first_chunk->statements[0].data.expression_statement;
+  assert(expression_statement.expression->type == EXPRESSION_IF);
+
+  IfExpression ie = expression_statement.expression->data.if_expression;
+  assert(ie.condition->type == EXPRESSION_INFIX);
+
+  InfixExpression condition = ie.condition->data.infix;
+  assert(condition.left->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(condition.left->data.identifier.value, String("x")));
+
+  assert(string_cmp(condition.op, String("<")));
+
+  assert(condition.right->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(condition.right->data.identifier.value, String("y")));
+
+  assert(ie.consequence->statements_len == 1);
+
+  Statement consequence = ie.consequence->current_chunk->statements[0];
+  assert(consequence.type == STATEMENT_EXPRESSION);
+
+  assert(consequence.data.expression_statement.expression->type ==
+         EXPRESSION_IDENTIFIER);
+  assert(string_cmp(
+      consequence.data.expression_statement.expression->data.identifier.value,
+      String("x")));
+
+  assert(ie.alternative == NULL);
+}
+
+void test_if_else_expression(void) {
+  Arena arena = {0};
+  const size_t arena_buffer_size = 16 * 1024;
+  char arena_buffer[arena_buffer_size];
+  arena_init(&arena, &arena_buffer, arena_buffer_size);
+
+  Lexer lexer = {0};
+  lexer_init(&lexer, "if (x < y) { x } else { y }");
+  Parser parser = {0};
+  parser_init(&parser, &arena, &lexer);
+
+  Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
+
+  assert(program->statements_len == 1);
+  assert(program->first_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement expression_statement =
+      program->first_chunk->statements[0].data.expression_statement;
+  assert(expression_statement.expression->type == EXPRESSION_IF);
+
+  IfExpression ie = expression_statement.expression->data.if_expression;
+  assert(ie.condition->type == EXPRESSION_INFIX);
+
+  InfixExpression condition = ie.condition->data.infix;
+  assert(condition.left->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(condition.left->data.identifier.value, String("x")));
+
+  assert(string_cmp(condition.op, String("<")));
+
+  assert(condition.right->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(condition.right->data.identifier.value, String("y")));
+
+  assert(ie.consequence->statements_len == 1);
+  Statement consequence = ie.consequence->current_chunk->statements[0];
+  assert(consequence.type == STATEMENT_EXPRESSION);
+
+  assert(consequence.data.expression_statement.expression->type ==
+         EXPRESSION_IDENTIFIER);
+  assert(string_cmp(
+      consequence.data.expression_statement.expression->data.identifier.value,
+      String("x")));
+
+  assert(ie.alternative->statements_len == 1);
+  Statement alternative = ie.alternative->current_chunk->statements[0];
+  assert(alternative.type == STATEMENT_EXPRESSION);
+
+  assert(alternative.data.expression_statement.expression->type ==
+         EXPRESSION_IDENTIFIER);
+  assert(string_cmp(
+      alternative.data.expression_statement.expression->data.identifier.value,
+      String("y")));
 }

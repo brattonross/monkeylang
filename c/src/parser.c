@@ -71,6 +71,8 @@ void parser_parse_infix_expression(Parser *parser, Arena *arena,
 void parser_parse_boolean(Parser *parser, Expression *expression);
 void parser_parse_grouped_expression(Parser *parser, Arena *arena,
                                      Expression *expression);
+void parser_parse_if_expression(Parser *parser, Arena *arena,
+                                Expression *expression);
 
 typedef enum Precedence {
   PRECEDENCE_LOWEST,
@@ -185,6 +187,9 @@ void parser_parse_expression(Parser *parser, Arena *arena,
     break;
   case TOKEN_LPAREN:
     parser_parse_grouped_expression(parser, arena, expression);
+    break;
+  case TOKEN_IF:
+    parser_parse_if_expression(parser, arena, expression);
     break;
   default: {
     String msg =
@@ -309,6 +314,61 @@ void parser_parse_grouped_expression(Parser *parser, Arena *arena,
   if (!parser_expect_peek(parser, arena, TOKEN_RPAREN)) {
     expression = NULL;
   }
+}
+
+void parser_parse_block_statement(Parser *parser, Arena *arena,
+                                  BlockStatement *block) {
+  block->token = parser->current_token;
+
+  parser_next_token(parser);
+
+  while (parser->current_token.type != TOKEN_RBRACE &&
+         parser->current_token.type != TOKEN_EOF) {
+    Statement s = {0};
+    parser_parse_statement(parser, arena, &s);
+    block_statement_append_statement(block, arena, s);
+    parser_next_token(parser);
+  }
+}
+
+void parser_parse_if_expression(Parser *parser, Arena *arena,
+                                Expression *expression) {
+  IfExpression ie = {0};
+  ie.token = parser->current_token;
+
+  if (!parser_expect_peek(parser, arena, TOKEN_LPAREN)) {
+    return;
+  }
+
+  parser_next_token(parser);
+
+  ie.condition = arena_alloc(arena, sizeof(Expression));
+  parser_parse_expression(parser, arena, ie.condition, PRECEDENCE_LOWEST);
+
+  if (!parser_expect_peek(parser, arena, TOKEN_RPAREN)) {
+    return;
+  }
+
+  if (!parser_expect_peek(parser, arena, TOKEN_LBRACE)) {
+    return;
+  }
+
+  ie.consequence = block_statement_create(arena);
+  parser_parse_block_statement(parser, arena, ie.consequence);
+
+  if (parser->peek_token.type == TOKEN_ELSE) {
+    parser_next_token(parser);
+
+    if (!parser_expect_peek(parser, arena, TOKEN_LBRACE)) {
+      return;
+    }
+
+    ie.alternative = block_statement_create(arena);
+    parser_parse_block_statement(parser, arena, ie.alternative);
+  }
+
+  expression->type = EXPRESSION_IF;
+  expression->data.if_expression = ie;
 }
 
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {
