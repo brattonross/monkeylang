@@ -57,10 +57,25 @@ bool parser_expect_peek(Parser *parser, Arena *arena, TokenType token_type);
 void parser_parse_statement(Parser *parser, Arena *arena, Statement *statement);
 void parser_parse_let_statement(Parser *parser, Arena *arena,
                                 Statement *statement);
-void parser_parse_return_statement(Parser *parser, Statement *statement);
+void parser_parse_return_statement(Parser *parser, Arena *arena,
+                                   Statement *statement);
 void parser_parse_expression_statement(Parser *parser, Arena *arena,
                                        Statement *statement);
 
+typedef enum Precedence {
+  PRECEDENCE_LOWEST,
+  PRECEDENCE_EQUALS,
+  PRECEDENCE_LESSGREATER,
+  PRECEDENCE_SUM,
+  PRECEDENCE_PRODUCT,
+  PRECEDENCE_PREFIX,
+  PRECEDENCE_CALL,
+} Precedence;
+
+Precedence token_type_to_precedence(TokenType t);
+
+void parser_parse_expression(Parser *parser, Arena *arena,
+                             Expression *expression, Precedence precedence);
 void parser_parse_identifier(Parser *parser, Expression *expression);
 void parser_parse_integer_literal(Parser *parser, Arena *arena,
                                   Expression *expression);
@@ -77,18 +92,6 @@ void parser_parse_function_literal(Parser *parser, Arena *arena,
                                    Expression *expression);
 void parser_parse_call_expression(Parser *parser, Arena *arena,
                                   Expression *function);
-
-typedef enum Precedence {
-  PRECEDENCE_LOWEST,
-  PRECEDENCE_EQUALS,
-  PRECEDENCE_LESSGREATER,
-  PRECEDENCE_SUM,
-  PRECEDENCE_PRODUCT,
-  PRECEDENCE_PREFIX,
-  PRECEDENCE_CALL,
-} Precedence;
-
-Precedence token_type_to_precedence(TokenType t);
 
 void parser_init(Parser *parser, Arena *arena, Lexer *lexer) {
   parser->lexer = lexer;
@@ -122,7 +125,7 @@ void parser_parse_statement(Parser *parser, Arena *arena,
     parser_parse_let_statement(parser, arena, statement);
     break;
   case TOKEN_RETURN:
-    parser_parse_return_statement(parser, statement);
+    parser_parse_return_statement(parser, arena, statement);
     break;
   default:
     parser_parse_expression_statement(parser, arena, statement);
@@ -147,8 +150,11 @@ void parser_parse_let_statement(Parser *parser, Arena *arena,
     return;
   }
 
-  // TODO: skipping expressions
-  while (parser->current_token.type != TOKEN_SEMICOLON) {
+  parser_next_token(parser);
+  let.value = arena_alloc(arena, sizeof(Expression));
+  parser_parse_expression(parser, arena, let.value, PRECEDENCE_LOWEST);
+
+  if (parser->peek_token.type == TOKEN_SEMICOLON) {
     parser_next_token(parser);
   }
 
@@ -156,14 +162,17 @@ void parser_parse_let_statement(Parser *parser, Arena *arena,
   statement->data.let_statement = let;
 }
 
-void parser_parse_return_statement(Parser *parser, Statement *statement) {
+void parser_parse_return_statement(Parser *parser, Arena *arena,
+                                   Statement *statement) {
   ReturnStatement ret = {0};
   ret.token = parser->current_token;
 
   parser_next_token(parser);
 
-  // TODO: skipping expressions
-  while (parser->current_token.type != TOKEN_SEMICOLON) {
+  ret.return_value = arena_alloc(arena, sizeof(Expression));
+  parser_parse_expression(parser, arena, ret.return_value, PRECEDENCE_LOWEST);
+
+  if (parser->peek_token.type == TOKEN_SEMICOLON) {
     parser_next_token(parser);
   }
 

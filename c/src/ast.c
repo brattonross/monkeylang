@@ -27,6 +27,12 @@ typedef enum ExpressionType {
   EXPRESSION_CALL,
 } ExpressionType;
 
+const String expression_type_strings[] = {
+    String("IDENTIFIER"), String("INTEGER"), String("PREFIX"),
+    String("INFIX"),      String("BOOLEAN"), String("IF"),
+    String("FUNCTION"),   String("CALL"),
+};
+
 typedef struct IntegerLiteral {
   Token token;
   int64_t value;

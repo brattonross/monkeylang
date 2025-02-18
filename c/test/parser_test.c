@@ -7,7 +7,8 @@
 #include <stdlib.h>
 
 void test_let_statements(void);
-void test_let_statement(Statement s, String name);
+void test_let_statement(Statement s, String name, ExpressionType type,
+                        String literal);
 void test_return_statements(void);
 void test_identifier_expression(void);
 void test_integer_literal_expression(void);
@@ -52,7 +53,7 @@ void check_parser_errors(const Parser *p) {
 void test_let_statements(void) {
   char *input = "let x = 5;\n"
                 "let y = 10;\n"
-                "let foobar = 838383;\n";
+                "let foobar = y;\n";
 
   Arena arena = {0};
   static const size_t arena_size = 8192;
@@ -70,25 +71,44 @@ void test_let_statements(void) {
 
   typedef struct {
     String expected_identifier;
+    ExpressionType expected_type;
+    String expected_literal;
   } TestCase;
   TestCase tests[] = {
-      (TestCase){.expected_identifier = String("x")},
-      (TestCase){.expected_identifier = String("y")},
-      (TestCase){.expected_identifier = String("foobar")},
+      {String("x"), EXPRESSION_INTEGER, String("5")},
+      {String("y"), EXPRESSION_INTEGER, String("10")},
+      {String("foobar"), EXPRESSION_IDENTIFIER, String("y")},
   };
   for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); ++i) {
     test_let_statement(*program_statement_at(program, i),
-                       tests[i].expected_identifier);
+                       tests[i].expected_identifier, tests[i].expected_type,
+                       tests[i].expected_literal);
   }
 }
 
-void test_let_statement(Statement s, String name) {
+void test_let_statement(Statement s, String name, ExpressionType type,
+                        String literal) {
   assert(string_cmp(statement_token_literal(s), String("let")));
   assert(s.type == STATEMENT_LET);
 
   LetStatement let = s.data.let_statement;
   assert(string_cmp(let.name->value, name));
   assert(string_cmp(let.name->token.literal, name));
+
+  assert(let.value->type == type);
+  switch (type) {
+  case EXPRESSION_IDENTIFIER:
+    assert(string_cmp(let.value->data.identifier.value, literal));
+    break;
+  case EXPRESSION_INTEGER:
+    assert(string_cmp(let.value->data.integer.token.literal, literal));
+    break;
+  default: {
+    String exp_str = expression_type_strings[type];
+    fprintf(stderr, "unhandled expression type %.*s\n", (int)exp_str.length,
+            exp_str.buffer);
+  } break;
+  }
 }
 
 void test_return_statements(void) {
