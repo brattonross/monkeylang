@@ -75,6 +75,8 @@ void parser_parse_if_expression(Parser *parser, Arena *arena,
                                 Expression *expression);
 void parser_parse_function_literal(Parser *parser, Arena *arena,
                                    Expression *expression);
+void parser_parse_call_expression(Parser *parser, Arena *arena,
+                                  Expression *function);
 
 typedef enum Precedence {
   PRECEDENCE_LOWEST,
@@ -221,6 +223,10 @@ void parser_parse_expression(Parser *parser, Arena *arena,
       parser_next_token(parser);
       parser_parse_infix_expression(parser, arena, expression);
     } break;
+    case TOKEN_LPAREN:
+      parser_next_token(parser);
+      parser_parse_call_expression(parser, arena, expression);
+      break;
     default:
       return;
     }
@@ -389,7 +395,7 @@ void parser_parse_function_literal(Parser *parser, Arena *arena,
   fn.parameters.items =
       arena_alloc(arena, 8 * sizeof(Identifier)); // initial size of 8
   fn.parameters.length = 0;
-  fn.parameters.capacity = 0;
+  fn.parameters.capacity = 8;
 
   if (parser->peek_token.type == TOKEN_RPAREN) {
     parser_next_token(parser);
@@ -427,6 +433,48 @@ void parser_parse_function_literal(Parser *parser, Arena *arena,
   expression->data.function = fn;
 }
 
+void parser_parse_call_expression(Parser *parser, Arena *arena,
+                                  Expression *expression) {
+  CallExpression call = {0};
+  call.token = parser->current_token;
+
+  call.function = arena_alloc(arena, sizeof(Expression));
+  memcpy(call.function, expression, sizeof(Expression));
+
+  // parse call args
+  // FIXME: only supports 8 args
+  call.arguments.items = arena_alloc(arena, 8 * sizeof(Expression));
+  call.arguments.length = 0;
+  call.arguments.capacity = 8;
+
+  if (parser->peek_token.type == TOKEN_RPAREN) {
+    parser_next_token(parser);
+  } else {
+    parser_next_token(parser);
+
+    Expression arg = {0};
+    parser_parse_expression(parser, arena, &arg, PRECEDENCE_LOWEST);
+    call.arguments.items[call.arguments.length++] = arg;
+
+    while (parser->peek_token.type == TOKEN_COMMA) {
+      parser_next_token(parser);
+      parser_next_token(parser);
+
+      Expression arg = {0};
+      parser_parse_expression(parser, arena, &arg, PRECEDENCE_LOWEST);
+      call.arguments.items[call.arguments.length++] = arg;
+    }
+
+    if (!parser_expect_peek(parser, arena, TOKEN_RPAREN)) {
+      return;
+    }
+  }
+
+  memset(expression, 0, sizeof(Expression));
+  expression->type = EXPRESSION_CALL;
+  expression->data.call = call;
+}
+
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {
   String message =
       string_fmt(arena, "expected next token to be %.*s, got %.*s instead",
@@ -460,6 +508,8 @@ Precedence token_type_to_precedence(TokenType t) {
   case TOKEN_SLASH:
   case TOKEN_ASTERISK:
     return PRECEDENCE_PRODUCT;
+  case TOKEN_LPAREN:
+    return PRECEDENCE_CALL;
   default:
     return PRECEDENCE_LOWEST;
   }

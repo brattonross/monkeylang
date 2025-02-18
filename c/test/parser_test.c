@@ -19,6 +19,7 @@ void test_if_expression(void);
 void test_if_else_expression(void);
 void test_function_literal_parsing(void);
 void test_function_parameter_parsing(void);
+void test_call_expression_parsing(void);
 
 int main(void) {
   test_let_statements();
@@ -33,6 +34,7 @@ int main(void) {
   test_if_else_expression();
   test_function_literal_parsing();
   test_function_parameter_parsing();
+  test_call_expression_parsing();
 }
 
 void check_parser_errors(const Parser *p) {
@@ -320,63 +322,77 @@ void test_operator_precedence_parsing(void) {
   struct {
     char *input;
     String expected;
-  } test_cases[] = {{
-                        "-a * b",
-                        String("((-a) * b)"),
-                    },
-                    {
-                        "!-a",
-                        String("(!(-a))"),
-                    },
-                    {
-                        "a + b + c",
-                        String("((a + b) + c)"),
-                    },
-                    {
-                        "a + b - c",
-                        String("((a + b) - c)"),
-                    },
-                    {
-                        "a * b * c",
-                        String("((a * b) * c)"),
-                    },
-                    {
-                        "a * b / c",
-                        String("((a * b) / c)"),
-                    },
-                    {
-                        "a + b / c",
-                        String("(a + (b / c))"),
-                    },
-                    {
-                        "a + b * c + d / e - f",
-                        String("(((a + (b * c)) + (d / e)) - f)"),
-                    },
-                    {
-                        "3 + 4; -5 * 5",
-                        String("(3 + 4)((-5) * 5)"),
-                    },
-                    {
-                        "5 > 4 == 3 < 4",
-                        String("((5 > 4) == (3 < 4))"),
-                    },
-                    {
-                        "5 < 4 != 3 > 4",
-                        String("((5 < 4) != (3 > 4))"),
-                    },
-                    {
-                        "3 + 4 * 5 == 3 * 1 + 4 * 5",
-                        String("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
-                    },
-                    {"true", String("true")},
-                    {"false", String("false")},
-                    {"3 > 5 == false", String("((3 > 5) == false)")},
-                    {"3 < 5 == true", String("((3 < 5) == true)")},
-                    {"1 + (2 + 3) + 4", String("((1 + (2 + 3)) + 4)")},
-                    {"(5 + 5) * 2", String("((5 + 5) * 2)")},
-                    {"2 / (5 + 5)", String("(2 / (5 + 5))")},
-                    {"-(5 + 5)", String("(-(5 + 5))")},
-                    {"!(true == true)", String("(!(true == true))")}};
+  } test_cases[] = {
+      {
+          "-a * b",
+          String("((-a) * b)"),
+      },
+      {
+          "!-a",
+          String("(!(-a))"),
+      },
+      {
+          "a + b + c",
+          String("((a + b) + c)"),
+      },
+      {
+          "a + b - c",
+          String("((a + b) - c)"),
+      },
+      {
+          "a * b * c",
+          String("((a * b) * c)"),
+      },
+      {
+          "a * b / c",
+          String("((a * b) / c)"),
+      },
+      {
+          "a + b / c",
+          String("(a + (b / c))"),
+      },
+      {
+          "a + b * c + d / e - f",
+          String("(((a + (b * c)) + (d / e)) - f)"),
+      },
+      {
+          "3 + 4; -5 * 5",
+          String("(3 + 4)((-5) * 5)"),
+      },
+      {
+          "5 > 4 == 3 < 4",
+          String("((5 > 4) == (3 < 4))"),
+      },
+      {
+          "5 < 4 != 3 > 4",
+          String("((5 < 4) != (3 > 4))"),
+      },
+      {
+          "3 + 4 * 5 == 3 * 1 + 4 * 5",
+          String("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
+      },
+      {"true", String("true")},
+      {"false", String("false")},
+      {"3 > 5 == false", String("((3 > 5) == false)")},
+      {"3 < 5 == true", String("((3 < 5) == true)")},
+      {"1 + (2 + 3) + 4", String("((1 + (2 + 3)) + 4)")},
+      {"(5 + 5) * 2", String("((5 + 5) * 2)")},
+      {"2 / (5 + 5)", String("(2 / (5 + 5))")},
+      {"-(5 + 5)", String("(-(5 + 5))")},
+      {"!(true == true)", String("(!(true == true))")},
+      {
+          "a + add(b * c) + d",
+          String("((a + add((b * c))) + d)"),
+      },
+      {
+          "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+          String("add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"),
+      },
+      {
+          "add(a + b + c * d / f + g)",
+          String("add((((a + b) + ((c * d) / f)) + g))"),
+      },
+  };
 
   Arena arena = {0};
   char arena_buffer[8192];
@@ -648,3 +664,61 @@ void test_function_parameter_parsing(void) {
     arena_reset(&arena);
   }
 }
+
+void test_call_expression_parsing(void) {
+  Arena arena = {0};
+  const size_t arena_buffer_size = 16 * 1024;
+  char arena_buffer[arena_buffer_size];
+  arena_init(&arena, &arena_buffer, arena_buffer_size);
+
+  Lexer lexer = {0};
+  lexer_init(&lexer, "add(1, 2 * 3, 4 + 5);");
+  Parser parser = {0};
+  parser_init(&parser, &arena, &lexer);
+
+  Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
+
+  assert(program->statements_len == 1);
+  assert(program->first_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement statement =
+      program->current_chunk->statements[0].data.expression_statement;
+  assert(statement.expression->type == EXPRESSION_CALL);
+
+  CallExpression call = statement.expression->data.call;
+
+  // function ident
+  assert(call.function->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(call.function->data.identifier.value, String("add")));
+
+  // args
+  assert(call.arguments.length == 3);
+
+  assert(call.arguments.items[0].type == EXPRESSION_INTEGER);
+  assert(call.arguments.items[0].data.integer.value == 1);
+
+  assert(call.arguments.items[1].type == EXPRESSION_INFIX);
+  InfixExpression arg_1 = call.arguments.items[1].data.infix;
+
+  assert(arg_1.left->type == EXPRESSION_INTEGER);
+  assert(arg_1.left->data.integer.value == 2);
+
+  assert(string_cmp(arg_1.op, String("*")));
+
+  assert(arg_1.right->type == EXPRESSION_INTEGER);
+  assert(arg_1.right->data.integer.value == 3);
+
+  assert(call.arguments.items[2].type == EXPRESSION_INFIX);
+  InfixExpression arg_2 = call.arguments.items[2].data.infix;
+
+  assert(arg_2.left->type == EXPRESSION_INTEGER);
+  assert(arg_2.left->data.integer.value == 4);
+
+  assert(string_cmp(arg_2.op, String("+")));
+
+  assert(arg_2.right->type == EXPRESSION_INTEGER);
+  assert(arg_2.right->data.integer.value == 5);
+}
+
+// TODO: test_call_expression_parameter_parsing

@@ -24,6 +24,7 @@ typedef enum ExpressionType {
   EXPRESSION_BOOLEAN,
   EXPRESSION_IF,
   EXPRESSION_FUNCTION,
+  EXPRESSION_CALL,
 } ExpressionType;
 
 typedef struct IntegerLiteral {
@@ -80,6 +81,18 @@ typedef struct FunctionLiteral {
   BlockStatement *body;
 } FunctionLiteral;
 
+typedef struct ArgumentList {
+  Expression *items;
+  size_t length;
+  size_t capacity;
+} ArgumentList;
+
+typedef struct CallExpression {
+  Token token;
+  Expression *function;
+  ArgumentList arguments;
+} CallExpression;
+
 typedef union ExpressionData {
   Identifier identifier;
   IntegerLiteral integer;
@@ -88,6 +101,7 @@ typedef union ExpressionData {
   Boolean boolean;
   IfExpression if_expression;
   FunctionLiteral function;
+  CallExpression call;
 } ExpressionData;
 
 struct Expression {
@@ -157,6 +171,26 @@ String expression_to_string(const Expression *expression, Arena *arena) {
     string_builder_append(
         &sb, string_fmt(arena, ") %.*s", body_str.length, body_str.buffer));
 
+    return string_builder_build(&sb);
+  }
+  case EXPRESSION_CALL: {
+    CallExpression call = expression->data.call;
+    StringBuilder sb = string_builder_create(arena);
+
+    String fn_str = expression_to_string(call.function, arena);
+    string_builder_append(
+        &sb, string_fmt(arena, "%.*s(", fn_str.length, fn_str.buffer));
+
+    for (size_t i = 0; i < call.arguments.length; ++i) {
+      String arg_str = expression_to_string(&call.arguments.items[i], arena);
+      string_builder_append(
+          &sb, string_fmt(arena, "%.*s", arg_str.length, arg_str.buffer));
+      if (i < call.arguments.length - 1) {
+        string_builder_append(&sb, String(", "));
+      }
+    }
+
+    string_builder_append(&sb, String(")"));
     return string_builder_build(&sb);
   }
   }
