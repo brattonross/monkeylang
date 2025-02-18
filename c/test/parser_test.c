@@ -17,6 +17,8 @@ void test_operator_precedence_parsing(void);
 void test_boolean_expression(void);
 void test_if_expression(void);
 void test_if_else_expression(void);
+void test_function_literal_parsing(void);
+void test_function_parameter_parsing(void);
 
 int main(void) {
   test_let_statements();
@@ -29,6 +31,8 @@ int main(void) {
   test_boolean_expression();
   test_if_expression();
   test_if_else_expression();
+  test_function_literal_parsing();
+  test_function_parameter_parsing();
 }
 
 void check_parser_errors(const Parser *p) {
@@ -546,4 +550,101 @@ void test_if_else_expression(void) {
   assert(string_cmp(
       alternative.data.expression_statement.expression->data.identifier.value,
       String("y")));
+}
+
+void test_function_literal_parsing(void) {
+  Arena arena = {0};
+  char arena_buffer[16384];
+  arena_init(&arena, &arena_buffer, 16384);
+
+  Lexer lexer = {0};
+  lexer_init(&lexer, "fn(x, y) { x + y; }");
+  Parser parser = {0};
+  parser_init(&parser, &arena, &lexer);
+
+  Program *program = parser_parse_program(&parser, &arena);
+  check_parser_errors(&parser);
+
+  assert(program->statements_len == 1);
+  assert(program->first_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement statement =
+      program->first_chunk->statements[0].data.expression_statement;
+  assert(statement.expression->type == EXPRESSION_FUNCTION);
+
+  FunctionLiteral fn = statement.expression->data.function;
+  assert(fn.parameters.length == 2);
+
+  assert(string_cmp(fn.parameters.items[0].value, String("x")));
+  assert(string_cmp(fn.parameters.items[1].value, String("y")));
+
+  BlockStatement *body = fn.body;
+  assert(body->statements_len == 1);
+  assert(body->current_chunk->statements[0].type == STATEMENT_EXPRESSION);
+
+  ExpressionStatement body_expression =
+      body->current_chunk->statements[0].data.expression_statement;
+  assert(body_expression.expression->type == EXPRESSION_INFIX);
+
+  InfixExpression body_infix_expression =
+      body_expression.expression->data.infix;
+
+  assert(body_infix_expression.left->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(body_infix_expression.left->data.identifier.value,
+                    String("x")));
+
+  assert(string_cmp(body_infix_expression.op, String("+")));
+
+  assert(body_infix_expression.right->type == EXPRESSION_IDENTIFIER);
+  assert(string_cmp(body_infix_expression.right->data.identifier.value,
+                    String("y")));
+}
+
+void test_function_parameter_parsing(void) {
+  struct {
+    char *input;
+    size_t expected_length;
+    String expected[8];
+  } test_cases[] = {
+      {
+          .input = "fn() {};",
+          .expected_length = 0,
+          .expected = {0},
+      },
+      {
+          .input = "fn(x) {};",
+          .expected_length = 1,
+          .expected = {String("x")},
+      },
+      {
+          .input = "fn(x, y, z) {};",
+          .expected_length = 3,
+          .expected = {String("x"), String("y"), String("z")},
+      },
+  };
+
+  Arena arena = {0};
+  char arena_buffer[8192];
+  arena_init(&arena, &arena_buffer, 8192);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+    Program *program = parser_parse_program(&parser, &arena);
+    check_parser_errors(&parser);
+
+    ExpressionStatement statement =
+        program->current_chunk->statements[0].data.expression_statement;
+    FunctionLiteral fn = statement.expression->data.function;
+
+    assert(fn.parameters.length == test_cases[i].expected_length);
+    for (size_t j = 0; j < fn.parameters.length; ++j) {
+      assert(
+          string_cmp(fn.parameters.items[j].value, test_cases[i].expected[j]));
+    }
+
+    arena_reset(&arena);
+  }
 }

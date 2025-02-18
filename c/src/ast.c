@@ -5,6 +5,7 @@
 #include "token.c"
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 typedef struct Identifier {
   Token token;
@@ -22,6 +23,7 @@ typedef enum ExpressionType {
   EXPRESSION_INFIX,
   EXPRESSION_BOOLEAN,
   EXPRESSION_IF,
+  EXPRESSION_FUNCTION,
 } ExpressionType;
 
 typedef struct IntegerLiteral {
@@ -66,6 +68,18 @@ typedef struct IfExpression {
   BlockStatement *alternative;
 } IfExpression;
 
+typedef struct ParameterList {
+  Identifier *items;
+  size_t length;
+  size_t capacity;
+} ParameterList;
+
+typedef struct FunctionLiteral {
+  Token token;
+  ParameterList parameters;
+  BlockStatement *body;
+} FunctionLiteral;
+
 typedef union ExpressionData {
   Identifier identifier;
   IntegerLiteral integer;
@@ -73,6 +87,7 @@ typedef union ExpressionData {
   InfixExpression infix;
   Boolean boolean;
   IfExpression if_expression;
+  FunctionLiteral function;
 } ExpressionData;
 
 struct Expression {
@@ -121,6 +136,26 @@ String expression_to_string(const Expression *expression, Arena *arena) {
                                             alternative_str.length,
                                             alternative_str.buffer));
     }
+
+    return string_builder_build(&sb);
+  }
+  case EXPRESSION_FUNCTION: {
+    FunctionLiteral fn = expression->data.function;
+    StringBuilder sb = string_builder_create(arena);
+    string_builder_append(&sb,
+                          string_fmt(arena, "%.*s(", fn.token.literal.length,
+                                     fn.token.literal.buffer));
+
+    for (size_t i = 0; i < fn.parameters.length; ++i) {
+      string_builder_append(&sb, fn.parameters.items[i].value);
+      if (i < fn.parameters.length - 1) {
+        string_builder_append(&sb, String(", "));
+      }
+    }
+
+    String body_str = block_statement_to_string(fn.body, arena);
+    string_builder_append(
+        &sb, string_fmt(arena, ") %.*s", body_str.length, body_str.buffer));
 
     return string_builder_build(&sb);
   }

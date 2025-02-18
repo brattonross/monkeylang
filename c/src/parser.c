@@ -73,6 +73,8 @@ void parser_parse_grouped_expression(Parser *parser, Arena *arena,
                                      Expression *expression);
 void parser_parse_if_expression(Parser *parser, Arena *arena,
                                 Expression *expression);
+void parser_parse_function_literal(Parser *parser, Arena *arena,
+                                   Expression *expression);
 
 typedef enum Precedence {
   PRECEDENCE_LOWEST,
@@ -190,6 +192,9 @@ void parser_parse_expression(Parser *parser, Arena *arena,
     break;
   case TOKEN_IF:
     parser_parse_if_expression(parser, arena, expression);
+    break;
+  case TOKEN_FUNCTION:
+    parser_parse_function_literal(parser, arena, expression);
     break;
   default: {
     String msg =
@@ -369,6 +374,57 @@ void parser_parse_if_expression(Parser *parser, Arena *arena,
 
   expression->type = EXPRESSION_IF;
   expression->data.if_expression = ie;
+}
+
+void parser_parse_function_literal(Parser *parser, Arena *arena,
+                                   Expression *expression) {
+  FunctionLiteral fn = {0};
+  fn.token = parser->current_token;
+
+  if (!parser_expect_peek(parser, arena, TOKEN_LPAREN)) {
+    return;
+  }
+
+  // FIXME: only supports up to 8 params
+  fn.parameters.items =
+      arena_alloc(arena, 8 * sizeof(Identifier)); // initial size of 8
+  fn.parameters.length = 0;
+  fn.parameters.capacity = 0;
+
+  if (parser->peek_token.type == TOKEN_RPAREN) {
+    parser_next_token(parser);
+  } else {
+    parser_next_token(parser);
+    Identifier ident = {
+        .token = parser->current_token,
+        .value = parser->current_token.literal,
+    };
+    fn.parameters.items[fn.parameters.length++] = ident;
+
+    while (parser->peek_token.type == TOKEN_COMMA) {
+      parser_next_token(parser);
+      parser_next_token(parser);
+      Identifier ident = {
+          .token = parser->current_token,
+          .value = parser->current_token.literal,
+      };
+      fn.parameters.items[fn.parameters.length++] = ident;
+    }
+
+    if (!parser_expect_peek(parser, arena, TOKEN_RPAREN)) {
+      return;
+    }
+  }
+
+  if (!parser_expect_peek(parser, arena, TOKEN_LBRACE)) {
+    return;
+  }
+
+  fn.body = block_statement_create(arena);
+  parser_parse_block_statement(parser, arena, fn.body);
+
+  expression->type = EXPRESSION_FUNCTION;
+  expression->data.function = fn;
 }
 
 void parser_peek_error(Parser *parser, Arena *arena, TokenType token_type) {
