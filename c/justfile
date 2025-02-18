@@ -11,13 +11,20 @@ build: mk_build_dir
 run: build
 	{{build_dir}}/monkey
 
-test: mk_build_dir test_ast test_lexer test_parser test_strconv
+test: mk_build_dir test_ast test_eval test_lexer test_parser test_strconv
 
 test_ast:
 	#!/usr/bin/env bash
 	set +e
 	zig cc {{cflags}} -o {{build_dir}}/ast_test test/ast_test.c
 	{{build_dir}}/ast_test
+	true
+
+test_eval:
+	#!/usr/bin/env bash
+	set +e
+	zig cc {{cflags}} -o {{build_dir}}/eval_test test/eval_test.c
+	{{build_dir}}/eval_test
 	true
 
 test_lexer:

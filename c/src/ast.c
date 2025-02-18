@@ -258,6 +258,12 @@ typedef enum StatementType {
   STATEMENT_EXPRESSION,
 } StatementType;
 
+const String statement_type_strings[] = {
+    String("LET"),
+    String("RETURN"),
+    String("EXPRESSION"),
+};
+
 typedef union StatementData {
   LetStatement let_statement;
   ReturnStatement return_statement;
