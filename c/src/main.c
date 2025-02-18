@@ -1,5 +1,7 @@
+#include "eval.c"
 #include "lexer.c"
 #include "mem.c"
+#include "object.c"
 #include "parser.c"
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,8 +38,11 @@ int main(void) {
       goto cleanup;
     }
 
-    String program_str = program_to_string(program, &arena);
-    printf("%.*s\n", (int)program_str.length, program_str.buffer);
+    Object evaluated = {0};
+    eval_program(program, &evaluated);
+
+    String str = object_to_string(&evaluated, &arena);
+    printf("%.*s\n", (int)str.length, str.buffer);
 
   cleanup:
     free(line);
