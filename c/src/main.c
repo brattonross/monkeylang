@@ -1,6 +1,6 @@
 #include "lexer.c"
 #include "mem.c"
-#include "token.c"
+#include "parser.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -9,30 +9,40 @@
 #include <readline/readline.h>
 
 int main(void) {
-  unsigned char buf[4096];
+  unsigned char buf[32 * 1024];
   Arena arena = {0};
-  arena_init(&arena, buf, 4096);
+  arena_init(&arena, buf, 32 * 1024);
 
   while (true) {
-    Lexer lexer = {0};
     char *line = readline(">> ");
     if (!line) {
       break;
     }
 
     add_history(line);
+
+    Lexer lexer = {0};
     lexer_init(&lexer, line);
-    Token token;
-    while ((token = lexer_next_token(&lexer)).type != TOKEN_EOF) {
-      printf("Token{.type = %s, .literal = %.*s}\n",
-             token_type_strings[token.type].buffer, (int)token.literal.length,
-             token.literal.buffer);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+
+    Program *program = parser_parse_program(&parser, &arena);
+    if (parser.errors.length > 0) {
+      for (size_t i = 0; i < parser.errors.length; ++i) {
+        fprintf(stderr, "ERROR: %.*s\n",
+                (int)parser.errors.errors[i].message.length,
+                parser.errors.errors[i].message.buffer);
+      }
+      goto cleanup;
     }
 
+    String program_str = program_to_string(program, &arena);
+    printf("%.*s\n", (int)program_str.length, program_str.buffer);
+
+  cleanup:
     free(line);
+    arena_reset(&arena);
   }
-  Token t = {.literal = String("a"), .type = TOKEN_IDENT};
-  printf("token type is %s\n", token_type_strings[t.type].buffer);
 
   return EXIT_SUCCESS;
 }

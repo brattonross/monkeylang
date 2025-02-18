@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -39,6 +40,10 @@ void *arena_alloc_align(Arena *arena, size_t size, size_t align) {
   offset -= (uintptr_t)arena->buffer;
 
   if (offset + size > arena->buffer_size) {
+    fprintf(stderr,
+            "ERROR: arena attempted to allocate more memory than is available: "
+            "want=%lu, got=%zu\n",
+            offset + size, arena->buffer_size);
     return NULL;
   }
 
