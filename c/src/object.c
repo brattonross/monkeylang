@@ -9,6 +9,12 @@ typedef enum ObjectType {
   OBJECT_NULL,
 } ObjectType;
 
+const String object_type_strings[] = {
+    String("INTEGER"),
+    String("BOOLEAN"),
+    String("NULL"),
+};
+
 typedef struct IntegerObject {
   int64_t value;
 } IntegerObject;
@@ -48,4 +54,9 @@ String object_to_string(const Object *object, Arena *arena) {
   case OBJECT_NULL:
     return String("null");
   }
+}
+
+void null_object(Object *object) {
+  object->type = OBJECT_NULL;
+  object->data = (ObjectData){0};
 }

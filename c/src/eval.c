@@ -3,13 +3,21 @@
 #include "ast.c"
 #include "object.c"
 #include "string.c"
+#include <stdint.h>
 #include <stdio.h>
 
-void eval_statement(Statement *statement, Object *result);
-void eval_expression(Expression *expression, Object *result);
-void eval_prefix_expression(String op, Object *result);
+void eval_statement(Object *result, Statement *statement);
+void eval_expression(Object *result, Expression *expression);
+void eval_prefix_expression(Object *result, String op);
 void eval_bang_operator_expression(Object *result);
 void eval_minus_prefix_operator_expression(Object *result);
+void eval_infix_expression(Object *result, String op, Object left,
+                           Object right);
+void eval_integer_infix_expression(Object *result, String op, Object left,
+                                   Object right);
+void eval_boolean_infix_expression(Object *result, String op, Object left,
+                                   Object right);
+void eval_null_infix_expression(Object *result, String op);
 
 void eval_program(Program *program, Object *result) {
   StatementIterator iter = {0};
@@ -17,14 +25,14 @@ void eval_program(Program *program, Object *result) {
 
   Statement *s;
   while ((s = statement_iterator_next(&iter))) {
-    eval_statement(s, result);
+    eval_statement(result, s);
   }
 }
 
-void eval_statement(Statement *statement, Object *result) {
+void eval_statement(Object *result, Statement *statement) {
   switch (statement->type) {
   case STATEMENT_EXPRESSION:
-    eval_expression(statement->data.expression_statement.expression, result);
+    eval_expression(result, statement->data.expression_statement.expression);
     break;
   default:
     fprintf(stderr, "eval_statement: unhandled statement type %.*s\n",
@@ -34,7 +42,7 @@ void eval_statement(Statement *statement, Object *result) {
   }
 }
 
-void eval_expression(Expression *expression, Object *result) {
+void eval_expression(Object *result, Expression *expression) {
   switch (expression->type) {
   case EXPRESSION_INTEGER: {
     result->type = OBJECT_INTEGER;
@@ -45,8 +53,15 @@ void eval_expression(Expression *expression, Object *result) {
     result->data.boolean.value = expression->data.boolean.value;
   } break;
   case EXPRESSION_PREFIX: {
-    eval_expression(expression->data.prefix.right, result);
-    eval_prefix_expression(expression->data.prefix.op, result);
+    eval_expression(result, expression->data.prefix.right);
+    eval_prefix_expression(result, expression->data.prefix.op);
+  } break;
+  case EXPRESSION_INFIX: {
+    Object left = {0};
+    eval_expression(&left, expression->data.infix.left);
+    Object right = {0};
+    eval_expression(&right, expression->data.infix.right);
+    eval_infix_expression(result, expression->data.infix.op, left, right);
   } break;
   default:
     fprintf(stderr, "eval_expression: unhandled expression type %.*s\n",
@@ -56,13 +71,13 @@ void eval_expression(Expression *expression, Object *result) {
   }
 }
 
-void eval_prefix_expression(String op, Object *result) {
+void eval_prefix_expression(Object *result, String op) {
   if (string_cmp(op, String("!"))) {
     eval_bang_operator_expression(result);
   } else if (string_cmp(op, String("-"))) {
     eval_minus_prefix_operator_expression(result);
   } else {
-    result->type = OBJECT_NULL;
+    null_object(result);
   }
 }
 
@@ -84,9 +99,99 @@ void eval_bang_operator_expression(Object *result) {
 
 void eval_minus_prefix_operator_expression(Object *result) {
   if (result->type != OBJECT_INTEGER) {
-    result->type = OBJECT_NULL;
-    result->data = (ObjectData){0};
+    null_object(result);
+  } else {
+    result->data.integer.value = -result->data.integer.value;
   }
+}
 
-  result->data.integer.value = -result->data.integer.value;
+void eval_infix_expression(Object *result, String op, Object left,
+                           Object right) {
+  if (left.type == right.type) {
+    // exhaustive switch covers all object types
+    switch (left.type) {
+    case OBJECT_INTEGER:
+      eval_integer_infix_expression(result, op, left, right);
+      break;
+    case OBJECT_BOOLEAN:
+      eval_boolean_infix_expression(result, op, left, right);
+      break;
+    case OBJECT_NULL:
+      eval_null_infix_expression(result, op);
+      break;
+    }
+  } else {
+    // mismatching types
+    if (string_cmp(op, String("=="))) {
+      result->type = OBJECT_BOOLEAN;
+      result->data.boolean.value = false;
+    } else if (string_cmp(op, String("!="))) {
+      result->type = OBJECT_BOOLEAN;
+      result->data.boolean.value = true;
+    } else {
+      null_object(result);
+    }
+  }
+}
+
+void eval_integer_infix_expression(Object *result, String op, Object left,
+                                   Object right) {
+  int64_t left_value = left.data.integer.value;
+  int64_t right_value = right.data.integer.value;
+
+  if (string_cmp(op, String("+"))) {
+    result->type = OBJECT_INTEGER;
+    result->data.integer.value = left_value + right_value;
+  } else if (string_cmp(op, String("-"))) {
+    result->type = OBJECT_INTEGER;
+    result->data.integer.value = left_value - right_value;
+  } else if (string_cmp(op, String("*"))) {
+    result->type = OBJECT_INTEGER;
+    result->data.integer.value = left_value * right_value;
+  } else if (string_cmp(op, String("/"))) {
+    result->type = OBJECT_INTEGER;
+    result->data.integer.value = left_value / right_value;
+  } else if (string_cmp(op, String("<"))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = left_value < right_value;
+  } else if (string_cmp(op, String(">"))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = left_value > right_value;
+  } else if (string_cmp(op, String("=="))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = left_value == right_value;
+  } else if (string_cmp(op, String("!="))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = left_value != right_value;
+  } else {
+    null_object(result);
+  }
+}
+
+void eval_boolean_infix_expression(Object *result, String op, Object left,
+                                   Object right) {
+  bool left_value = left.data.boolean.value;
+  bool right_value = right.data.boolean.value;
+
+  if (string_cmp(op, String("=="))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = left_value == right_value;
+  } else if (string_cmp(op, String("!="))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = left_value != right_value;
+  } else {
+    null_object(result);
+  }
+}
+
+void eval_null_infix_expression(Object *result, String op) {
+  if (string_cmp(op, String("=="))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = true;
+  } else if (string_cmp(op, String("!="))) {
+    result->type = OBJECT_BOOLEAN;
+    result->data.boolean.value = false;
+  } else {
+    null_object(result);
+  }
 }
