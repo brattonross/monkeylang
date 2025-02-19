@@ -5,9 +5,10 @@
 #include "string.c"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
-void eval_statement(Object *result, Statement *statement);
-void eval_expression(Object *result, Expression *expression);
+void eval_statement(Arena *arena, Object *result, Statement *statement);
+void eval_expression(Arena *arena, Object *result, Expression *expression);
 void eval_prefix_expression(Object *result, String op);
 void eval_bang_operator_expression(Object *result);
 void eval_minus_prefix_operator_expression(Object *result);
@@ -18,25 +19,37 @@ void eval_integer_infix_expression(Object *result, String op, Object left,
 void eval_boolean_infix_expression(Object *result, String op, Object left,
                                    Object right);
 void eval_null_infix_expression(Object *result, String op);
-void eval_block_statement(Object *result, BlockStatement *block);
+void eval_block_statement(Arena *arena, Object *result, BlockStatement *block);
 
 bool object_is_truthy(Object o);
 
-void eval_program(Program *program, Object *result) {
+void eval_program(Program *program, Arena *arena, Object *result) {
   StatementIterator iter = {0};
   statement_iterator_init(&iter, program->first_chunk);
 
   Statement *s;
   while ((s = statement_iterator_next(&iter))) {
-    eval_statement(result, s);
+    eval_statement(arena, result, s);
+    if (result->type == OBJECT_RETURN) {
+      memcpy(result, result->data.return_object.value, sizeof(Object));
+      break;
+    }
   }
 }
 
-void eval_statement(Object *result, Statement *statement) {
+void eval_statement(Arena *arena, Object *result, Statement *statement) {
   switch (statement->type) {
   case STATEMENT_EXPRESSION:
-    eval_expression(result, statement->data.expression_statement.expression);
+    eval_expression(arena, result,
+                    statement->data.expression_statement.expression);
     break;
+  case STATEMENT_RETURN: {
+    Object *value = arena_alloc(arena, sizeof(Object));
+    eval_expression(arena, value,
+                    statement->data.return_statement.return_value);
+    result->type = OBJECT_RETURN;
+    result->data.return_object.value = value;
+  } break;
   default:
     fprintf(stderr, "eval_statement: unhandled statement type %.*s\n",
             (int)statement_type_strings[statement->type].length,
@@ -45,36 +58,36 @@ void eval_statement(Object *result, Statement *statement) {
   }
 }
 
-void eval_expression(Object *result, Expression *expression) {
+void eval_expression(Arena *arena, Object *result, Expression *expression) {
   switch (expression->type) {
   case EXPRESSION_INTEGER: {
     result->type = OBJECT_INTEGER;
-    result->data.integer.value = expression->data.integer.value;
+    result->data.integer_object.value = expression->data.integer.value;
   } break;
   case EXPRESSION_BOOLEAN: {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = expression->data.boolean.value;
+    result->data.boolean_object.value = expression->data.boolean.value;
   } break;
   case EXPRESSION_PREFIX: {
-    eval_expression(result, expression->data.prefix.right);
+    eval_expression(arena, result, expression->data.prefix.right);
     eval_prefix_expression(result, expression->data.prefix.op);
   } break;
   case EXPRESSION_INFIX: {
     Object left = {0};
-    eval_expression(&left, expression->data.infix.left);
+    eval_expression(arena, &left, expression->data.infix.left);
     Object right = {0};
-    eval_expression(&right, expression->data.infix.right);
+    eval_expression(arena, &right, expression->data.infix.right);
     eval_infix_expression(result, expression->data.infix.op, left, right);
   } break;
   case EXPRESSION_IF: {
     IfExpression ie = expression->data.if_expression;
     Object condition = {0};
-    eval_expression(&condition, ie.condition);
+    eval_expression(arena, &condition, ie.condition);
 
     if (object_is_truthy(condition)) {
-      eval_block_statement(result, ie.consequence);
+      eval_block_statement(arena, result, ie.consequence);
     } else if (ie.alternative) {
-      eval_block_statement(result, ie.alternative);
+      eval_block_statement(arena, result, ie.alternative);
     } else {
       null_object(result);
     }
@@ -100,15 +113,15 @@ void eval_prefix_expression(Object *result, String op) {
 void eval_bang_operator_expression(Object *result) {
   switch (result->type) {
   case OBJECT_BOOLEAN:
-    result->data.boolean.value = !result->data.boolean.value;
+    result->data.boolean_object.value = !result->data.boolean_object.value;
     break;
   case OBJECT_NULL:
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = true;
+    result->data.boolean_object.value = true;
     break;
-  case OBJECT_INTEGER:
+  default:
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = false;
+    result->data.boolean_object.value = false;
     break;
   }
 }
@@ -117,7 +130,7 @@ void eval_minus_prefix_operator_expression(Object *result) {
   if (result->type != OBJECT_INTEGER) {
     null_object(result);
   } else {
-    result->data.integer.value = -result->data.integer.value;
+    result->data.integer_object.value = -result->data.integer_object.value;
   }
 }
 
@@ -135,15 +148,18 @@ void eval_infix_expression(Object *result, String op, Object left,
     case OBJECT_NULL:
       eval_null_infix_expression(result, op);
       break;
+    default:
+      null_object(result);
+      break;
     }
   } else {
     // mismatching types
     if (string_cmp(op, String("=="))) {
       result->type = OBJECT_BOOLEAN;
-      result->data.boolean.value = false;
+      result->data.boolean_object.value = false;
     } else if (string_cmp(op, String("!="))) {
       result->type = OBJECT_BOOLEAN;
-      result->data.boolean.value = true;
+      result->data.boolean_object.value = true;
     } else {
       null_object(result);
     }
@@ -152,33 +168,33 @@ void eval_infix_expression(Object *result, String op, Object left,
 
 void eval_integer_infix_expression(Object *result, String op, Object left,
                                    Object right) {
-  int64_t left_value = left.data.integer.value;
-  int64_t right_value = right.data.integer.value;
+  int64_t left_value = left.data.integer_object.value;
+  int64_t right_value = right.data.integer_object.value;
 
   if (string_cmp(op, String("+"))) {
     result->type = OBJECT_INTEGER;
-    result->data.integer.value = left_value + right_value;
+    result->data.integer_object.value = left_value + right_value;
   } else if (string_cmp(op, String("-"))) {
     result->type = OBJECT_INTEGER;
-    result->data.integer.value = left_value - right_value;
+    result->data.integer_object.value = left_value - right_value;
   } else if (string_cmp(op, String("*"))) {
     result->type = OBJECT_INTEGER;
-    result->data.integer.value = left_value * right_value;
+    result->data.integer_object.value = left_value * right_value;
   } else if (string_cmp(op, String("/"))) {
     result->type = OBJECT_INTEGER;
-    result->data.integer.value = left_value / right_value;
+    result->data.integer_object.value = left_value / right_value;
   } else if (string_cmp(op, String("<"))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = left_value < right_value;
+    result->data.boolean_object.value = left_value < right_value;
   } else if (string_cmp(op, String(">"))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = left_value > right_value;
+    result->data.boolean_object.value = left_value > right_value;
   } else if (string_cmp(op, String("=="))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = left_value == right_value;
+    result->data.boolean_object.value = left_value == right_value;
   } else if (string_cmp(op, String("!="))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = left_value != right_value;
+    result->data.boolean_object.value = left_value != right_value;
   } else {
     null_object(result);
   }
@@ -186,15 +202,15 @@ void eval_integer_infix_expression(Object *result, String op, Object left,
 
 void eval_boolean_infix_expression(Object *result, String op, Object left,
                                    Object right) {
-  bool left_value = left.data.boolean.value;
-  bool right_value = right.data.boolean.value;
+  bool left_value = left.data.boolean_object.value;
+  bool right_value = right.data.boolean_object.value;
 
   if (string_cmp(op, String("=="))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = left_value == right_value;
+    result->data.boolean_object.value = left_value == right_value;
   } else if (string_cmp(op, String("!="))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = left_value != right_value;
+    result->data.boolean_object.value = left_value != right_value;
   } else {
     null_object(result);
   }
@@ -203,22 +219,25 @@ void eval_boolean_infix_expression(Object *result, String op, Object left,
 void eval_null_infix_expression(Object *result, String op) {
   if (string_cmp(op, String("=="))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = true;
+    result->data.boolean_object.value = true;
   } else if (string_cmp(op, String("!="))) {
     result->type = OBJECT_BOOLEAN;
-    result->data.boolean.value = false;
+    result->data.boolean_object.value = false;
   } else {
     null_object(result);
   }
 }
 
-void eval_block_statement(Object *result, BlockStatement *block) {
+void eval_block_statement(Arena *arena, Object *result, BlockStatement *block) {
   StatementIterator iter = {0};
   statement_iterator_init(&iter, block->first_chunk);
 
   Statement *s;
   while ((s = statement_iterator_next(&iter))) {
-    eval_statement(result, s);
+    eval_statement(arena, result, s);
+    if (result->type == OBJECT_RETURN) {
+      break;
+    }
   }
 }
 
@@ -227,7 +246,7 @@ bool object_is_truthy(Object o) {
   case OBJECT_NULL:
     return false;
   case OBJECT_BOOLEAN:
-    return o.data.boolean.value;
+    return o.data.boolean_object.value;
   default:
     return true;
   }

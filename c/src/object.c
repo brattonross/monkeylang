@@ -7,6 +7,7 @@ typedef enum ObjectType {
   OBJECT_INTEGER,
   OBJECT_BOOLEAN,
   OBJECT_NULL,
+  OBJECT_RETURN,
 } ObjectType;
 
 const String object_type_strings[] = {
@@ -14,6 +15,8 @@ const String object_type_strings[] = {
     String("BOOLEAN"),
     String("NULL"),
 };
+
+typedef struct Object Object;
 
 typedef struct IntegerObject {
   int64_t value;
@@ -35,24 +38,31 @@ String boolean_object_to_string(const BooleanObject object) {
   }
 }
 
+typedef struct ReturnObject {
+  Object *value;
+} ReturnObject;
+
 typedef union ObjectData {
-  IntegerObject integer;
-  BooleanObject boolean;
+  IntegerObject integer_object;
+  BooleanObject boolean_object;
+  ReturnObject return_object;
 } ObjectData;
 
-typedef struct Object {
+struct Object {
   ObjectType type;
   ObjectData data;
-} Object;
+};
 
 String object_to_string(const Object *object, Arena *arena) {
   switch (object->type) {
   case OBJECT_INTEGER:
-    return integer_object_to_string(object->data.integer, arena);
+    return integer_object_to_string(object->data.integer_object, arena);
   case OBJECT_BOOLEAN:
-    return boolean_object_to_string(object->data.boolean);
+    return boolean_object_to_string(object->data.boolean_object);
   case OBJECT_NULL:
     return String("null");
+  case OBJECT_RETURN:
+    return object_to_string(object->data.return_object.value, arena);
   }
 }
 

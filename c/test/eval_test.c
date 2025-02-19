@@ -13,12 +13,14 @@ void test_eval_integer_expression(void);
 void test_eval_boolean_expression(void);
 void test_bang_operator(void);
 void test_if_else_expressions(void);
+void test_return_statements(void);
 
 int main(void) {
   test_eval_integer_expression();
   test_eval_boolean_expression();
   test_bang_operator();
   test_if_else_expressions();
+  test_return_statements();
 }
 
 void test_eval_integer_expression(void) {
@@ -56,10 +58,10 @@ void test_eval_integer_expression(void) {
 
     Program *program = parser_parse_program(&parser, &arena);
     Object evaluated = {0};
-    eval_program(program, &evaluated);
+    eval_program(program, &arena, &evaluated);
 
     assert(evaluated.type == OBJECT_INTEGER);
-    assert(evaluated.data.integer.value == test_cases[i].expected);
+    assert(evaluated.data.integer_object.value == test_cases[i].expected);
 
     arena_reset(&arena);
   }
@@ -104,10 +106,10 @@ void test_eval_boolean_expression(void) {
 
     Program *program = parser_parse_program(&parser, &arena);
     Object evaluated = {0};
-    eval_program(program, &evaluated);
+    eval_program(program, &arena, &evaluated);
 
     assert(evaluated.type == OBJECT_BOOLEAN);
-    assert(evaluated.data.boolean.value == test_cases[i].expected);
+    assert(evaluated.data.boolean_object.value == test_cases[i].expected);
 
     arena_reset(&arena);
   }
@@ -135,10 +137,10 @@ void test_bang_operator(void) {
 
     Program *program = parser_parse_program(&parser, &arena);
     Object evaluated = {0};
-    eval_program(program, &evaluated);
+    eval_program(program, &arena, &evaluated);
 
     assert(evaluated.type == OBJECT_BOOLEAN);
-    assert(evaluated.data.boolean.value == test_cases[i].expected);
+    assert(evaluated.data.boolean_object.value == test_cases[i].expected);
 
     arena_reset(&arena);
   }
@@ -172,13 +174,14 @@ void test_if_else_expressions(void) {
 
     Program *program = parser_parse_program(&parser, &arena);
     Object evaluated = {0};
-    eval_program(program, &evaluated);
+    eval_program(program, &arena, &evaluated);
 
     assert(evaluated.type == test_cases[i].expected_type);
 
     switch (test_cases[i].expected_type) {
     case OBJECT_INTEGER:
-      assert(evaluated.data.integer.value == test_cases[i].expected_value);
+      assert(evaluated.data.integer_object.value ==
+             test_cases[i].expected_value);
       break;
     case OBJECT_NULL:
       // no need to check value :)
@@ -189,6 +192,48 @@ void test_if_else_expressions(void) {
               expression_type_strings[test_cases[i].expected_type].buffer);
       exit(EXIT_FAILURE);
     }
+
+    arena_reset(&arena);
+  }
+}
+
+void test_return_statements(void) {
+  struct {
+    char *input;
+    int64_t expected_value;
+  } test_cases[] = {
+      {"return 10;", 10},
+      {"return 10; 9;", 10},
+      {"return 2 * 5; 9;", 10},
+      {"9; return 2 * 5; 9;", 10},
+      {
+          "if (10 > 1) {\n"
+          "  if (10 > 1) {\n"
+          "    return 10;\n"
+          "  }\n"
+          "\n"
+          "  return 1;\n"
+          "}\n",
+          10,
+      },
+  };
+
+  Arena arena = {0};
+  const size_t arena_size = 16 * 1024;
+  char arena_buffer[arena_size];
+  arena_init(&arena, arena_buffer, arena_size);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+
+    Program *program = parser_parse_program(&parser, &arena);
+    Object evaluated = {0};
+    eval_program(program, &arena, &evaluated);
+
+    assert(evaluated.data.integer_object.value == test_cases[i].expected_value);
 
     arena_reset(&arena);
   }
