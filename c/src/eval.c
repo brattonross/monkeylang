@@ -18,6 +18,9 @@ void eval_integer_infix_expression(Object *result, String op, Object left,
 void eval_boolean_infix_expression(Object *result, String op, Object left,
                                    Object right);
 void eval_null_infix_expression(Object *result, String op);
+void eval_block_statement(Object *result, BlockStatement *block);
+
+bool object_is_truthy(Object o);
 
 void eval_program(Program *program, Object *result) {
   StatementIterator iter = {0};
@@ -62,6 +65,19 @@ void eval_expression(Object *result, Expression *expression) {
     Object right = {0};
     eval_expression(&right, expression->data.infix.right);
     eval_infix_expression(result, expression->data.infix.op, left, right);
+  } break;
+  case EXPRESSION_IF: {
+    IfExpression ie = expression->data.if_expression;
+    Object condition = {0};
+    eval_expression(&condition, ie.condition);
+
+    if (object_is_truthy(condition)) {
+      eval_block_statement(result, ie.consequence);
+    } else if (ie.alternative) {
+      eval_block_statement(result, ie.alternative);
+    } else {
+      null_object(result);
+    }
   } break;
   default:
     fprintf(stderr, "eval_expression: unhandled expression type %.*s\n",
@@ -193,5 +209,26 @@ void eval_null_infix_expression(Object *result, String op) {
     result->data.boolean.value = false;
   } else {
     null_object(result);
+  }
+}
+
+void eval_block_statement(Object *result, BlockStatement *block) {
+  StatementIterator iter = {0};
+  statement_iterator_init(&iter, block->first_chunk);
+
+  Statement *s;
+  while ((s = statement_iterator_next(&iter))) {
+    eval_statement(result, s);
+  }
+}
+
+bool object_is_truthy(Object o) {
+  switch (o.type) {
+  case OBJECT_NULL:
+    return false;
+  case OBJECT_BOOLEAN:
+    return o.data.boolean.value;
+  default:
+    return true;
   }
 }
