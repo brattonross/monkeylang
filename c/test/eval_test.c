@@ -14,6 +14,7 @@ void test_eval_boolean_expression(void);
 void test_bang_operator(void);
 void test_if_else_expressions(void);
 void test_return_statements(void);
+void test_error_handling(void);
 
 int main(void) {
   test_eval_integer_expression();
@@ -21,6 +22,7 @@ int main(void) {
   test_bang_operator();
   test_if_else_expressions();
   test_return_statements();
+  test_error_handling();
 }
 
 void test_eval_integer_expression(void) {
@@ -234,6 +236,55 @@ void test_return_statements(void) {
     eval_program(program, &arena, &evaluated);
 
     assert(evaluated.data.integer_object.value == test_cases[i].expected_value);
+
+    arena_reset(&arena);
+  }
+}
+
+void test_error_handling(void) {
+  struct {
+    char *input;
+    String expected_message;
+  } test_cases[] = {
+      {"5 + true;", String("type mismatch: INTEGER + BOOLEAN")},
+      {"5 + true; 5;", String("type mismatch: INTEGER + BOOLEAN")},
+      {"-true", String("unknown operator: -BOOLEAN")},
+      {"true + false;", String("unknown operator: BOOLEAN + BOOLEAN")},
+      {"5; true + false; 5", String("unknown operator: BOOLEAN + BOOLEAN")},
+      {
+          "if (10 > 1) { true + false; }",
+          String("unknown operator: BOOLEAN + BOOLEAN"),
+      },
+      {
+          "if (10 > 1) {\n"
+          "  if (10 > 1) {\n"
+          "    return true + false;\n"
+          "  }\n"
+          "\n"
+          "  return 1;\n"
+          "}\n",
+          String("unknown operator: BOOLEAN + BOOLEAN"),
+      },
+  };
+
+  Arena arena = {0};
+  const size_t arena_size = 16 * 1024;
+  char arena_buffer[arena_size];
+  arena_init(&arena, arena_buffer, arena_size);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+
+    Program *program = parser_parse_program(&parser, &arena);
+    Object evaluated = {0};
+    eval_program(program, &arena, &evaluated);
+
+    assert(evaluated.type == OBJECT_ERROR);
+    assert(string_cmp(evaluated.data.error_object.message,
+                      test_cases[i].expected_message));
 
     arena_reset(&arena);
   }

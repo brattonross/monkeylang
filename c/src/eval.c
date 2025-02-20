@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.c"
+#include "mem.c"
 #include "object.c"
 #include "string.c"
 #include <stdint.h>
@@ -9,17 +10,18 @@
 
 void eval_statement(Arena *arena, Object *result, Statement *statement);
 void eval_expression(Arena *arena, Object *result, Expression *expression);
-void eval_prefix_expression(Object *result, String op);
+void eval_prefix_expression(Arena *arena, Object *result, String op);
 void eval_bang_operator_expression(Object *result);
-void eval_minus_prefix_operator_expression(Object *result);
-void eval_infix_expression(Object *result, String op, Object left,
+void eval_minus_prefix_operator_expression(Arena *arena, Object *result);
+void eval_infix_expression(Arena *arena, Object *result, String op, Object left,
                            Object right);
-void eval_integer_infix_expression(Object *result, String op, Object left,
-                                   Object right);
-void eval_boolean_infix_expression(Object *result, String op, Object left,
-                                   Object right);
-void eval_null_infix_expression(Object *result, String op);
+void eval_integer_infix_expression(Arena *arena, Object *result, String op,
+                                   Object left, Object right);
+void eval_boolean_infix_expression(Arena *arena, Object *result, String op,
+                                   Object left, Object right);
+void eval_null_infix_expression(Arena *arena, Object *result, String op);
 void eval_block_statement(Arena *arena, Object *result, BlockStatement *block);
+void error_object(Object *result, String message);
 
 bool object_is_truthy(Object o);
 
@@ -32,6 +34,8 @@ void eval_program(Program *program, Arena *arena, Object *result) {
     eval_statement(arena, result, s);
     if (result->type == OBJECT_RETURN) {
       memcpy(result, result->data.return_object.value, sizeof(Object));
+      break;
+    } else if (result->type == OBJECT_ERROR) {
       break;
     }
   }
@@ -47,8 +51,12 @@ void eval_statement(Arena *arena, Object *result, Statement *statement) {
     Object *value = arena_alloc(arena, sizeof(Object));
     eval_expression(arena, value,
                     statement->data.return_statement.return_value);
-    result->type = OBJECT_RETURN;
-    result->data.return_object.value = value;
+    if (value->type == OBJECT_ERROR) {
+      memcpy(result, value, sizeof(Object));
+    } else {
+      result->type = OBJECT_RETURN;
+      result->data.return_object.value = value;
+    }
   } break;
   default:
     fprintf(stderr, "eval_statement: unhandled statement type %.*s\n",
@@ -70,19 +78,37 @@ void eval_expression(Arena *arena, Object *result, Expression *expression) {
   } break;
   case EXPRESSION_PREFIX: {
     eval_expression(arena, result, expression->data.prefix.right);
-    eval_prefix_expression(result, expression->data.prefix.op);
+    if (result->type == OBJECT_ERROR) {
+      break;
+    }
+    eval_prefix_expression(arena, result, expression->data.prefix.op);
   } break;
   case EXPRESSION_INFIX: {
     Object left = {0};
     eval_expression(arena, &left, expression->data.infix.left);
+    if (left.type == OBJECT_ERROR) {
+      memcpy(result, &left, sizeof(Object));
+      break;
+    }
+
     Object right = {0};
     eval_expression(arena, &right, expression->data.infix.right);
-    eval_infix_expression(result, expression->data.infix.op, left, right);
+    if (right.type == OBJECT_ERROR) {
+      memcpy(result, &right, sizeof(Object));
+      break;
+    }
+
+    eval_infix_expression(arena, result, expression->data.infix.op, left,
+                          right);
   } break;
   case EXPRESSION_IF: {
     IfExpression ie = expression->data.if_expression;
     Object condition = {0};
     eval_expression(arena, &condition, ie.condition);
+    if (condition.type == OBJECT_ERROR) {
+      memcpy(result, &condition, sizeof(Object));
+      break;
+    }
 
     if (object_is_truthy(condition)) {
       eval_block_statement(arena, result, ie.consequence);
@@ -100,13 +126,16 @@ void eval_expression(Arena *arena, Object *result, Expression *expression) {
   }
 }
 
-void eval_prefix_expression(Object *result, String op) {
+void eval_prefix_expression(Arena *arena, Object *result, String op) {
   if (string_cmp(op, String("!"))) {
     eval_bang_operator_expression(result);
   } else if (string_cmp(op, String("-"))) {
-    eval_minus_prefix_operator_expression(result);
+    eval_minus_prefix_operator_expression(arena, result);
   } else {
-    null_object(result);
+    String right_type = object_type_strings[result->type];
+    error_object(result,
+                 string_fmt(arena, "unknown operator: %.*s%.*s", op.length,
+                            op.buffer, right_type.length, right_type.length));
   }
 }
 
@@ -126,48 +155,51 @@ void eval_bang_operator_expression(Object *result) {
   }
 }
 
-void eval_minus_prefix_operator_expression(Object *result) {
+void eval_minus_prefix_operator_expression(Arena *arena, Object *result) {
   if (result->type != OBJECT_INTEGER) {
-    null_object(result);
+    String type_str = object_type_strings[result->type];
+    error_object(result, string_fmt(arena, "unknown operator: -%.*s",
+                                    type_str.length, type_str.buffer));
   } else {
     result->data.integer_object.value = -result->data.integer_object.value;
   }
 }
 
-void eval_infix_expression(Object *result, String op, Object left,
+void eval_infix_expression(Arena *arena, Object *result, String op, Object left,
                            Object right) {
   if (left.type == right.type) {
     // exhaustive switch covers all object types
     switch (left.type) {
     case OBJECT_INTEGER:
-      eval_integer_infix_expression(result, op, left, right);
+      eval_integer_infix_expression(arena, result, op, left, right);
       break;
     case OBJECT_BOOLEAN:
-      eval_boolean_infix_expression(result, op, left, right);
+      eval_boolean_infix_expression(arena, result, op, left, right);
       break;
     case OBJECT_NULL:
-      eval_null_infix_expression(result, op);
+      eval_null_infix_expression(arena, result, op);
       break;
-    default:
-      null_object(result);
-      break;
+    default: {
+      String left_type = object_type_strings[left.type];
+      String right_type = object_type_strings[right.type];
+      error_object(result,
+                   string_fmt(arena, "unknown operator: %.*s %.*s %.*s",
+                              left_type.length, left_type.buffer, op.length,
+                              op.buffer, right_type.length, right_type.buffer));
+    } break;
     }
   } else {
-    // mismatching types
-    if (string_cmp(op, String("=="))) {
-      result->type = OBJECT_BOOLEAN;
-      result->data.boolean_object.value = false;
-    } else if (string_cmp(op, String("!="))) {
-      result->type = OBJECT_BOOLEAN;
-      result->data.boolean_object.value = true;
-    } else {
-      null_object(result);
-    }
+    String left_type = object_type_strings[left.type];
+    String right_type = object_type_strings[right.type];
+    error_object(result,
+                 string_fmt(arena, "type mismatch: %.*s %.*s %.*s",
+                            left_type.length, left_type.buffer, op.length,
+                            op.buffer, right_type.length, right_type.buffer));
   }
 }
 
-void eval_integer_infix_expression(Object *result, String op, Object left,
-                                   Object right) {
+void eval_integer_infix_expression(Arena *arena, Object *result, String op,
+                                   Object left, Object right) {
   int64_t left_value = left.data.integer_object.value;
   int64_t right_value = right.data.integer_object.value;
 
@@ -196,12 +228,17 @@ void eval_integer_infix_expression(Object *result, String op, Object left,
     result->type = OBJECT_BOOLEAN;
     result->data.boolean_object.value = left_value != right_value;
   } else {
-    null_object(result);
+    String left_type = object_type_strings[left.type];
+    String right_type = object_type_strings[right.type];
+    error_object(result,
+                 string_fmt(arena, "unknown operator: %.*s %.*s %.*s",
+                            left_type.length, left_type.buffer, op.length,
+                            op.buffer, right_type.length, right_type.buffer));
   }
 }
 
-void eval_boolean_infix_expression(Object *result, String op, Object left,
-                                   Object right) {
+void eval_boolean_infix_expression(Arena *arena, Object *result, String op,
+                                   Object left, Object right) {
   bool left_value = left.data.boolean_object.value;
   bool right_value = right.data.boolean_object.value;
 
@@ -212,11 +249,16 @@ void eval_boolean_infix_expression(Object *result, String op, Object left,
     result->type = OBJECT_BOOLEAN;
     result->data.boolean_object.value = left_value != right_value;
   } else {
-    null_object(result);
+    String left_type = object_type_strings[left.type];
+    String right_type = object_type_strings[right.type];
+    error_object(result,
+                 string_fmt(arena, "unknown operator: %.*s %.*s %.*s",
+                            left_type.length, left_type.buffer, op.length,
+                            op.buffer, right_type.length, right_type.buffer));
   }
 }
 
-void eval_null_infix_expression(Object *result, String op) {
+void eval_null_infix_expression(Arena *arena, Object *result, String op) {
   if (string_cmp(op, String("=="))) {
     result->type = OBJECT_BOOLEAN;
     result->data.boolean_object.value = true;
@@ -224,7 +266,8 @@ void eval_null_infix_expression(Object *result, String op) {
     result->type = OBJECT_BOOLEAN;
     result->data.boolean_object.value = false;
   } else {
-    null_object(result);
+    error_object(result, string_fmt(arena, "unknown operator: null %.*s null",
+                                    op.length, op.buffer));
   }
 }
 
@@ -235,7 +278,7 @@ void eval_block_statement(Arena *arena, Object *result, BlockStatement *block) {
   Statement *s;
   while ((s = statement_iterator_next(&iter))) {
     eval_statement(arena, result, s);
-    if (result->type == OBJECT_RETURN) {
+    if (result->type == OBJECT_RETURN || result->type == OBJECT_ERROR) {
       break;
     }
   }
@@ -250,4 +293,9 @@ bool object_is_truthy(Object o) {
   default:
     return true;
   }
+}
+
+void error_object(Object *result, String message) {
+  result->type = OBJECT_ERROR;
+  result->data.error_object.message = message;
 }

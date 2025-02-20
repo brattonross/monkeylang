@@ -39,7 +39,7 @@ int main(void) {
     }
 
     Object evaluated = {0};
-    eval_program(program, &evaluated);
+    eval_program(program, &arena, &evaluated);
 
     String str = object_to_string(&evaluated, &arena);
     printf("%.*s\n", (int)str.length, str.buffer);
