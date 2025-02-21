@@ -100,3 +100,10 @@ bool is_letter(char c) {
 }
 
 bool is_digit(char c) { return '0' <= c && c <= '9'; }
+
+String arena_strdup(Arena *arena, String s) {
+  char *buffer = arena_alloc(arena, s.length + 1);
+  memcpy(buffer, s.buffer, s.length);
+  buffer[s.length] = 0;
+  return (String){.buffer = buffer, .length = s.length};
+}

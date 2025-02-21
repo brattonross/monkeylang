@@ -15,6 +15,7 @@ void test_bang_operator(void);
 void test_if_else_expressions(void);
 void test_return_statements(void);
 void test_error_handling(void);
+void test_let_statements(void);
 
 int main(void) {
   test_eval_integer_expression();
@@ -23,6 +24,7 @@ int main(void) {
   test_if_else_expressions();
   test_return_statements();
   test_error_handling();
+  test_let_statements();
 }
 
 void test_eval_integer_expression(void) {
@@ -52,6 +54,11 @@ void test_eval_integer_expression(void) {
   char arena_buffer[arena_size];
   arena_init(&arena, arena_buffer, arena_size);
 
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
+
   for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
     Lexer lexer = {0};
     lexer_init(&lexer, test_cases[i].input);
@@ -59,8 +66,12 @@ void test_eval_integer_expression(void) {
     parser_init(&parser, &arena, &lexer);
 
     Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     assert(evaluated.type == OBJECT_INTEGER);
     assert(evaluated.data.integer_object.value == test_cases[i].expected);
@@ -100,6 +111,11 @@ void test_eval_boolean_expression(void) {
   char arena_buffer[arena_size];
   arena_init(&arena, arena_buffer, arena_size);
 
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
+
   for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
     Lexer lexer = {0};
     lexer_init(&lexer, test_cases[i].input);
@@ -107,8 +123,12 @@ void test_eval_boolean_expression(void) {
     parser_init(&parser, &arena, &lexer);
 
     Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     assert(evaluated.type == OBJECT_BOOLEAN);
     assert(evaluated.data.boolean_object.value == test_cases[i].expected);
@@ -131,6 +151,11 @@ void test_bang_operator(void) {
   char arena_buffer[arena_size];
   arena_init(&arena, arena_buffer, arena_size);
 
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
+
   for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
     Lexer lexer = {0};
     lexer_init(&lexer, test_cases[i].input);
@@ -138,8 +163,12 @@ void test_bang_operator(void) {
     parser_init(&parser, &arena, &lexer);
 
     Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     assert(evaluated.type == OBJECT_BOOLEAN);
     assert(evaluated.data.boolean_object.value == test_cases[i].expected);
@@ -168,6 +197,11 @@ void test_if_else_expressions(void) {
   char arena_buffer[arena_size];
   arena_init(&arena, arena_buffer, arena_size);
 
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
+
   for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
     Lexer lexer = {0};
     lexer_init(&lexer, test_cases[i].input);
@@ -175,8 +209,12 @@ void test_if_else_expressions(void) {
     parser_init(&parser, &arena, &lexer);
 
     Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     assert(evaluated.type == test_cases[i].expected_type);
 
@@ -225,6 +263,11 @@ void test_return_statements(void) {
   char arena_buffer[arena_size];
   arena_init(&arena, arena_buffer, arena_size);
 
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
+
   for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
     Lexer lexer = {0};
     lexer_init(&lexer, test_cases[i].input);
@@ -232,8 +275,12 @@ void test_return_statements(void) {
     parser_init(&parser, &arena, &lexer);
 
     Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     assert(evaluated.data.integer_object.value == test_cases[i].expected_value);
 
@@ -265,12 +312,21 @@ void test_error_handling(void) {
           "}\n",
           String("unknown operator: BOOLEAN + BOOLEAN"),
       },
+      {
+          "foobar",
+          String("identifier not found: foobar"),
+      },
   };
 
   Arena arena = {0};
   const size_t arena_size = 16 * 1024;
   char arena_buffer[arena_size];
   arena_init(&arena, arena_buffer, arena_size);
+
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
 
   for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
     Lexer lexer = {0};
@@ -279,12 +335,58 @@ void test_error_handling(void) {
     parser_init(&parser, &arena, &lexer);
 
     Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     assert(evaluated.type == OBJECT_ERROR);
     assert(string_cmp(evaluated.data.error_object.message,
                       test_cases[i].expected_message));
+
+    arena_reset(&arena);
+  }
+}
+
+void test_let_statements(void) {
+  struct {
+    char *input;
+    int64_t expected_value;
+  } test_cases[] = {
+      {"let a = 5; a;", 5},
+      {"let a = 5 * 5; a;", 25},
+      {"let a = 5; let b = a; b;", 5},
+      {"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+  };
+
+  Arena arena = {0};
+  const size_t arena_size = 16 * 1024;
+  char arena_buffer[arena_size];
+  arena_init(&arena, arena_buffer, arena_size);
+
+  Arena env_arena = {0};
+  const size_t env_arena_size = 4196;
+  char env_arena_buffer[arena_size];
+  arena_init(&env_arena, env_arena_buffer, env_arena_size);
+
+  for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[i]); ++i) {
+    Lexer lexer = {0};
+    lexer_init(&lexer, test_cases[i].input);
+    Parser parser = {0};
+    parser_init(&parser, &arena, &lexer);
+
+    Program *program = parser_parse_program(&parser, &arena);
+
+    Environment env = {0};
+    environment_init(&env, &arena);
+
+    Object evaluated = {0};
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
+
+    assert(evaluated.type == OBJECT_INTEGER);
+    assert(evaluated.data.integer_object.value == test_cases[i].expected_value);
 
     arena_reset(&arena);
   }

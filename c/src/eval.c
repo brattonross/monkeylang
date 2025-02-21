@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.c"
+#include "env.c"
 #include "mem.c"
 #include "object.c"
 #include "string.c"
@@ -8,8 +9,10 @@
 #include <stdio.h>
 #include <string.h>
 
-void eval_statement(Arena *arena, Object *result, Statement *statement);
-void eval_expression(Arena *arena, Object *result, Expression *expression);
+void eval_statement(Arena *arena, Arena *env_arena, Environment *env,
+                    Object *result, Statement *statement);
+void eval_expression(Arena *arena, Arena *env_arena, Environment *env,
+                     Object *result, Expression *expression);
 void eval_prefix_expression(Arena *arena, Object *result, String op);
 void eval_bang_operator_expression(Object *result);
 void eval_minus_prefix_operator_expression(Arena *arena, Object *result);
@@ -20,18 +23,20 @@ void eval_integer_infix_expression(Arena *arena, Object *result, String op,
 void eval_boolean_infix_expression(Arena *arena, Object *result, String op,
                                    Object left, Object right);
 void eval_null_infix_expression(Arena *arena, Object *result, String op);
-void eval_block_statement(Arena *arena, Object *result, BlockStatement *block);
+void eval_block_statement(Arena *arena, Arena *env_arena, Environment *env,
+                          Object *result, BlockStatement *block);
 void error_object(Object *result, String message);
 
 bool object_is_truthy(Object o);
 
-void eval_program(Program *program, Arena *arena, Object *result) {
+void eval_program(Program *program, Arena *arena, Arena *env_arena,
+                  Environment *env, Object *result) {
   StatementIterator iter = {0};
   statement_iterator_init(&iter, program->first_chunk);
 
   Statement *s;
   while ((s = statement_iterator_next(&iter))) {
-    eval_statement(arena, result, s);
+    eval_statement(arena, env_arena, env, result, s);
     if (result->type == OBJECT_RETURN) {
       memcpy(result, result->data.return_object.value, sizeof(Object));
       break;
@@ -41,15 +46,16 @@ void eval_program(Program *program, Arena *arena, Object *result) {
   }
 }
 
-void eval_statement(Arena *arena, Object *result, Statement *statement) {
+void eval_statement(Arena *arena, Arena *env_arena, Environment *env,
+                    Object *result, Statement *statement) {
   switch (statement->type) {
   case STATEMENT_EXPRESSION:
-    eval_expression(arena, result,
+    eval_expression(arena, env_arena, env, result,
                     statement->data.expression_statement.expression);
     break;
   case STATEMENT_RETURN: {
     Object *value = arena_alloc(arena, sizeof(Object));
-    eval_expression(arena, value,
+    eval_expression(arena, env_arena, env, value,
                     statement->data.return_statement.return_value);
     if (value->type == OBJECT_ERROR) {
       memcpy(result, value, sizeof(Object));
@@ -57,6 +63,15 @@ void eval_statement(Arena *arena, Object *result, Statement *statement) {
       result->type = OBJECT_RETURN;
       result->data.return_object.value = value;
     }
+  } break;
+  case STATEMENT_LET: {
+    eval_expression(arena, env_arena, env, result,
+                    statement->data.let_statement.value);
+    if (result->type == OBJECT_ERROR) {
+      break;
+    }
+    environment_set(env, env_arena, statement->data.let_statement.name->value,
+                    result);
   } break;
   default:
     fprintf(stderr, "eval_statement: unhandled statement type %.*s\n",
@@ -66,7 +81,8 @@ void eval_statement(Arena *arena, Object *result, Statement *statement) {
   }
 }
 
-void eval_expression(Arena *arena, Object *result, Expression *expression) {
+void eval_expression(Arena *arena, Arena *env_arena, Environment *env,
+                     Object *result, Expression *expression) {
   switch (expression->type) {
   case EXPRESSION_INTEGER: {
     result->type = OBJECT_INTEGER;
@@ -77,7 +93,8 @@ void eval_expression(Arena *arena, Object *result, Expression *expression) {
     result->data.boolean_object.value = expression->data.boolean.value;
   } break;
   case EXPRESSION_PREFIX: {
-    eval_expression(arena, result, expression->data.prefix.right);
+    eval_expression(arena, env_arena, env, result,
+                    expression->data.prefix.right);
     if (result->type == OBJECT_ERROR) {
       break;
     }
@@ -85,14 +102,15 @@ void eval_expression(Arena *arena, Object *result, Expression *expression) {
   } break;
   case EXPRESSION_INFIX: {
     Object left = {0};
-    eval_expression(arena, &left, expression->data.infix.left);
+    eval_expression(arena, env_arena, env, &left, expression->data.infix.left);
     if (left.type == OBJECT_ERROR) {
       memcpy(result, &left, sizeof(Object));
       break;
     }
 
     Object right = {0};
-    eval_expression(arena, &right, expression->data.infix.right);
+    eval_expression(arena, env_arena, env, &right,
+                    expression->data.infix.right);
     if (right.type == OBJECT_ERROR) {
       memcpy(result, &right, sizeof(Object));
       break;
@@ -104,18 +122,29 @@ void eval_expression(Arena *arena, Object *result, Expression *expression) {
   case EXPRESSION_IF: {
     IfExpression ie = expression->data.if_expression;
     Object condition = {0};
-    eval_expression(arena, &condition, ie.condition);
+    eval_expression(arena, env_arena, env, &condition, ie.condition);
     if (condition.type == OBJECT_ERROR) {
       memcpy(result, &condition, sizeof(Object));
       break;
     }
 
     if (object_is_truthy(condition)) {
-      eval_block_statement(arena, result, ie.consequence);
+      eval_block_statement(arena, env_arena, env, result, ie.consequence);
     } else if (ie.alternative) {
-      eval_block_statement(arena, result, ie.alternative);
+      eval_block_statement(arena, env_arena, env, result, ie.alternative);
     } else {
       null_object(result);
+    }
+  } break;
+  case EXPRESSION_IDENTIFIER: {
+    Object *value = environment_get(env, expression->data.identifier.value);
+    if (value) {
+      memcpy(result, value, sizeof(Object));
+    } else {
+      error_object(result,
+                   string_fmt(arena, "identifier not found: %.*s",
+                              expression->data.identifier.value.length,
+                              expression->data.identifier.value.buffer));
     }
   } break;
   default:
@@ -271,13 +300,14 @@ void eval_null_infix_expression(Arena *arena, Object *result, String op) {
   }
 }
 
-void eval_block_statement(Arena *arena, Object *result, BlockStatement *block) {
+void eval_block_statement(Arena *arena, Arena *env_arena, Environment *env,
+                          Object *result, BlockStatement *block) {
   StatementIterator iter = {0};
   statement_iterator_init(&iter, block->first_chunk);
 
   Statement *s;
   while ((s = statement_iterator_next(&iter))) {
-    eval_statement(arena, result, s);
+    eval_statement(arena, env_arena, env, result, s);
     if (result->type == OBJECT_RETURN || result->type == OBJECT_ERROR) {
       break;
     }

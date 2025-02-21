@@ -1,3 +1,4 @@
+#include "env.c"
 #include "eval.c"
 #include "lexer.c"
 #include "mem.c"
@@ -14,6 +15,12 @@ int main(void) {
   unsigned char buf[32 * 1024];
   Arena arena = {0};
   arena_init(&arena, buf, 32 * 1024);
+
+  unsigned char env_buf[16 * 1024];
+  Arena env_arena = {0};
+  arena_init(&env_arena, env_buf, 16 * 1024);
+  Environment env = {0};
+  environment_init(&env, &env_arena);
 
   while (true) {
     char *line = readline(">> ");
@@ -39,7 +46,7 @@ int main(void) {
     }
 
     Object evaluated = {0};
-    eval_program(program, &arena, &evaluated);
+    eval_program(program, &arena, &env_arena, &env, &evaluated);
 
     String str = object_to_string(&evaluated, &arena);
     printf("%.*s\n", (int)str.length, str.buffer);
