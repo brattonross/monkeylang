@@ -3,6 +3,7 @@ pub const Token = struct {
     literal: []const u8,
 
     pub const Type = enum {
+        eof,
         illegal,
 
         identifier,
@@ -53,10 +54,10 @@ pub fn init(buffer: []const u8) Lexer {
     return .{ .buffer = buffer, .pos = 0 };
 }
 
-pub fn nextToken(self: *Lexer) ?Token {
+pub fn nextToken(self: *Lexer) Token {
     self.skipWhitespace();
 
-    const current = self.currentByte() orelse return null;
+    const current = self.currentByte() orelse return .{ .type = .eof, .literal = "" };
     var token = Token{ .type = undefined, .literal = self.buffer[self.pos .. self.pos + 1] };
     token.type = switch (current) {
         '=' => blk: {
