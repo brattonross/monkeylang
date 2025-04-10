@@ -1,6 +1,3 @@
-const std = @import("std");
-const Token = @import("./Lexer.zig").Token;
-
 pub const Program = struct {
     statements: std.ArrayList(Statement),
 
@@ -28,7 +25,7 @@ pub const Statement = union(enum) {
 pub const LetStatement = struct {
     token: Token,
     name: Identifier,
-    value: Expression,
+    value: *Expression,
 
     pub fn format(self: LetStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -39,7 +36,7 @@ pub const LetStatement = struct {
 
 pub const ReturnStatement = struct {
     token: Token,
-    return_value: Expression,
+    return_value: *Expression,
 
     pub fn format(self: ReturnStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -50,7 +47,7 @@ pub const ReturnStatement = struct {
 
 pub const ExpressionStatement = struct {
     token: Token,
-    expression: Expression,
+    expression: *Expression,
 
     pub fn format(self: ExpressionStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.expression.format(fmt, options, writer);
@@ -71,12 +68,12 @@ pub const Identifier = struct {
 pub const Expression = union(enum) {
     identifier: Identifier,
     integer: IntegerLiteral,
-    prefix: *PrefixExpression,
-    infix: *InfixExpression,
+    prefix: PrefixExpression,
+    infix: InfixExpression,
     boolean: Boolean,
-    @"if": *IfExpression,
+    @"if": IfExpression,
     function: FunctionLiteral,
-    call: *CallExpression,
+    call: CallExpression,
 
     pub fn format(self: Expression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
@@ -106,7 +103,7 @@ pub const IntegerLiteral = struct {
 pub const PrefixExpression = struct {
     token: Token,
     operator: []const u8,
-    right: Expression,
+    right: *Expression,
 
     pub fn format(self: PrefixExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -117,9 +114,9 @@ pub const PrefixExpression = struct {
 
 pub const InfixExpression = struct {
     token: Token,
-    left: Expression,
+    left: *Expression,
     operator: []const u8,
-    right: Expression,
+    right: *Expression,
 
     pub fn format(self: InfixExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -141,7 +138,7 @@ pub const Boolean = struct {
 
 pub const IfExpression = struct {
     token: Token,
-    condition: Expression,
+    condition: *Expression,
     consequence: BlockStatement,
     alternative: ?BlockStatement,
 
@@ -192,8 +189,8 @@ pub const FunctionLiteral = struct {
 
 pub const CallExpression = struct {
     token: Token,
-    function: Expression,
-    arguments: std.ArrayList(Expression),
+    function: *Expression,
+    arguments: std.ArrayList(*Expression),
 
     pub fn format(self: CallExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -209,3 +206,6 @@ pub const CallExpression = struct {
         try writer.writeAll(")");
     }
 };
+
+const std = @import("std");
+const Token = @import("./Lexer.zig").Token;

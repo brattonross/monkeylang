@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub const Token = struct {
     type: Type,
     literal: []const u8,
@@ -180,3 +178,5 @@ fn isDigit(c: u8) bool {
 fn isWhitespace(c: u8) bool {
     return c == ' ' or c == '\t' or c == '\n' or c == '\r';
 }
+
+const std = @import("std");

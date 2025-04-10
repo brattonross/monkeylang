@@ -1,10 +1,3 @@
-const std = @import("std");
-const Allocator = std.mem.Allocator;
-const ast = @import("./ast.zig");
-const Environment = @import("./Environment.zig");
-
-const Evaluator = @This();
-
 allocator: Allocator,
 
 pub fn evalProgram(self: *Evaluator, program: ast.Program, env: *Environment) !?Object {
@@ -23,16 +16,16 @@ pub fn evalProgram(self: *Evaluator, program: ast.Program, env: *Environment) !?
 fn evalStatement(self: *Evaluator, statement: ast.Statement, env: *Environment) !?Object {
     return switch (statement) {
         .let => {
-            const value = try self.evalExpression(statement.let.value, env);
+            const value = try self.evalExpression(statement.let.value.*, env);
             if (value) |obj| {
                 if (obj == .@"error") return obj;
                 try env.set(statement.let.name.value, obj);
             }
             return null;
         },
-        .expression => |s| try self.evalExpression(s.expression, env),
+        .expression => |s| try self.evalExpression(s.expression.*, env),
         .@"return" => {
-            const value = try self.evalExpression(statement.@"return".return_value, env) orelse return null;
+            const value = try self.evalExpression(statement.@"return".return_value.*, env) orelse return null;
             if (value == .@"error") return value;
             const ret = try self.allocator.create(ReturnValue);
             ret.* = .{ .value = value };
@@ -47,14 +40,14 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
         .integer => .{ .integer = .{ .value = expression.integer.value } },
         .boolean => nativeBoolToBooleanObject(expression.boolean.value),
         .prefix => blk: {
-            const right = try self.evalExpression(expression.prefix.right, env) orelse return null;
+            const right = try self.evalExpression(expression.prefix.right.*, env) orelse return null;
             if (right == .@"error") return right;
             break :blk try self.evalPrefixExpression(expression.prefix.operator, right);
         },
         .infix => blk: {
-            const left = try self.evalExpression(expression.infix.left, env) orelse return null;
+            const left = try self.evalExpression(expression.infix.left.*, env) orelse return null;
             if (left == .@"error") return left;
-            const right = try self.evalExpression(expression.infix.right, env) orelse return null;
+            const right = try self.evalExpression(expression.infix.right.*, env) orelse return null;
             if (right == .@"error") return right;
             break :blk try self.evalInfixExpression(expression.infix.operator, left, right);
         },
@@ -65,7 +58,7 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
             .env = env,
         } },
         .call => {
-            const func = try self.evalExpression(expression.call.function, env) orelse return null;
+            const func = try self.evalExpression(expression.call.function.*, env) orelse return null;
             if (func == .@"error") {
                 return func;
             }
@@ -78,11 +71,11 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
     };
 }
 
-fn evalExpressions(self: *Evaluator, expressions: []ast.Expression, env: *Environment) !std.ArrayList(Object) {
+fn evalExpressions(self: *Evaluator, expressions: []*ast.Expression, env: *Environment) !std.ArrayList(Object) {
     var result = std.ArrayList(Object).init(self.allocator);
 
     for (expressions) |exp| {
-        if (try self.evalExpression(exp, env)) |res| {
+        if (try self.evalExpression(exp.*, env)) |res| {
             if (res == .@"error") {
                 result.clearAndFree();
                 try result.append(res);
@@ -214,8 +207,8 @@ fn evalIntegerInfixExpression(self: *Evaluator, operator: []const u8, left: Obje
     }
 }
 
-fn evalIfExpression(self: *Evaluator, expression: *ast.IfExpression, env: *Environment) !?Object {
-    const condition = try self.evalExpression(expression.condition, env) orelse return null;
+fn evalIfExpression(self: *Evaluator, expression: ast.IfExpression, env: *Environment) !?Object {
+    const condition = try self.evalExpression(expression.condition.*, env) orelse return null;
     if (condition == .@"error") {
         return condition;
     } else if (isTruthy(condition)) {
@@ -348,3 +341,10 @@ pub const Function = struct {
         try writer.print(") {{\n{}\n}}", .{self.body});
     }
 };
+
+const Evaluator = @This();
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+const ast = @import("./ast.zig");
+const Environment = @import("./Environment.zig");

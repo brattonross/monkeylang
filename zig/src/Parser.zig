@@ -1,11 +1,3 @@
-const std = @import("std");
-const Allocator = std.mem.Allocator;
-const ast = @import("./ast.zig");
-const Lexer = @import("./Lexer.zig");
-const Token = Lexer.Token;
-
-const Parser = @This();
-
 allocator: Allocator,
 lexer: *Lexer,
 errors: std.ArrayList([]const u8),
@@ -64,6 +56,7 @@ fn parseLetStatement(self: *Parser) !?ast.Statement {
     self.nextToken();
 
     const value = try self.parseExpression(.lowest) orelse return null;
+
     if (self.peek_token) |peek| if (peek.type == .semicolon) self.nextToken();
 
     const let = ast.LetStatement{ .token = token, .name = name, .value = value };
@@ -73,6 +66,7 @@ fn parseLetStatement(self: *Parser) !?ast.Statement {
 fn parseReturnStatement(self: *Parser) !?ast.Statement {
     const token = self.current_token orelse return null;
     self.nextToken();
+
     const value = try self.parseExpression(.lowest) orelse return null;
 
     if (self.peek_token) |peek| if (peek.type == .semicolon) self.nextToken();
@@ -84,7 +78,9 @@ fn parseReturnStatement(self: *Parser) !?ast.Statement {
 fn parseExpressionStatement(self: *Parser) !?ast.Statement {
     const token = self.current_token orelse return null;
     const expression = try self.parseExpression(.lowest) orelse return null;
+
     if (self.peek_token) |peek| if (peek.type == .semicolon) self.nextToken();
+
     const exp = ast.ExpressionStatement{ .token = token, .expression = expression };
     return .{ .expression = exp };
 }
@@ -99,8 +95,9 @@ const Precedence = enum(u4) {
     call,
 };
 
-fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?ast.Expression {
+fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?*ast.Expression {
     const current = self.current_token orelse return null;
+
     var left = switch (current.type) {
         .identifier => try self.parseIdentifier(),
         .integer => try self.parseIntegerLiteral(),
@@ -136,12 +133,14 @@ fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?ast.Expressi
     return left;
 }
 
-fn parseIdentifier(self: *Parser) !?ast.Expression {
+fn parseIdentifier(self: *Parser) !?*ast.Expression {
     const current = self.current_token orelse return null;
-    return .{ .identifier = .{ .token = current, .value = current.literal } };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .identifier = .{ .token = current, .value = current.literal } };
+    return ret;
 }
 
-fn parseIntegerLiteral(self: *Parser) !?ast.Expression {
+fn parseIntegerLiteral(self: *Parser) !?*ast.Expression {
     const token = self.current_token orelse return null;
     const value = std.fmt.parseInt(i64, token.literal, 10) catch {
         const msg = try std.fmt.allocPrint(self.allocator, "could not parse {s} as integer", .{token.literal});
@@ -149,35 +148,45 @@ fn parseIntegerLiteral(self: *Parser) !?ast.Expression {
         return null;
     };
     const integer = ast.IntegerLiteral{ .token = token, .value = value };
-    return .{ .integer = integer };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .integer = integer };
+    return ret;
 }
 
-fn parsePrefixExpression(self: *Parser) !?ast.Expression {
+fn parsePrefixExpression(self: *Parser) !?*ast.Expression {
     const token = self.current_token orelse return null;
     self.nextToken();
     const right = try self.parseExpression(.prefix) orelse return null;
-    const prefix = try self.allocator.create(ast.PrefixExpression);
-    prefix.* = .{ .token = token, .operator = token.literal, .right = right };
-    return .{ .prefix = prefix };
+    const prefix = ast.PrefixExpression{
+        .token = token,
+        .operator = token.literal,
+        .right = right,
+    };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .prefix = prefix };
+    return ret;
 }
 
-fn parseInfixExpression(self: *Parser, left: ast.Expression) !?ast.Expression {
+fn parseInfixExpression(self: *Parser, left: *ast.Expression) !?*ast.Expression {
     const token = self.current_token orelse return null;
     const precedence = self.currentPrecedence();
     self.nextToken();
     const right = try self.parseExpression(precedence) orelse return null;
-    const infix = try self.allocator.create(ast.InfixExpression);
-    infix.* = ast.InfixExpression{ .token = token, .operator = token.literal, .left = left, .right = right };
-    return .{ .infix = infix };
+    const infix = ast.InfixExpression{ .token = token, .operator = token.literal, .left = left, .right = right };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .infix = infix };
+    return ret;
 }
 
-fn parseBoolean(self: *Parser) !?ast.Expression {
+fn parseBoolean(self: *Parser) !?*ast.Expression {
     const token = self.current_token orelse return null;
     const boolean = ast.Boolean{ .token = token, .value = token.type == .true };
-    return .{ .boolean = boolean };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .boolean = boolean };
+    return ret;
 }
 
-fn parseGroupedExpression(self: *Parser) !?ast.Expression {
+fn parseGroupedExpression(self: *Parser) !?*ast.Expression {
     self.nextToken();
     const expression = try self.parseExpression(.lowest);
     if (!try self.advanceIfPeek(.right_paren)) {
@@ -186,7 +195,7 @@ fn parseGroupedExpression(self: *Parser) !?ast.Expression {
     return expression;
 }
 
-fn parseIfExpression(self: *Parser) !?ast.Expression {
+fn parseIfExpression(self: *Parser) !?*ast.Expression {
     const token = self.current_token orelse return null;
     if (!try self.advanceIfPeek(.left_paren)) {
         return null;
@@ -203,21 +212,27 @@ fn parseIfExpression(self: *Parser) !?ast.Expression {
     }
 
     const consequence = try self.parseBlockStatement() orelse return null;
-    const exp = try self.allocator.create(ast.IfExpression);
-    exp.* = .{ .token = token, .condition = condition, .consequence = consequence, .alternative = undefined };
+    var if_expression = ast.IfExpression{
+        .token = token,
+        .condition = condition,
+        .consequence = consequence,
+        .alternative = undefined,
+    };
 
     if (self.peek_token) |peek| if (peek.type == .@"else") {
         self.nextToken();
         if (!try self.advanceIfPeek(.left_brace)) {
             return null;
         }
-        exp.alternative = try self.parseBlockStatement() orelse return null;
+        if_expression.alternative = try self.parseBlockStatement() orelse return null;
     };
 
-    return .{ .@"if" = exp };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .@"if" = if_expression };
+    return ret;
 }
 
-fn parseFunctionLiteral(self: *Parser) !?ast.Expression {
+fn parseFunctionLiteral(self: *Parser) !?*ast.Expression {
     const token = self.current_token orelse return null;
     if (!try self.advanceIfPeek(.left_paren)) {
         return null;
@@ -230,7 +245,9 @@ fn parseFunctionLiteral(self: *Parser) !?ast.Expression {
 
     const body = try self.parseBlockStatement() orelse return null;
     const func = ast.FunctionLiteral{ .token = token, .parameters = parameters, .body = body };
-    return .{ .function = func };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .function = func };
+    return ret;
 }
 
 fn parseFunctionParameters(self: *Parser) !?std.ArrayList(ast.Identifier) {
@@ -261,16 +278,21 @@ fn parseFunctionParameters(self: *Parser) !?std.ArrayList(ast.Identifier) {
     return params;
 }
 
-fn parseCallExpression(self: *Parser, function: ast.Expression) !?ast.Expression {
+fn parseCallExpression(self: *Parser, function: *ast.Expression) !?*ast.Expression {
     const token = self.current_token orelse return null;
     const args = try self.parseCallArguments() orelse return null;
-    const call = try self.allocator.create(ast.CallExpression);
-    call.* = .{ .token = token, .function = function, .arguments = args };
-    return .{ .call = call };
+    const call = ast.CallExpression{
+        .token = token,
+        .function = function,
+        .arguments = args,
+    };
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .call = call };
+    return ret;
 }
 
-fn parseCallArguments(self: *Parser) !?std.ArrayList(ast.Expression) {
-    var args = std.ArrayList(ast.Expression).init(self.allocator);
+fn parseCallArguments(self: *Parser) !?std.ArrayList(*ast.Expression) {
+    var args = std.ArrayList(*ast.Expression).init(self.allocator);
 
     if (self.peek_token) |peek| if (peek.type == .right_paren) {
         self.nextToken();
@@ -349,3 +371,11 @@ fn tokenPrecedence(t: Token.Type) Precedence {
         else => .lowest,
     };
 }
+
+const Parser = @This();
+
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+const ast = @import("./ast.zig");
+const Lexer = @import("./Lexer.zig");
+const Token = Lexer.Token;

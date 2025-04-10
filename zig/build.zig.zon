@@ -1,5 +1,6 @@
 .{
-    .name = "monkeylang",
+    .name = .monkeylang,
+    .fingerprint = 0xb42f447c42e5158d,
     .version = "0.0.0",
     .dependencies = .{},
     .paths = .{
