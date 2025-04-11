@@ -24,6 +24,7 @@ pub const Token = struct {
 
         comma,
         semicolon,
+        colon,
 
         left_paren,
         right_paren,
@@ -90,6 +91,7 @@ pub fn nextToken(self: *Lexer) Token {
         '<' => .less_than,
         '>' => .greater_than,
         ';' => .semicolon,
+        ':' => .colon,
         '(' => .left_paren,
         ')' => .right_paren,
         ',' => .comma,

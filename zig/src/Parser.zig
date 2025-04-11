@@ -107,6 +107,7 @@ fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?*ast.Express
         .function => try self.parseFunctionLiteral(),
         .string => try self.parseStringLiteral(),
         .left_bracket => try self.parseArrayLiteral(),
+        .left_brace => try self.parseHashLiteral(),
         else => {
             const msg = try std.fmt.allocPrint(self.allocator, "no prefix parse function for {} found", .{self.current_token.type});
             try self.errors.append(msg);
@@ -344,6 +345,42 @@ fn parseArrayLiteral(self: *Parser) !?*ast.Expression {
     const elements = try self.parseExpressionList(.right_bracket);
     const ret = try self.allocator.create(ast.Expression);
     ret.* = .{ .array = .{ .token = token, .elements = elements } };
+    return ret;
+}
+
+fn parseHashLiteral(self: *Parser) !?*ast.Expression {
+    const token = self.current_token;
+    var pairs = std.AutoHashMap(*ast.Expression, *ast.Expression).init(self.allocator);
+
+    while (self.peek_token.type != .right_brace) {
+        self.nextToken();
+        const key = try self.parseExpression(.lowest) orelse return error.NullExpression;
+
+        if (self.peek_token.type != .colon) {
+            return error.InvalidHash;
+        }
+        self.nextToken();
+
+        self.nextToken();
+        const value = try self.parseExpression(.lowest) orelse return error.NullExpression;
+
+        try pairs.putNoClobber(key, value);
+
+        if (self.peek_token.type != .right_brace and self.peek_token.type != .comma) {
+            return error.InvalidHash;
+        }
+        if (self.peek_token.type == .comma) {
+            self.nextToken();
+        }
+    }
+
+    if (self.peek_token.type != .right_brace) {
+        return error.InvalidHash;
+    }
+    self.nextToken();
+
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .hash = .{ .token = token, .pairs = pairs } };
     return ret;
 }
 

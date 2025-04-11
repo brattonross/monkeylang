@@ -83,6 +83,7 @@ pub const Expression = union(enum) {
     string: StringLiteral,
     array: ArrayLiteral,
     index: IndexExpression,
+    hash: HashLiteral,
 
     pub fn format(self: Expression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
@@ -97,6 +98,7 @@ pub const Expression = union(enum) {
             .string => try self.string.format(fmt, options, writer),
             .array => try self.array.format(fmt, options, writer),
             .index => try self.index.format(fmt, options, writer),
+            .hash => try self.hash.format(fmt, options, writer),
         }
     }
 };
@@ -262,6 +264,29 @@ pub const IndexExpression = struct {
         _ = options;
 
         try writer.print("({}[{}])", .{ self.left, self.index });
+    }
+};
+
+pub const HashLiteral = struct {
+    token: Token,
+    pairs: std.AutoHashMap(*Expression, *Expression),
+
+    pub fn format(self: HashLiteral, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.writeAll("{");
+        const total = self.pairs.count();
+        var pairs = self.pairs.iterator();
+        var i: usize = 0;
+        while (pairs.next()) |entry| {
+            try writer.print("{}: {}", .{ entry.key_ptr.*, entry.value_ptr.* });
+            if (i < total - 1) {
+                try writer.writeAll(", ");
+            }
+            i += 1;
+        }
+        try writer.writeAll("}");
     }
 };
 

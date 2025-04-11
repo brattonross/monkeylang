@@ -12,6 +12,7 @@ pub const Object = union(Type) {
     string: String,
     builtin: Builtin,
     array: Array,
+    hash: Hash,
 
     pub const Type = enum {
         integer,
@@ -23,6 +24,7 @@ pub const Object = union(Type) {
         string,
         builtin,
         array,
+        hash,
     };
 
     pub fn format(self: Object, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -36,12 +38,17 @@ pub const Object = union(Type) {
             .string => try self.string.format(fmt, options, writer),
             .builtin => try writer.writeAll("builtin function"),
             .array => try self.array.format(fmt, options, writer),
+            .hash => try self.hash.format(fmt, options, writer),
         }
     }
 };
 
 pub const Integer = struct {
     value: i64,
+
+    pub fn hash(self: Integer) Hash.Key {
+        return .{ .type = .integer, .value = @intCast(self.value) };
+    }
 
     pub fn format(self: Integer, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -52,6 +59,10 @@ pub const Integer = struct {
 
 pub const Boolean = struct {
     value: bool,
+
+    pub fn hash(self: Boolean) Hash.Key {
+        return .{ .type = .boolean, .value = @intCast(@intFromBool(self.value)) };
+    }
 
     pub fn format(self: Boolean, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
@@ -102,6 +113,10 @@ pub const Function = struct {
 pub const String = struct {
     value: []const u8,
 
+    pub fn hash(self: String) Hash.Key {
+        return .{ .type = .string, .value = std.hash.Fnv1a_64.hash(self.value) };
+    }
+
     pub fn format(self: String, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
@@ -131,6 +146,38 @@ pub const Array = struct {
             }
         }
         try writer.writeAll("]");
+    }
+};
+
+pub const Hash = struct {
+    pairs: std.AutoHashMap(Key, Pair),
+
+    pub const Key = struct {
+        type: Object.Type,
+        value: u64,
+    };
+
+    pub const Pair = struct {
+        key: Object,
+        value: Object,
+    };
+
+    pub fn format(self: Hash, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.writeAll("{");
+        const total = self.pairs.count();
+        var pairs = self.pairs.valueIterator();
+        var i: usize = 0;
+        while (pairs.next()) |pair| {
+            try writer.print("{}: {}", .{ pair.key, pair.value });
+            if (i < total - 1) {
+                try writer.writeAll(", ");
+            }
+            i += 1;
+        }
+        try writer.writeAll("}");
     }
 };
 

@@ -89,12 +89,40 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
             }
             return try self.evalIndexExpression(left, index);
         },
+        .hash => {
+            var pairs = std.AutoHashMap(object.Hash.Key, object.Hash.Pair).init(self.allocator);
+            var iter = expression.hash.pairs.iterator();
+            while (iter.next()) |entry| {
+                const key = try self.evalExpression(entry.key_ptr.*.*, env) orelse return error.NullExpression;
+                const hash_key = switch (key) {
+                    .@"error" => return key,
+                    .integer => key.integer.hash(),
+                    .boolean => key.boolean.hash(),
+                    .string => key.string.hash(),
+                    else => {
+                        const message = try std.fmt.allocPrint(self.allocator, "unusable as hash key: {s}", .{@tagName(key)});
+                        return .{ .@"error" = .{ .message = message } };
+                    },
+                };
+
+                const value = try self.evalExpression(entry.value_ptr.*.*, env) orelse return error.NullExpression;
+                if (value == .@"error") {
+                    return value;
+                }
+
+                try pairs.putNoClobber(hash_key, .{ .key = key, .value = value });
+            }
+
+            return .{ .hash = .{ .pairs = pairs } };
+        },
     };
 }
 
 fn evalIndexExpression(self: *Evaluator, left: Object, index: Object) !Object {
     if (left == .array and index == .integer) {
         return self.evalArrayIndexExpression(left, index);
+    } else if (left == .hash) {
+        return try self.evalHashIndexExpression(left, index);
     } else {
         const msg = try std.fmt.allocPrint(self.allocator, "index operator not supported: {s}", .{@tagName(left)});
         return .{ .@"error" = .{ .message = msg } };
@@ -110,6 +138,21 @@ fn evalArrayIndexExpression(_: *Evaluator, left: Object, index: Object) Object {
         return null_object;
     }
     return arr.elements.items[@intCast(idx)];
+}
+
+fn evalHashIndexExpression(self: *Evaluator, left: Object, index: Object) !Object {
+    const hash = left.hash;
+    const key = switch (index) {
+        .integer => index.integer.hash(),
+        .boolean => index.boolean.hash(),
+        .string => index.string.hash(),
+        else => {
+            const message = try std.fmt.allocPrint(self.allocator, "unusable as hash key: {s}", .{@tagName(index)});
+            return .{ .@"error" = .{ .message = message } };
+        },
+    };
+    const pair = hash.pairs.get(key) orelse return null_object;
+    return pair.value;
 }
 
 fn evalExpressions(self: *Evaluator, expressions: []*ast.Expression, env: *Environment) !std.ArrayList(Object) {
