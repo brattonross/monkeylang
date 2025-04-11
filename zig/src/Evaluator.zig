@@ -307,6 +307,34 @@ fn evalIdentifier(self: *Evaluator, identifier: ast.Identifier, env: *Environmen
                 .function = builtin.len,
             },
         };
+    } else if (std.mem.eql(u8, "first", identifier.value)) {
+        return .{
+            .builtin = .{
+                .allocator = self.allocator,
+                .function = builtin.first,
+            },
+        };
+    } else if (std.mem.eql(u8, "last", identifier.value)) {
+        return .{
+            .builtin = .{
+                .allocator = self.allocator,
+                .function = builtin.last,
+            },
+        };
+    } else if (std.mem.eql(u8, "tail", identifier.value)) {
+        return .{
+            .builtin = .{
+                .allocator = self.allocator,
+                .function = builtin.tail,
+            },
+        };
+    } else if (std.mem.eql(u8, "push", identifier.value)) {
+        return .{
+            .builtin = .{
+                .allocator = self.allocator,
+                .function = builtin.push,
+            },
+        };
     } else {
         const msg = try std.fmt.allocPrint(self.allocator, "identifier not found: {s}", .{identifier.value});
         return .{ .@"error" = .{ .message = msg } };
