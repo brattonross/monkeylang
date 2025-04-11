@@ -54,6 +54,10 @@ pub fn main() !void {
     }
 }
 
+test {
+    _ = @import("./Parser.zig");
+}
+
 const std = @import("std");
 const Lexer = @import("./Lexer.zig");
 const Parser = @import("./Parser.zig");

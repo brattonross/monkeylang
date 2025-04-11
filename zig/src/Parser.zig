@@ -40,13 +40,14 @@ fn parseStatement(self: *Parser) !?ast.Statement {
 
 fn parseLetStatement(self: *Parser) !?ast.Statement {
     const token = self.current_token;
+
     if (!try self.advanceIfPeek(.identifier)) {
         return null;
     }
 
     const name = ast.Identifier{
         .token = self.current_token,
-        .value = self.current_token.literal,
+        .value = try self.allocator.dupe(u8, self.current_token.literal),
     };
 
     if (!try self.advanceIfPeek(.assign)) {
@@ -132,7 +133,7 @@ fn parseIdentifier(self: *Parser) !?*ast.Expression {
     ret.* = .{
         .identifier = .{
             .token = self.current_token,
-            .value = self.current_token.literal,
+            .value = try self.allocator.dupe(u8, self.current_token.literal),
         },
     };
     return ret;
@@ -154,12 +155,18 @@ fn parseIntegerLiteral(self: *Parser) !?*ast.Expression {
 fn parsePrefixExpression(self: *Parser) !?*ast.Expression {
     const token = self.current_token;
     self.nextToken();
+
     const right = try self.parseExpression(.prefix) orelse return null;
+
+    const operator = try self.allocator.dupe(u8, token.literal);
+    errdefer self.allocator.free(operator);
+
     const prefix = ast.PrefixExpression{
         .token = token,
-        .operator = token.literal,
+        .operator = operator,
         .right = right,
     };
+
     const ret = try self.allocator.create(ast.Expression);
     ret.* = .{ .prefix = prefix };
     return ret;
@@ -169,8 +176,14 @@ fn parseInfixExpression(self: *Parser, left: *ast.Expression) !?*ast.Expression 
     const token = self.current_token;
     const precedence = self.currentPrecedence();
     self.nextToken();
+
     const right = try self.parseExpression(precedence) orelse return null;
-    const infix = ast.InfixExpression{ .token = token, .operator = token.literal, .left = left, .right = right };
+
+    const operator = try self.allocator.dupe(u8, token.literal);
+    errdefer self.allocator.free(operator);
+
+    const infix = ast.InfixExpression{ .token = token, .operator = operator, .left = left, .right = right };
+
     const ret = try self.allocator.create(ast.Expression);
     ret.* = .{ .infix = infix };
     return ret;
@@ -259,13 +272,19 @@ fn parseFunctionParameters(self: *Parser) !?std.ArrayList(ast.Identifier) {
     self.nextToken();
 
     const token = self.current_token;
-    try params.append(.{ .token = token, .value = token.literal });
+    try params.append(.{
+        .token = token,
+        .value = try self.allocator.dupe(u8, token.literal),
+    });
 
     while (self.peek_token.type == .comma) {
         self.nextToken();
         self.nextToken();
         const current = self.current_token;
-        try params.append(.{ .token = current, .value = current.literal });
+        try params.append(.{
+            .token = current,
+            .value = try self.allocator.dupe(u8, current.literal),
+        });
     }
 
     if (!try self.advanceIfPeek(.right_paren)) {

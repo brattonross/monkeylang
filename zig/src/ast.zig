@@ -2,8 +2,10 @@ pub const Program = struct {
     statements: std.ArrayList(Statement),
 
     pub fn format(self: Program, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
         for (self.statements.items) |statement| {
-            try statement.format(fmt, options, writer);
+            try writer.print("{}", .{statement});
         }
     }
 };
@@ -14,10 +16,12 @@ pub const Statement = union(enum) {
     expression: ExpressionStatement,
 
     pub fn format(self: Statement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
         switch (self) {
-            .let => try self.let.format(fmt, options, writer),
-            .@"return" => try self.@"return".format(fmt, options, writer),
-            .expression => try self.expression.format(fmt, options, writer),
+            .let => try writer.print("{}", .{self.let}),
+            .@"return" => try writer.print("{}", .{self.@"return"}),
+            .expression => try writer.print("{}", .{self.expression}),
         }
     }
 };
@@ -50,7 +54,9 @@ pub const ExpressionStatement = struct {
     expression: *Expression,
 
     pub fn format(self: ExpressionStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        try self.expression.format(fmt, options, writer);
+        _ = fmt;
+        _ = options;
+        try writer.print("{}", .{self.expression});
     }
 };
 
@@ -76,15 +82,17 @@ pub const Expression = union(enum) {
     call: CallExpression,
 
     pub fn format(self: Expression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
         switch (self) {
-            .identifier => try self.identifier.format(fmt, options, writer),
-            .integer => try self.integer.format(fmt, options, writer),
-            .prefix => try self.prefix.format(fmt, options, writer),
-            .infix => try self.infix.format(fmt, options, writer),
-            .boolean => try self.boolean.format(fmt, options, writer),
-            .@"if" => try self.@"if".format(fmt, options, writer),
-            .function => try self.function.format(fmt, options, writer),
-            .call => try self.call.format(fmt, options, writer),
+            .identifier => try writer.print("{}", .{self.identifier}),
+            .integer => try writer.print("{}", .{self.integer}),
+            .prefix => try writer.print("{}", .{self.prefix}),
+            .infix => try writer.print("{}", .{self.infix}),
+            .boolean => try writer.print("{}", .{self.boolean}),
+            .@"if" => try writer.print("{}", .{self.@"if"}),
+            .function => try writer.print("{}", .{self.function}),
+            .call => try writer.print("{}", .{self.call}),
         }
     }
 };
@@ -96,7 +104,7 @@ pub const IntegerLiteral = struct {
     pub fn format(self: IntegerLiteral, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
-        try writer.print("{}", .{self.value});
+        try writer.print("{d}", .{self.value});
     }
 };
 
@@ -108,7 +116,7 @@ pub const PrefixExpression = struct {
     pub fn format(self: PrefixExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
-        try writer.print("{s}{}", .{ self.operator, self.right });
+        try writer.print("{s}{}", .{ self.operator, self.right.* });
     }
 };
 
@@ -121,7 +129,7 @@ pub const InfixExpression = struct {
     pub fn format(self: InfixExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
-        try writer.print("{} {s} {}", .{ self.left, self.operator, self.right });
+        try writer.print("{} {s} {}", .{ self.left.*, self.operator, self.right.* });
     }
 };
 
@@ -145,7 +153,7 @@ pub const IfExpression = struct {
     pub fn format(self: IfExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
-        try writer.print("if ({}) {{\n", .{self.condition});
+        try writer.print("if ({}) {{\n", .{self.condition.*});
         try writer.print("\t{}\n", .{self.consequence});
         try writer.writeAll("}");
 
@@ -162,8 +170,10 @@ pub const BlockStatement = struct {
     statements: std.ArrayList(Statement),
 
     pub fn format(self: BlockStatement, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
         for (self.statements.items) |statement| {
-            try statement.format(fmt, options, writer);
+            try writer.print("{}", .{statement});
         }
     }
 };
@@ -196,9 +206,9 @@ pub const CallExpression = struct {
         _ = fmt;
         _ = options;
 
-        try writer.print("{}(", .{self.function});
+        try writer.print("{}(", .{self.function.*});
         for (0..self.arguments.items.len) |i| {
-            try writer.print("{}", .{self.arguments.items[i]});
+            try writer.print("{}", .{self.arguments.items[i].*});
             if (i != self.arguments.items.len - 1) {
                 try writer.writeAll(", ");
             }
