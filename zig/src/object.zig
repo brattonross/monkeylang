@@ -11,6 +11,7 @@ pub const Object = union(Type) {
     function: Function,
     string: String,
     builtin: Builtin,
+    array: Array,
 
     pub const Type = enum {
         integer,
@@ -21,6 +22,7 @@ pub const Object = union(Type) {
         function,
         string,
         builtin,
+        array,
     };
 
     pub fn format(self: Object, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -33,6 +35,7 @@ pub const Object = union(Type) {
             .function => try self.function.format(fmt, options, writer),
             .string => try self.string.format(fmt, options, writer),
             .builtin => try writer.writeAll("builtin function"),
+            .array => try self.array.format(fmt, options, writer),
         }
     }
 };
@@ -111,6 +114,24 @@ pub const BuiltinError = std.mem.Allocator.Error;
 pub const Builtin = struct {
     allocator: std.mem.Allocator,
     function: *const fn (ctx: *anyopaque, args: []Object) BuiltinError!Object,
+};
+
+pub const Array = struct {
+    elements: std.ArrayList(Object),
+
+    pub fn format(self: Array, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.writeAll("[");
+        for (self.elements.items, 0..) |element, i| {
+            try writer.print("{}", .{element});
+            if (i < self.elements.items.len - 1) {
+                try writer.writeAll(", ");
+            }
+        }
+        try writer.writeAll("]");
+    }
 };
 
 const std = @import("std");

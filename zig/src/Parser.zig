@@ -93,6 +93,7 @@ const Precedence = enum(u4) {
     product,
     prefix,
     call,
+    index,
 };
 
 fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?*ast.Expression {
@@ -105,6 +106,7 @@ fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?*ast.Express
         .@"if" => try self.parseIfExpression(),
         .function => try self.parseFunctionLiteral(),
         .string => try self.parseStringLiteral(),
+        .left_bracket => try self.parseArrayLiteral(),
         else => {
             const msg = try std.fmt.allocPrint(self.allocator, "no prefix parse function for {} found", .{self.current_token.type});
             try self.errors.append(msg);
@@ -121,6 +123,10 @@ fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?*ast.Express
             .left_paren => {
                 self.nextToken();
                 left = try self.parseCallExpression(left) orelse return null;
+            },
+            .left_bracket => {
+                self.nextToken();
+                left = try self.parseIndexExpression(left) orelse return null;
             },
             else => return left,
         }
@@ -295,6 +301,33 @@ fn parseFunctionParameters(self: *Parser) !?std.ArrayList(ast.Identifier) {
     return params;
 }
 
+fn parseExpressionList(self: *Parser, end: Token.Type) !std.ArrayList(*ast.Expression) {
+    var expressions = std.ArrayList(*ast.Expression).init(self.allocator);
+
+    if (self.peek_token.type == end) {
+        self.nextToken();
+        return expressions;
+    }
+
+    self.nextToken();
+    const expression = try self.parseExpression(.lowest) orelse return error.NullExpression;
+    try expressions.append(expression);
+
+    while (self.peek_token.type == .comma) {
+        self.nextToken();
+        self.nextToken();
+        const exp = try self.parseExpression(.lowest) orelse return error.NullExpression;
+        try expressions.append(exp);
+    }
+
+    if (self.peek_token.type != end) {
+        return error.UnterminatedExpressionList;
+    }
+    self.nextToken();
+
+    return expressions;
+}
+
 fn parseStringLiteral(self: *Parser) !?*ast.Expression {
     const ret = try self.allocator.create(ast.Expression);
     ret.* = .{
@@ -303,6 +336,14 @@ fn parseStringLiteral(self: *Parser) !?*ast.Expression {
             .value = try self.allocator.dupe(u8, self.current_token.literal),
         },
     };
+    return ret;
+}
+
+fn parseArrayLiteral(self: *Parser) !?*ast.Expression {
+    const token = self.current_token;
+    const elements = try self.parseExpressionList(.right_bracket);
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .array = .{ .token = token, .elements = elements } };
     return ret;
 }
 
@@ -343,6 +384,22 @@ fn parseCallArguments(self: *Parser) !?std.ArrayList(*ast.Expression) {
     }
 
     return args;
+}
+
+fn parseIndexExpression(self: *Parser, left: *ast.Expression) !?*ast.Expression {
+    const token = self.current_token;
+    self.nextToken();
+
+    const index = try self.parseExpression(.lowest) orelse return error.NullExpression;
+
+    if (self.peek_token.type != .right_bracket) {
+        return error.UnterminatedIndexExpression;
+    }
+    self.nextToken();
+
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{ .index = .{ .token = token, .left = left, .index = index } };
+    return ret;
 }
 
 fn parseBlockStatement(self: *Parser) !?ast.BlockStatement {
@@ -392,6 +449,7 @@ fn tokenPrecedence(t: Token.Type) Precedence {
         .plus, .minus => .sum,
         .slash, .asterisk => .product,
         .left_paren => .call,
+        .left_bracket => .index,
         else => .lowest,
     };
 }

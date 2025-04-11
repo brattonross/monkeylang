@@ -81,6 +81,8 @@ pub const Expression = union(enum) {
     function: FunctionLiteral,
     call: CallExpression,
     string: StringLiteral,
+    array: ArrayLiteral,
+    index: IndexExpression,
 
     pub fn format(self: Expression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         switch (self) {
@@ -93,6 +95,8 @@ pub const Expression = union(enum) {
             .function => try writer.print("{}", .{self.function}),
             .call => try writer.print("{}", .{self.call}),
             .string => try self.string.format(fmt, options, writer),
+            .array => try self.array.format(fmt, options, writer),
+            .index => try self.index.format(fmt, options, writer),
         }
     }
 };
@@ -226,6 +230,38 @@ pub const StringLiteral = struct {
         _ = options;
 
         try writer.print("{s}", .{self.value});
+    }
+};
+
+pub const ArrayLiteral = struct {
+    token: Token,
+    elements: std.ArrayList(*Expression),
+
+    pub fn format(self: ArrayLiteral, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.writeAll("[");
+        for (self.elements.items, 0..) |element, i| {
+            try writer.print("{}", .{element});
+            if (i < self.elements.items.len - 1) {
+                try writer.writeAll(", ");
+            }
+        }
+        try writer.writeAll("]");
+    }
+};
+
+pub const IndexExpression = struct {
+    token: Token,
+    left: *Expression,
+    index: *Expression,
+
+    pub fn format(self: IndexExpression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print("({}[{}])", .{ self.left, self.index });
     }
 };
 

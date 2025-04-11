@@ -29,6 +29,8 @@ pub const Token = struct {
         right_paren,
         left_brace,
         right_brace,
+        left_bracket,
+        right_bracket,
 
         function,
         let,
@@ -93,6 +95,8 @@ pub fn nextToken(self: *Lexer) Token {
         ',' => .comma,
         '{' => .left_brace,
         '}' => .right_brace,
+        '[' => .left_bracket,
+        ']' => .right_bracket,
         else => blk: {
             if (isLetter(current)) {
                 const literal = self.readIdentifier();

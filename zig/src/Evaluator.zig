@@ -69,7 +69,47 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
             return try self.applyFunction(func, args.items);
         },
         .string => .{ .string = .{ .value = expression.string.value } },
+        .array => {
+            const arr = expression.array;
+            const elements = try self.evalExpressions(arr.elements.items, env);
+            if (elements.items.len == 1 and elements.items[0] == .@"error") {
+                return elements.items[0];
+            }
+            return .{ .array = .{ .elements = elements } };
+        },
+        .index => {
+            const exp = expression.index;
+            const left = try self.evalExpression(exp.left.*, env) orelse return error.NullExpression;
+            if (left == .@"error") {
+                return left;
+            }
+            const index = try self.evalExpression(exp.index.*, env) orelse return error.NullExpression;
+            if (index == .@"error") {
+                return index;
+            }
+            return try self.evalIndexExpression(left, index);
+        },
     };
+}
+
+fn evalIndexExpression(self: *Evaluator, left: Object, index: Object) !Object {
+    if (left == .array and index == .integer) {
+        return self.evalArrayIndexExpression(left, index);
+    } else {
+        const msg = try std.fmt.allocPrint(self.allocator, "index operator not supported: {s}", .{@tagName(left)});
+        return .{ .@"error" = .{ .message = msg } };
+    }
+}
+
+fn evalArrayIndexExpression(_: *Evaluator, left: Object, index: Object) Object {
+    const arr = left.array;
+    const idx = index.integer.value;
+    const max_index = arr.elements.items.len - 1;
+
+    if (idx < 0 or idx > max_index) {
+        return null_object;
+    }
+    return arr.elements.items[@intCast(idx)];
 }
 
 fn evalExpressions(self: *Evaluator, expressions: []*ast.Expression, env: *Environment) !std.ArrayList(Object) {
