@@ -124,11 +124,13 @@ pub const String = struct {
     }
 };
 
-pub const BuiltinError = std.mem.Allocator.Error;
+pub const BuiltinError = anyerror;
+pub const BuiltinFn = fn (ctx: *anyopaque, args: []Object) BuiltinError!Object;
 
 pub const Builtin = struct {
     allocator: std.mem.Allocator,
-    function: *const fn (ctx: *anyopaque, args: []Object) BuiltinError!Object,
+    stdout: std.io.AnyWriter,
+    function: *const BuiltinFn,
 };
 
 pub const Array = struct {

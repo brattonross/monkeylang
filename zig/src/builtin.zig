@@ -1,4 +1,4 @@
-pub fn len(ctx: *anyopaque, args: []Object) !Object {
+pub fn len(ctx: *anyopaque, args: []Object) BuiltinError!Object {
     const self: *Builtin = @ptrCast(@alignCast(ctx));
 
     if (args.len != 1) {
@@ -17,7 +17,7 @@ pub fn len(ctx: *anyopaque, args: []Object) !Object {
     };
 }
 
-pub fn first(ctx: *anyopaque, args: []Object) !Object {
+pub fn first(ctx: *anyopaque, args: []Object) BuiltinError!Object {
     const self: *Builtin = @ptrCast(@alignCast(ctx));
 
     if (args.len != 1) {
@@ -35,7 +35,7 @@ pub fn first(ctx: *anyopaque, args: []Object) !Object {
     };
 }
 
-pub fn last(ctx: *anyopaque, args: []Object) !Object {
+pub fn last(ctx: *anyopaque, args: []Object) BuiltinError!Object {
     const self: *Builtin = @ptrCast(@alignCast(ctx));
 
     if (args.len != 1) {
@@ -53,7 +53,7 @@ pub fn last(ctx: *anyopaque, args: []Object) !Object {
     };
 }
 
-pub fn tail(ctx: *anyopaque, args: []Object) !Object {
+pub fn tail(ctx: *anyopaque, args: []Object) BuiltinError!Object {
     const self: *Builtin = @ptrCast(@alignCast(ctx));
 
     if (args.len != 1) {
@@ -78,7 +78,7 @@ pub fn tail(ctx: *anyopaque, args: []Object) !Object {
     };
 }
 
-pub fn push(ctx: *anyopaque, args: []Object) !Object {
+pub fn push(ctx: *anyopaque, args: []Object) BuiltinError!Object {
     const self: *Builtin = @ptrCast(@alignCast(ctx));
 
     if (args.len != 2) {
@@ -101,8 +101,19 @@ pub fn push(ctx: *anyopaque, args: []Object) !Object {
     };
 }
 
+pub fn puts(ctx: *anyopaque, args: []Object) BuiltinError!Object {
+    const self: *Builtin = @ptrCast(@alignCast(ctx));
+
+    for (args) |arg| {
+        try self.stdout.print("{}", .{arg});
+    }
+    try self.stdout.writeAll("\n");
+    return null_object;
+}
+
 const std = @import("std");
 const object = @import("./object.zig");
 const Builtin = object.Builtin;
+const BuiltinError = object.BuiltinError;
 const Object = object.Object;
 const null_object = object.null_object;

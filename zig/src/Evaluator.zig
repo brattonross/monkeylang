@@ -344,44 +344,31 @@ fn evalIdentifier(self: *Evaluator, identifier: ast.Identifier, env: *Environmen
     if (env.get(identifier.value)) |obj| {
         return obj;
     } else if (std.mem.eql(u8, "len", identifier.value)) {
-        return .{
-            .builtin = .{
-                .allocator = self.allocator,
-                .function = builtin.len,
-            },
-        };
+        return self.builtinFrom(builtin.len);
     } else if (std.mem.eql(u8, "first", identifier.value)) {
-        return .{
-            .builtin = .{
-                .allocator = self.allocator,
-                .function = builtin.first,
-            },
-        };
+        return self.builtinFrom(builtin.first);
     } else if (std.mem.eql(u8, "last", identifier.value)) {
-        return .{
-            .builtin = .{
-                .allocator = self.allocator,
-                .function = builtin.last,
-            },
-        };
+        return self.builtinFrom(builtin.last);
     } else if (std.mem.eql(u8, "tail", identifier.value)) {
-        return .{
-            .builtin = .{
-                .allocator = self.allocator,
-                .function = builtin.tail,
-            },
-        };
+        return self.builtinFrom(builtin.tail);
     } else if (std.mem.eql(u8, "push", identifier.value)) {
-        return .{
-            .builtin = .{
-                .allocator = self.allocator,
-                .function = builtin.push,
-            },
-        };
+        return self.builtinFrom(builtin.push);
+    } else if (std.mem.eql(u8, "puts", identifier.value)) {
+        return self.builtinFrom(builtin.puts);
     } else {
         const msg = try std.fmt.allocPrint(self.allocator, "identifier not found: {s}", .{identifier.value});
         return .{ .@"error" = .{ .message = msg } };
     }
+}
+
+fn builtinFrom(self: *Evaluator, func: *const object.BuiltinFn) Object {
+    return .{
+        .builtin = .{
+            .allocator = self.allocator,
+            .stdout = std.io.getStdOut().writer().any(),
+            .function = func,
+        },
+    };
 }
 
 fn isTruthy(obj: Object) bool {
