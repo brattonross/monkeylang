@@ -80,10 +80,9 @@ pub const Expression = union(enum) {
     @"if": IfExpression,
     function: FunctionLiteral,
     call: CallExpression,
+    string: StringLiteral,
 
     pub fn format(self: Expression, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
         switch (self) {
             .identifier => try writer.print("{}", .{self.identifier}),
             .integer => try writer.print("{}", .{self.integer}),
@@ -93,6 +92,7 @@ pub const Expression = union(enum) {
             .@"if" => try writer.print("{}", .{self.@"if"}),
             .function => try writer.print("{}", .{self.function}),
             .call => try writer.print("{}", .{self.call}),
+            .string => try self.string.format(fmt, options, writer),
         }
     }
 };
@@ -214,6 +214,18 @@ pub const CallExpression = struct {
             }
         }
         try writer.writeAll(")");
+    }
+};
+
+pub const StringLiteral = struct {
+    token: Token,
+    value: []const u8,
+
+    pub fn format(self: StringLiteral, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+
+        try writer.print("{s}", .{self.value});
     }
 };
 

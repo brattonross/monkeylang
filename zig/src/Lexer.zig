@@ -8,6 +8,7 @@ pub const Token = struct {
 
         identifier,
         integer,
+        string,
 
         assign,
         plus,
@@ -78,6 +79,10 @@ pub fn nextToken(self: *Lexer) Token {
             }
             break :blk .bang;
         },
+        '"' => {
+            const literal = self.readString();
+            return .{ .type = .string, .literal = literal };
+        },
         '/' => .slash,
         '*' => .asterisk,
         '<' => .less_than,
@@ -147,6 +152,20 @@ fn readNumber(self: *Lexer) []const u8 {
         self.advance();
     }
     return self.buffer[pos..self.pos];
+}
+
+fn readString(self: *Lexer) []const u8 {
+    const start_pos = self.pos + 1;
+    while (true) {
+        self.advance();
+        // TODO: this should return an error if we reach eof
+        if (self.currentByte()) |c| {
+            if (c == '"') break;
+        } else break;
+    }
+    const value = self.buffer[start_pos..self.pos];
+    self.advance();
+    return value;
 }
 
 fn lookupIdent(identifier: []const u8) Token.Type {

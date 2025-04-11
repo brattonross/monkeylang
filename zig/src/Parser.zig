@@ -104,6 +104,7 @@ fn parseExpression(self: *Parser, precedence: Precedence) anyerror!?*ast.Express
         .left_paren => try self.parseGroupedExpression(),
         .@"if" => try self.parseIfExpression(),
         .function => try self.parseFunctionLiteral(),
+        .string => try self.parseStringLiteral(),
         else => {
             const msg = try std.fmt.allocPrint(self.allocator, "no prefix parse function for {} found", .{self.current_token.type});
             try self.errors.append(msg);
@@ -292,6 +293,17 @@ fn parseFunctionParameters(self: *Parser) !?std.ArrayList(ast.Identifier) {
     }
 
     return params;
+}
+
+fn parseStringLiteral(self: *Parser) !?*ast.Expression {
+    const ret = try self.allocator.create(ast.Expression);
+    ret.* = .{
+        .string = .{
+            .token = self.current_token,
+            .value = try self.allocator.dupe(u8, self.current_token.literal),
+        },
+    };
+    return ret;
 }
 
 fn parseCallExpression(self: *Parser, function: *ast.Expression) !?*ast.Expression {

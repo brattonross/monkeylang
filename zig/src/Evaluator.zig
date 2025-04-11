@@ -68,6 +68,7 @@ fn evalExpression(self: *Evaluator, expression: ast.Expression, env: *Environmen
             }
             return try self.applyFunction(func, args.items);
         },
+        .string => .{ .string = .{ .value = expression.string.value } },
     };
 }
 
@@ -145,6 +146,8 @@ fn evalInfixExpression(self: *Evaluator, operator: []const u8, left: ?Object, ri
     const r = right orelse return null_object;
     if (l == .integer and r == .integer) {
         return self.evalIntegerInfixExpression(operator, l, r);
+    } else if (l == .string and r == .string) {
+        return self.evalStringInfixExpression(operator, l, r);
     } else if (std.mem.eql(u8, operator, "==")) {
         return self.evalObjectEqualComparison(l, r);
     } else if (std.mem.eql(u8, operator, "!=")) {
@@ -207,6 +210,21 @@ fn evalIntegerInfixExpression(self: *Evaluator, operator: []const u8, left: Obje
     }
 }
 
+fn evalStringInfixExpression(self: *Evaluator, operator: []const u8, left: Object, right: Object) !Object {
+    const lvalue = left.string.value;
+    const rvalue = right.string.value;
+
+    if (std.mem.eql(u8, "+", operator)) {
+        const value = try self.allocator.alloc(u8, lvalue.len + rvalue.len);
+        std.mem.copyForwards(u8, value, lvalue);
+        std.mem.copyForwards(u8, value[lvalue.len..], rvalue);
+        return .{ .string = .{ .value = value } };
+    } else {
+        const msg = try std.fmt.allocPrint(self.allocator, "unknown operator: {} {s} {}", .{ @as(Object.Type, left), operator, @as(Object.Type, right) });
+        return .{ .@"error" = .{ .message = msg } };
+    }
+}
+
 fn evalIfExpression(self: *Evaluator, expression: ast.IfExpression, env: *Environment) !?Object {
     const condition = try self.evalExpression(expression.condition.*, env) orelse return null;
     if (condition == .@"error") {
@@ -261,6 +279,7 @@ pub const Object = union(Type) {
     @"return": *ReturnValue,
     @"error": Error,
     function: Function,
+    string: String,
 
     pub const Type = enum {
         integer,
@@ -269,6 +288,7 @@ pub const Object = union(Type) {
         @"return",
         @"error",
         function,
+        string,
     };
 
     pub fn format(self: Object, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -279,6 +299,7 @@ pub const Object = union(Type) {
             .@"return" => try self.@"return".format(fmt, options, writer),
             .@"error" => try self.@"error".format(fmt, options, writer),
             .function => try self.function.format(fmt, options, writer),
+            .string => try self.string.format(fmt, options, writer),
         }
     }
 };
@@ -339,6 +360,16 @@ pub const Function = struct {
             }
         }
         try writer.print(") {{\n{}\n}}", .{self.body});
+    }
+};
+
+pub const String = struct {
+    value: []const u8,
+
+    pub fn format(self: String, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{s}", .{self.value});
     }
 };
 
