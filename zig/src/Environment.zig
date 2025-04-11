@@ -27,4 +27,4 @@ const Environment = @This();
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Object = @import("./Evaluator.zig").Object;
+const Object = @import("./object.zig").Object;

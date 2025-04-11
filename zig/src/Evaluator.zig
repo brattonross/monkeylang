@@ -90,15 +90,23 @@ fn evalExpressions(self: *Evaluator, expressions: []*ast.Expression, env: *Envir
 }
 
 fn applyFunction(self: *Evaluator, func: Object, args: []Object) !?Object {
-    if (func != .function) {
-        const msg = try std.fmt.allocPrint(self.allocator, "not a function: {s}", .{@tagName(func)});
-        return .{ .@"error" = .{ .message = msg } };
-    }
-    const extended_env = try self.extendFunctionEnv(func.function, args);
-    const result = try self.evalBlockStatement(func.function.body, extended_env) orelse return null;
-    return switch (result) {
-        .@"return" => result.@"return".value,
-        else => result,
+    return switch (func) {
+        .function => blk: {
+            const extended_env = try self.extendFunctionEnv(func.function, args);
+            const result = try self.evalBlockStatement(func.function.body, extended_env) orelse break :blk null;
+            break :blk switch (result) {
+                .@"return" => result.@"return".value,
+                else => result,
+            };
+        },
+        .builtin => blk: {
+            var ctx = func.builtin;
+            break :blk try func.builtin.function(&ctx, args);
+        },
+        else => blk: {
+            const msg = try std.fmt.allocPrint(self.allocator, "not a function: {s}", .{@tagName(func)});
+            break :blk .{ .@"error" = .{ .message = msg } };
+        },
     };
 }
 
@@ -250,10 +258,19 @@ fn evalBlockStatement(self: *Evaluator, blk: ast.BlockStatement, env: *Environme
 }
 
 fn evalIdentifier(self: *Evaluator, identifier: ast.Identifier, env: *Environment) !Object {
-    return env.get(identifier.value) orelse {
+    if (env.get(identifier.value)) |obj| {
+        return obj;
+    } else if (std.mem.eql(u8, "len", identifier.value)) {
+        return .{
+            .builtin = .{
+                .allocator = self.allocator,
+                .function = builtin.len,
+            },
+        };
+    } else {
         const msg = try std.fmt.allocPrint(self.allocator, "identifier not found: {s}", .{identifier.value});
         return .{ .@"error" = .{ .message = msg } };
-    };
+    }
 }
 
 fn isTruthy(obj: Object) bool {
@@ -268,114 +285,17 @@ fn nativeBoolToBooleanObject(input: bool) Object {
     return if (input) true_object else false_object;
 }
 
-const true_object = Object{ .boolean = .{ .value = true } };
-const false_object = Object{ .boolean = .{ .value = false } };
-const null_object = Object{ .null = {} };
-
-pub const Object = union(Type) {
-    integer: Integer,
-    boolean: Boolean,
-    null: void,
-    @"return": *ReturnValue,
-    @"error": Error,
-    function: Function,
-    string: String,
-
-    pub const Type = enum {
-        integer,
-        boolean,
-        null,
-        @"return",
-        @"error",
-        function,
-        string,
-    };
-
-    pub fn format(self: Object, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        switch (self) {
-            .integer => try self.integer.format(fmt, options, writer),
-            .boolean => try self.boolean.format(fmt, options, writer),
-            .null => try writer.writeAll("null"),
-            .@"return" => try self.@"return".format(fmt, options, writer),
-            .@"error" => try self.@"error".format(fmt, options, writer),
-            .function => try self.function.format(fmt, options, writer),
-            .string => try self.string.format(fmt, options, writer),
-        }
-    }
-};
-
-pub const Integer = struct {
-    value: i64,
-
-    pub fn format(self: Integer, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("{}", .{self.value});
-    }
-};
-
-pub const Boolean = struct {
-    value: bool,
-
-    pub fn format(self: Boolean, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("{}", .{self.value});
-    }
-};
-
-pub const ReturnValue = struct {
-    value: Object,
-
-    pub fn format(self: ReturnValue, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("{}", .{self.value});
-    }
-};
-
-pub const Error = struct {
-    message: []const u8,
-
-    pub fn format(self: Error, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("{s}", .{self.message});
-    }
-};
-
-pub const Function = struct {
-    parameters: std.ArrayList(ast.Identifier),
-    body: ast.BlockStatement,
-    env: *Environment,
-
-    pub fn format(self: Function, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.writeAll("fn(");
-        for (0..self.parameters.items.len) |i| {
-            try writer.print("{}", .{self.parameters.items[i]});
-            if (i < self.parameters.items.len - 1) {
-                try writer.writeAll(", ");
-            }
-        }
-        try writer.print(") {{\n{}\n}}", .{self.body});
-    }
-};
-
-pub const String = struct {
-    value: []const u8,
-
-    pub fn format(self: String, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        try writer.print("{s}", .{self.value});
-    }
-};
-
 const Evaluator = @This();
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ast = @import("./ast.zig");
+const builtin = @import("./builtin.zig");
 const Environment = @import("./Environment.zig");
+const object = @import("./object.zig");
+const Object = object.Object;
+const Function = object.Function;
+const ReturnValue = object.ReturnValue;
+const true_object = object.true_object;
+const false_object = object.false_object;
+const null_object = object.null_object;
