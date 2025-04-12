@@ -30,7 +30,7 @@ pub fn main() !void {
     } else {
         var stdout = std.io.getStdOut().writer();
         var stdin = std.io.getStdIn().reader();
-        var env = Environment.init(allocator);
+        // var env = Environment.init(allocator);
 
         while (true) {
             try stdout.writeAll(">> ");
@@ -43,23 +43,36 @@ pub fn main() !void {
 
                 for (parser.errors.items) |err| {
                     std.log.err("{s}", .{err});
+                    continue;
                 }
 
-                var evaluator = Evaluator{ .allocator = allocator };
-                if (try evaluator.evalProgram(program, &env)) |result| {
-                    std.debug.print("{}\n", .{result});
-                }
+                var compiler = Compiler.init(allocator);
+                try compiler.compile(program);
+
+                var vm = VirtualMachine.init(compiler.bytecode());
+                try vm.run();
+
+                const stack_top = vm.stackTop();
+                try stdout.print("{?}\n", .{stack_top});
+
+                _ = arena.reset(.free_all);
             }
         }
     }
 }
 
 test {
+    _ = @import("./Compiler.zig");
     _ = @import("./Parser.zig");
+    _ = @import("./VirtualMachine.zig");
+    _ = @import("./code.zig");
 }
 
 const std = @import("std");
+const code = @import("./code.zig");
+const Compiler = @import("./Compiler.zig");
 const Lexer = @import("./Lexer.zig");
 const Parser = @import("./Parser.zig");
 const Evaluator = @import("./Evaluator.zig");
 const Environment = @import("./Environment.zig");
+const VirtualMachine = @import("./VirtualMachine.zig");

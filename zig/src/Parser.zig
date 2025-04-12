@@ -19,6 +19,10 @@ pub fn init(allocator: Allocator, lexer: *Lexer) !Parser {
     return parser;
 }
 
+pub fn deinit(self: Parser) void {
+    self.errors.deinit();
+}
+
 pub fn parseProgram(self: *Parser) !ast.Program {
     var statements = std.ArrayList(ast.Statement).init(self.allocator);
     while (self.current_token.type != .eof) {
