@@ -22,7 +22,10 @@ pub fn compile(self: *Compiler, program: ast.Program) !void {
 
 fn compileStatement(self: *Compiler, statement: ast.Statement) !void {
     switch (statement) {
-        .expression => try self.compileExpression(statement.expression.expression.*),
+        .expression => {
+            try self.compileExpression(statement.expression.expression.*);
+            _ = try self.emit(.pop, &.{});
+        },
         else => std.debug.panic("unsupported statement type: {s}", .{@tagName(statement)}),
     }
 }
@@ -35,12 +38,46 @@ fn compileExpression(self: *Compiler, expression: ast.Expression) !void {
             var operands = [_]usize{pos};
             _ = try self.emit(.constant, &operands);
         },
+        .boolean => |b| {
+            _ = try self.emit(if (b.value) .true else .false, &.{});
+        },
+        .prefix => |prefix| {
+            try self.compileExpression(prefix.right.*);
+            if (std.mem.eql(u8, "!", prefix.operator)) {
+                _ = try self.emit(.bang, &.{});
+            } else if (std.mem.eql(u8, "-", prefix.operator)) {
+                _ = try self.emit(.minus, &.{});
+            } else {
+                return error.UnknownOperator;
+            }
+        },
         .infix => |infix| {
+            if (std.mem.eql(u8, "<", infix.operator)) {
+                try self.compileExpression(infix.right.*);
+                try self.compileExpression(infix.left.*);
+                _ = try self.emit(.greater_than, &.{});
+                return;
+            }
+
             try self.compileExpression(infix.left.*);
             try self.compileExpression(infix.right.*);
 
             if (std.mem.eql(u8, "+", infix.operator)) {
                 _ = try self.emit(.add, &.{});
+            } else if (std.mem.eql(u8, "-", infix.operator)) {
+                _ = try self.emit(.sub, &.{});
+            } else if (std.mem.eql(u8, "*", infix.operator)) {
+                _ = try self.emit(.mul, &.{});
+            } else if (std.mem.eql(u8, "/", infix.operator)) {
+                _ = try self.emit(.div, &.{});
+            } else if (std.mem.eql(u8, ">", infix.operator)) {
+                _ = try self.emit(.greater_than, &.{});
+            } else if (std.mem.eql(u8, "==", infix.operator)) {
+                _ = try self.emit(.equal, &.{});
+            } else if (std.mem.eql(u8, "!=", infix.operator)) {
+                _ = try self.emit(.not_equal, &.{});
+            } else {
+                return error.UnknownOperator;
             }
         },
         else => std.debug.panic("unsupported expression type: {s}", .{@tagName(expression)}),
@@ -146,6 +183,153 @@ test "integer arithmetic" {
                 try code.make(allocator, .constant, &.{0}),
                 try code.make(allocator, .constant, &.{1}),
                 try code.make(allocator, .add, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1; 2",
+            .expected_constants = &.{ 1, 2 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .pop, &.{}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1 - 2",
+            .expected_constants = &.{ 1, 2 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .sub, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1 * 2",
+            .expected_constants = &.{ 1, 2 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .mul, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "2 / 1",
+            .expected_constants = &.{ 2, 1 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .div, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "-1",
+            .expected_constants = &.{1},
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .minus, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+    };
+
+    try runCompilerTests(allocator, &test_cases);
+}
+
+test "boolean expressions" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    const test_cases = [_]CompilerTestCase{
+        .{
+            .input = "true",
+            .expected_constants = &.{},
+            .expected_instructions = &.{
+                try code.make(allocator, .true, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "false",
+            .expected_constants = &.{},
+            .expected_instructions = &.{
+                try code.make(allocator, .false, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1 > 2",
+            .expected_constants = &.{ 1, 2 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .greater_than, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1 < 2",
+            .expected_constants = &.{ 2, 1 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .greater_than, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1 == 2",
+            .expected_constants = &.{ 1, 2 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .equal, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "1 != 2",
+            .expected_constants = &.{ 1, 2 },
+            .expected_instructions = &.{
+                try code.make(allocator, .constant, &.{0}),
+                try code.make(allocator, .constant, &.{1}),
+                try code.make(allocator, .not_equal, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "true == false",
+            .expected_constants = &.{},
+            .expected_instructions = &.{
+                try code.make(allocator, .true, &.{}),
+                try code.make(allocator, .false, &.{}),
+                try code.make(allocator, .equal, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "true != false",
+            .expected_constants = &.{},
+            .expected_instructions = &.{
+                try code.make(allocator, .true, &.{}),
+                try code.make(allocator, .false, &.{}),
+                try code.make(allocator, .not_equal, &.{}),
+                try code.make(allocator, .pop, &.{}),
+            },
+        },
+        .{
+            .input = "!true",
+            .expected_constants = &.{},
+            .expected_instructions = &.{
+                try code.make(allocator, .true, &.{}),
+                try code.make(allocator, .bang, &.{}),
+                try code.make(allocator, .pop, &.{}),
             },
         },
     };

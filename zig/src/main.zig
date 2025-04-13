@@ -52,8 +52,8 @@ pub fn main() !void {
                 var vm = VirtualMachine.init(compiler.bytecode());
                 try vm.run();
 
-                const stack_top = vm.stackTop();
-                try stdout.print("{?}\n", .{stack_top});
+                const last_popped = vm.lastPoppedStackElem();
+                try stdout.print("{}\n", .{last_popped});
 
                 _ = arena.reset(.free_all);
             }

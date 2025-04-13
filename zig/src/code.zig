@@ -44,6 +44,17 @@ pub const Instructions = struct {
 pub const Opcode = enum(u8) {
     constant,
     add,
+    pop,
+    sub,
+    mul,
+    div,
+    true,
+    false,
+    equal,
+    not_equal,
+    greater_than,
+    minus,
+    bang,
 };
 
 pub const Definition = struct {
@@ -59,6 +70,50 @@ pub fn lookup(opcode: Opcode) ?Definition {
         },
         .add => .{
             .name = "OpAdd",
+            .operand_widths = &.{},
+        },
+        .pop => .{
+            .name = "OpPop",
+            .operand_widths = &.{},
+        },
+        .sub => .{
+            .name = "OpSub",
+            .operand_widths = &.{},
+        },
+        .mul => .{
+            .name = "OpMul",
+            .operand_widths = &.{},
+        },
+        .div => .{
+            .name = "OpDiv",
+            .operand_widths = &.{},
+        },
+        .true => .{
+            .name = "OpTrue",
+            .operand_widths = &.{},
+        },
+        .false => .{
+            .name = "OpFalse",
+            .operand_widths = &.{},
+        },
+        .equal => .{
+            .name = "OpEqual",
+            .operand_widths = &.{},
+        },
+        .not_equal => .{
+            .name = "OpNotEqual",
+            .operand_widths = &.{},
+        },
+        .greater_than => .{
+            .name = "OpGreaterThan",
+            .operand_widths = &.{},
+        },
+        .minus => .{
+            .name = "OpMinus",
+            .operand_widths = &.{},
+        },
+        .bang => .{
+            .name = "OpBang",
             .operand_widths = &.{},
         },
     };
